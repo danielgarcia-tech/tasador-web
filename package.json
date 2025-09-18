@@ -1,0 +1,48 @@
+{
+  "name": "tasador-web",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc -b && vite build",
+    "lint": "eslint .",
+    "preview": "vite preview",
+    "upload-costas": "node scripts/upload-costas.js"
+  },
+  "dependencies": {
+    "@hookform/resolvers": "^5.2.2",
+    "@supabase/auth-ui-react": "^0.4.7",
+    "@supabase/auth-ui-shared": "^0.1.8",
+    "@supabase/supabase-js": "^2.57.4",
+    "date-fns": "^4.1.0",
+    "jspdf": "^3.0.2",
+    "jspdf-autotable": "^5.0.2",
+    "lucide-react": "^0.544.0",
+    "react": "^19.1.1",
+    "react-dom": "^19.1.1",
+    "react-hook-form": "^7.62.0",
+    "react-router-dom": "^7.9.1",
+    "react-select": "^5.10.2",
+    "xlsx": "^0.18.5",
+    "zod": "^4.1.9"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.33.0",
+    "@tailwindcss/forms": "^0.5.7",
+    "@types/react": "^19.1.10",
+    "@types/react-dom": "^19.1.7",
+    "@vitejs/plugin-react-swc": "^4.0.0",
+    "autoprefixer": "^10.4.21",
+    "dotenv": "^17.2.2",
+    "eslint": "^9.33.0",
+    "eslint-plugin-react-hooks": "^5.2.0",
+    "eslint-plugin-react-refresh": "^0.4.20",
+    "globals": "^16.3.0",
+    "postcss": "^8.5.6",
+    "tailwindcss": "^3.4.0",
+    "typescript": "~5.8.3",
+    "typescript-eslint": "^8.39.1",
+    "vite": "^7.1.2"
+  }
+}

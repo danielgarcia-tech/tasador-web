@@ -1,0 +1,92 @@
+-- Script para poblar la base de datos con datos iniciales
+-- Ejecutar después de crear las tablas
+
+-- Insertar entidades desde diccionarios_datos.json
+INSERT INTO entidades (codigo, nombre_completo) VALUES
+('UCI', 'UNIÓN DE CRÉDITOS INMOBILIARIOS, S.A.'),
+('4FINANCE', '4FINANCE SPAIN FINANCIAL SERVICES, SAU'),
+('ABANCA', 'ABANCA CORPORACIÓN BANCARIA, SA'),
+('ADVANZIA', 'ADVANZIA BANK SA'),
+('AMERICAN EXPRESS', 'AMERICAN EXPRESS, S.A.U.'),
+('AVANT', 'AVANT CREDIT S.A.'),
+('WIZINK', 'WIZINK BANK, SA'),
+('XFERA', 'XFERA Consumer Finance EFC, SA'),
+('YOUNITED', 'YOUNITED, Sucursal en España'),
+('BANKINTER S.A.', 'BANKINTER, S.A.'),
+('BANKINTER CONSUMER', 'BANKINTER CONSUMER FINANCE, EFC, SA'),
+('BBVA', 'BANCO BILBAO VIZCAYA ARGENTARIA, SA (BBVA SA)'),
+('BIGBANK', 'BIGBANK AS CONSUMER FINANCE'),
+('BLUE FINANCE (AZLO)', 'BLUE FINANCE IBERICA SL'),
+('BONDORA', 'BONDORA AS'),
+('CABOT', 'CABOT FINANCIAL SPAIN S.A.'),
+('CAIXABANK', 'CAIXABANK, SA'),
+('CAIXAPC', 'CAIXABANK PAYMENTS & CONSUMER EFC EP SA'),
+('CAJA LABORAL POPULAR (LABORAL KUTXA)', 'CAJA LABORAL POPULAR COOP DE CREDITO'),
+('CAJA RURAL CENTRAL', 'CAJA RURAL CENTRAL, S.C.C.'),
+('CAJA RURAL DE ARAGON', 'CAJA RURAL DE ARAGÓN S.C.C.'),
+('CAJA RURAL DE GRANADA', 'Caja Rural de Granada, Sociedad Cooperativa de Crédito'),
+('CAJA RURAL DE NAVARRA', 'Caja Rural de Navarra, Sociedad Cooperativa de Crédito'),
+('CAJA RURAL DEL SUR', 'Caja Rural del Sur, S. Coop. de Crédito'),
+('CAJA RURAL JAEN', 'Caja Rural de Jaén, Barcelona y Madrid S. C. C.'),
+('CAJAMAR', 'Cajamar Caja Rural, Sociedad Cooperativa de Crédito'),
+('CAJASIETE', 'Cajasiete, Caja Rural, S.C.C.'),
+('CAJAVIVA', 'Caja Rural de Burgos, Fuentepelayo, Segovia y Castelldans, SCC'),
+('CARREFOUR', 'SERVICIOS FINANCIEROS CARREFOUR, EFC, SA'),
+('CASHPER', 'NOVUM BANK LIMITED'),
+('CETELEM', 'BANCO CETELEM, SAU'),
+('COFIDIS', 'COFIDIS SA SUCURSAL EN ESPAÑA'),
+('CORTEINGLES', 'FINANCIERA EL CORTE INGLES, EFC, S.A.'),
+('CREAMFINANCE', 'AVAFIN SPAIN SL (Anteriormente denominada CLICK FINANCE SL, CREAMFINANCE SPAIN SL)'),
+('CREDITEA', 'A CUBRIR'),
+('CREDITERO', 'Credirect Préstamos SLU'),
+('CREDITO POSTAL', 'CREDITO A DOMICILIO S.L.'),
+('CREDITO SI', 'CREAMFINANCE SPAIN, SLU'),
+('DEUTSCHE BANK', 'DEUTSCHE BANK, Sociedad Anónima Española Unipersonal'),
+('DINEO', 'DINEO CREDITO SL'),
+('EOS SPAIN', 'EOS SPAIN SL'),
+('EUROCAJA RURAL', 'Eurocaja Rural, S.C.C.'),
+('EVO BANCO', 'EVO BANCO SA'),
+('EVO FINANCE', 'falta')
+ON CONFLICT (codigo) DO NOTHING;
+
+-- Insertar municipios desde municipios_ica_import.csv
+INSERT INTO municipios (nombre, provincia, criterio_ica) VALUES
+('VERA', 'Andalucía', 'Almería'),
+('ALMERIA', 'Andalucía', 'Almería'),
+('BERJA', 'Andalucía', 'Almería'),
+('HUÉRCAL-OVERA', 'Andalucía', 'Almería'),
+('PURCHENA', 'Andalucía', 'Almería'),
+('ROQUETAS DE MAR', 'Andalucía', 'Almería'),
+('VÉLEZ-RUBIO', 'Andalucía', 'Almería'),
+('CÁDIZ', 'Andalucía', 'Cádiz'),
+('CHICLANA DE LA FRONTERA', 'Andalucía', 'Cádiz'),
+('JEREZ DE LA FRONTERA', 'Andalucía', 'Jerez de la Frontera'),
+('LA LÍNEA DE LA CONCEPCIÓN', 'Andalucía', 'Cádiz'),
+('EL PUERTO DE SANTA MARÍA', 'Andalucía', 'Cádiz'),
+('ROTA', 'Andalucía', 'Cádiz'),
+('SAN FERNANDO', 'Andalucía', 'Cádiz'),
+('SANLÚCAR DE BARRAMEDA', 'Andalucía', 'Cádiz'),
+('SAN ROQUE', 'Andalucía', 'Cádiz'),
+('UBRIQUE', 'Andalucía', 'Cádiz'),
+('ALGECIRAS', 'Andalucía', 'Cádiz'),
+('ARCOS DE LA FRONTERA', 'Andalucía', 'Cádiz'),
+('CÓRDOBA', 'Andalucía', 'Córdoba'),
+('GRANADA', 'Andalucía', 'Granada'),
+('HUELVA', 'Andalucía', 'Huelva'),
+('JAÉN', 'Andalucía', 'Jaén'),
+('MÁLAGA', 'Andalucía', 'Málaga'),
+('SEVILLA', 'Andalucía', 'Sevilla')
+ON CONFLICT (nombre, provincia) DO NOTHING;
+
+-- Insertar criterios ICA desde valores_pordefecto.json
+INSERT INTO criterios_ica (provincia, criterio_ica, allanamiento, audiencia_previa, juicio, factor_apelacion, verbal_alegaciones, verbal_vista) VALUES
+('Andalucía', 'Almería', 1328.40, 1881.90, 2214.00, 0.5, 0.5, 0.5),
+('Andalucía', 'Cádiz', 1536.00, 2304.00, 3072.00, 0.5, 0.75, 0.25),
+('Andalucía', 'Córdoba', 1326.60, 1437.15, 2211.00, 0.5, 0.75, 0.25),
+('Andalucía', 'Granada', 1326.60, 1437.15, 2211.00, 0.5, 0.75, 0.25),
+('Andalucía', 'Huelva', 1328.40, 1881.90, 2214.00, 0.5, 0.75, 0.25),
+('Andalucía', 'Jaén', 1658.25, 1437.15, 2211.00, 0.5, 0.75, 0.25),
+('Andalucía', 'Jerez de la Frontera', 1328.40, 1881.90, 2214.00, 0.5, 0.75, 0.25),
+('Andalucía', 'Málaga', 1326.60, 1879.35, 2211.00, 0.5, 0.75, 0.25),
+('Andalucía', 'Sevilla', 1105.50, 1658.25, 2211.00, 0.5, 0.5, 0.5)
+ON CONFLICT (provincia, criterio_ica) DO NOTHING;
