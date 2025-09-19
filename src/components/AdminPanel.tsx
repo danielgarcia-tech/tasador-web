@@ -1,12 +1,13 @@
 import { useState } from 'react'
-import { Settings, MapPin, Building2, Calculator, FileText, RefreshCw } from 'lucide-react'
+import { Settings, MapPin, Building2, Calculator, FileText, RefreshCw, Users } from 'lucide-react'
 import { useAuth } from '../contexts/CustomAuthContext'
 import EntidadesTable from './EntidadesTable'
 import MunicipioICATable from './MunicipioICATable'
 import CostasXICATable from './CostasXICATable'
 import WordTemplateSettings from './WordTemplateSettings.tsx'
+import UsersManagement from './UsersManagement'
 
-type AdminSection = 'valores_ica' | 'criterios_ica' | 'municipios' | 'entidades' | 'municipio_ica' | 'costasxica' | 'word_templates'
+type AdminSection = 'valores_ica' | 'criterios_ica' | 'municipios' | 'entidades' | 'municipio_ica' | 'costasxica' | 'word_templates' | 'users'
 
 export default function AdminPanel() {
   const { user, refreshUser } = useAuth()
@@ -106,6 +107,10 @@ export default function AdminPanel() {
     <WordTemplateSettings />
   )
 
+  const renderUsers = () => (
+    <UsersManagement />
+  )
+
   const renderContent = () => {
     switch (activeSection) {
       case 'criterios_ica':
@@ -122,6 +127,8 @@ export default function AdminPanel() {
         return renderCostasXICA()
       case 'word_templates':
         return renderWordTemplates()
+      case 'users':
+        return renderUsers()
       default:
         return <div>Sección no implementada</div>
     }
@@ -221,6 +228,20 @@ export default function AdminPanel() {
           >
             <FileText className="h-5 w-5" />
             <span>Plantillas HTML</span>
+          </button>
+
+          <hr className="my-2" />
+          
+          <button
+            onClick={() => setActiveSection('users')}
+            className={`w-full flex items-center space-x-3 px-4 py-3 rounded-lg text-left transition-colors ${
+              activeSection === 'users'
+                ? 'bg-red-100 text-red-700 border-red-200 border'
+                : 'text-gray-700 hover:bg-gray-100'
+            }`}
+          >
+            <Users className="h-5 w-5" />
+            <span>Gestión de Usuarios</span>
           </button>
         </div>
 
