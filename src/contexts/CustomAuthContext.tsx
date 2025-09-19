@@ -15,6 +15,7 @@ interface AuthContextType {
   login: (email: string, password: string) => Promise<{ success: boolean; error?: string }>
   logout: () => Promise<void>
   register: (email: string, password: string, nombre: string) => Promise<{ success: boolean; error?: string }>
+  refreshUser: () => Promise<void>
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
@@ -144,6 +145,41 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }
 
+  const refreshUser = async (): Promise<void> => {
+    try {
+      if (!user) return
+
+      // Obtener información actualizada del usuario desde la base de datos
+      const { data: userData, error } = await supabase
+        .from('usuarios_personalizados')
+        .select('*')
+        .eq('id', user.id)
+        .eq('activo', true)
+        .single()
+
+      if (error || !userData) {
+        console.error('Error al refrescar usuario:', error)
+        return
+      }
+
+      // Crear objeto de usuario actualizado
+      const updatedUser: User = {
+        id: userData.id,
+        email: userData.email,
+        nombre: userData.nombre,
+        rol: userData.rol
+      }
+
+      // Actualizar localStorage y estado
+      localStorage.setItem('user', JSON.stringify(updatedUser))
+      setUser(updatedUser)
+
+      console.log('Usuario actualizado:', updatedUser)
+    } catch (error) {
+      console.error('Error al refrescar usuario:', error)
+    }
+  }
+
   const logout = async (): Promise<void> => {
     localStorage.removeItem('user')
     setUser(null)
@@ -154,7 +190,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     loading,
     login,
     logout,
-    register
+    register,
+    refreshUser
   }
 
   return (

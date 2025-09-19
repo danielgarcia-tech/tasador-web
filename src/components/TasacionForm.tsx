@@ -5,8 +5,9 @@ import { z } from 'zod'
 import { Calculator, Building, MapPin } from 'lucide-react'
 import { calcularCostas, obtenerFasesTerminacion } from '../lib/calculator'
 import { buscarMunicipios, obtenerTodosMunicipios } from '../lib/municipios'
-import { buscarEntidades, obtenerTodasEntidades } from '../lib/entidades'
+import { buscarEntidades, obtenerTodasEntidades, buscarEntidadPorCodigo } from '../lib/entidades'
 import { useTasaciones } from '../hooks/useTasaciones'
+import { generateMinutaDocx } from '../lib/docx-generator'
 import MCPTasacionAssistant from './MCPTasacionAssistant'
 
 const tasacionSchema = z.object({
@@ -31,6 +32,7 @@ export default function TasacionForm() {
   const [showEntidades, setShowEntidades] = useState(false)
   const [municipiosFiltrados, setMunicipiosFiltrados] = useState<Array<{municipio: string, criterio_ica: string}>>([])
   const [todosMunicipios, setTodosMunicipios] = useState<Array<{municipio: string, criterio_ica: string}>>([])
+  const [generatingMinuta, setGeneratingMinuta] = useState(false)
   
   const { create: createTasacion } = useTasaciones()
 
@@ -183,17 +185,56 @@ export default function TasacionForm() {
 
   const generarMinuta = async () => {
     try {
-      if (!resultado) {
+      setGeneratingMinuta(true)
+
+      if (!resultado || !municipioSeleccionado) {
         alert('No hay resultado para generar minuta')
         return
       }
 
-      // TODO: Implementar generación de minuta
-      alert('Funcionalidad de generar minuta próximamente disponible')
-      console.log('Generando minuta con resultado:', resultado)
+      // Obtener datos del formulario
+      const formData = watch()
+
+      // Buscar el nombre completo de la entidad demandada
+      let nombreCompletoEntidad = formData.entidad_demandada || ''
+      if (formData.entidad_demandada) {
+        const entidadCompleta = await buscarEntidadPorCodigo(formData.entidad_demandada)
+        if (entidadCompleta) {
+          nombreCompletoEntidad = entidadCompleta.nombre
+        }
+      }
+
+      // Preparar datos para el generador de documentos
+      const tasacionData = {
+        nombreCliente: formData.nombre_cliente || '',
+        numeroProcedimiento: formData.numero_procedimiento || '',
+        nombreJuzgado: formData.nombre_juzgado || '',
+        entidadDemandada: nombreCompletoEntidad,
+        municipio: formData.municipio || '',
+        instancia: formData.instancia as 'PRIMERA INSTANCIA' | 'SEGUNDA INSTANCIA',
+        costas: resultado.costas,
+        iva: resultado.iva,
+        total: resultado.total,
+        fecha: new Date().toLocaleDateString('es-ES')
+      }
+
+      console.log('Generando documento DOCX con datos:', tasacionData)
+
+      // Generar el documento usando la biblioteca docx
+      await generateMinutaDocx(tasacionData)
+
+      alert('Minuta generada correctamente')
+
     } catch (error) {
       console.error('Error al generar minuta:', error)
-      alert('Error al generar la minuta')
+      const errorMessage = error instanceof Error ? error.message : 'Error desconocido'
+      console.error('DETALLE ERROR GENERAR MINUTA:', {
+        message: errorMessage,
+        stack: error instanceof Error ? error.stack : undefined
+      })
+      alert(`Error al generar la minuta: ${errorMessage}`)
+    } finally {
+      setGeneratingMinuta(false)
     }
   }
 
@@ -512,12 +553,28 @@ export default function TasacionForm() {
 
             <button
               onClick={generarMinuta}
-              className="bg-purple-600 hover:bg-purple-700 text-white font-semibold py-2 px-6 rounded-lg transition-colors duration-200 flex items-center gap-2"
+              disabled={generatingMinuta}
+              className={`font-semibold py-2 px-6 rounded-lg transition-colors duration-200 flex items-center gap-2 ${
+                generatingMinuta
+                  ? 'bg-purple-400 cursor-not-allowed text-purple-100'
+                  : 'bg-purple-600 hover:bg-purple-700 text-white'
+              }`}
             >
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-              </svg>
-              GENERAR MINUTA
+              {generatingMinuta ? (
+                <>
+                  <svg className="w-5 h-5 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                  </svg>
+                  GENERANDO...
+                </>
+              ) : (
+                <>
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                  </svg>
+                  GENERAR MINUTA
+                </>
+              )}
             </button>
           </div>
         </div>

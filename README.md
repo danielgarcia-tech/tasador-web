@@ -182,3 +182,87 @@ Este proyecto está bajo la Licencia MIT. Ver el archivo `LICENSE` para más det
 ---
 
 ⭐ Si este proyecto te resulta útil, ¡dale una estrella en GitHub!
+
+## 🧾 Generación de Minutas (server-side)
+
+Este repositorio incluye un endpoint serverless para generar documentos Word (`/api/generate-minuta`) usando `docx-templates`.
+
+Configuración recomendada en Vercel:
+
+- `VITE_RENDER_SERVER_MINUTA_URL`: Si quieres apuntar a un endpoint externo, define esta URL. Si no, el cliente usará `/api/generate-minuta` por defecto.
+- `SUPABASE_SERVICE_ROLE_KEY`: Clave de servicio para descargar plantillas privadas desde Supabase (opcional, recomendado si tus plantillas no son públicas).
+
+El flujo recomendado para despliegue en Vercel es procesar las plantillas en el servidor (función serverless) para evitar problemas de empaquetado en el navegador y garantizar que el documento generado preserve exactamente el formato de la plantilla.
+
+## 📝 Editor HTML para Plantillas
+
+El sistema incluye un editor HTML WYSIWYG integrado en el panel de administración para crear plantillas de minutas personalizadas:
+
+### Características del Editor HTML:
+- **Editor visual**: Interfaz WYSIWYG con React Quill
+- **Vista previa en tiempo real**: Ve los cambios instantáneamente
+- **Marcadores dinámicos**: Usa marcadores como `{NOMBRE_CLIENTE}`, `{COSTAS}`, `{FECHA}`, etc.
+- **Guardado automático**: Los cambios se guardan en la base de datos `word_templates`
+
+### Cómo usar el Editor HTML:
+1. Ve al panel de administración
+2. En la sección "Configuración de Plantillas Word", haz clic en "Configurar Plantilla HTML"
+3. Crea tu plantilla usando el editor visual
+4. Usa marcadores entre llaves: `{NOMBRE_CLIENTE}`, `{COSTAS}`, `{TOTAL}`, etc.
+5. La vista previa muestra cómo se verá la minuta generada
+6. Guarda los cambios
+
+### Plantilla HTML de Ejemplo:
+```html
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Minuta Judicial</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 40px; }
+        .header { text-align: center; border-bottom: 2px solid #000; padding-bottom: 20px; }
+        .content { margin: 20px 0; }
+        .footer { margin-top: 40px; text-align: center; font-size: 12px; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>JUZGADO DE {NOMBRE_JUZGADO}</h1>
+        <h2>MINUTA JUDICIAL</h2>
+    </div>
+    
+    <div class="content">
+        <p><strong>Fecha:</strong> {FECHA}</p>
+        <p><strong>Número de Procedimiento:</strong> {NUMERO_PROCEDIMIENTO}</p>
+        <p><strong>Cliente:</strong> {NOMBRE_CLIENTE}</p>
+        <p><strong>Entidad Demandada:</strong> {ENTIDAD_DEMANDADA}</p>
+        <p><strong>Municipio:</strong> {MUNICIPIO}</p>
+        
+        <h3>DETALLE DE COSTAS</h3>
+        <p><strong>Costas sin IVA:</strong> {COSTAS} €</p>
+        <p><strong>IVA (21%):</strong> {IVA} €</p>
+        <p><strong>TOTAL:</strong> {TOTAL} €</p>
+    </div>
+    
+    <div class="footer">
+        <p>Documento generado automáticamente por el sistema TASADOR</p>
+    </div>
+</body>
+</html>
+```
+
+### Marcadores Disponibles:
+- `{NOMBRE_CLIENTE}` - Nombre del cliente
+- `{NUMERO_PROCEDIMIENTO}` - Número del procedimiento judicial
+- `{NOMBRE_JUZGADO}` - Nombre del juzgado
+- `{ENTIDAD_DEMANDADA}` - Entidad demandada
+- `{MUNICIPIO}` - Municipio
+- `{COSTAS}` - Importe de costas sin IVA
+- `{IVA}` - Importe del IVA
+- `{TOTAL}` - Total con IVA
+- `{FECHA}` - Fecha actual
+
+### Prioridad de Generación:
+1. **HTML**: Si hay plantilla HTML configurada, se genera documento HTML
+2. **DOCX**: Si no hay HTML pero hay plantilla DOCX, se genera documento Word
+3. **Servidor**: Si está configurado `VITE_RENDER_SERVER_MINUTA_URL`, se usa el endpoint serverless

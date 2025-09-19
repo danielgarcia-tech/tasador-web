@@ -129,9 +129,19 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
--- DESACTIVAR RLS TEMPORALMENTE PARA DEBUGGING
-ALTER TABLE tasaciones DISABLE ROW LEVEL SECURITY;
-ALTER TABLE municipios DISABLE ROW LEVEL SECURITY;
-ALTER TABLE criterios_ica DISABLE ROW LEVEL SECURITY;
-ALTER TABLE entidades DISABLE ROW LEVEL SECURITY;
-ALTER TABLE usuarios_personalizados DISABLE ROW LEVEL SECURITY;
+-- Tabla de configuración de plantillas Word
+CREATE TABLE IF NOT EXISTS word_templates (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  instancia VARCHAR(50) NOT NULL CHECK (instancia IN ('primera', 'segunda')),
+  plantilla_url TEXT,
+  marcadores JSONB DEFAULT '{}',
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
+  UNIQUE(instancia, created_at) -- Para mantener histórico pero asegurar unicidad por instancia
+);
+
+-- Trigger para actualizar updated_at en word_templates
+CREATE TRIGGER update_word_templates_updated_at
+    BEFORE UPDATE ON word_templates
+    FOR EACH ROW
+    EXECUTE FUNCTION update_updated_at_column();

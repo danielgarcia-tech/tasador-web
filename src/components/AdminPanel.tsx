@@ -1,15 +1,31 @@
 import { useState } from 'react'
-import { Settings, MapPin, Building2, Calculator } from 'lucide-react'
+import { Settings, MapPin, Building2, Calculator, FileText, RefreshCw } from 'lucide-react'
 import { useAuth } from '../contexts/CustomAuthContext'
 import EntidadesTable from './EntidadesTable'
 import MunicipioICATable from './MunicipioICATable'
 import CostasXICATable from './CostasXICATable'
+import WordTemplateSettings from './WordTemplateSettings.tsx'
 
-type AdminSection = 'valores_ica' | 'criterios_ica' | 'municipios' | 'entidades' | 'municipio_ica' | 'costasxica'
+type AdminSection = 'valores_ica' | 'criterios_ica' | 'municipios' | 'entidades' | 'municipio_ica' | 'costasxica' | 'word_templates'
 
 export default function AdminPanel() {
-  const { user } = useAuth()
+  const { user, refreshUser } = useAuth()
   const [activeSection, setActiveSection] = useState<AdminSection>('municipio_ica')
+  const [refreshing, setRefreshing] = useState(false)
+
+  const handleRefreshUser = async () => {
+    setRefreshing(true)
+    try {
+      await refreshUser()
+      // Recargar la página para aplicar los cambios
+      window.location.reload()
+    } catch (error) {
+      console.error('Error al refrescar usuario:', error)
+      alert('Error al refrescar la información del usuario')
+    } finally {
+      setRefreshing(false)
+    }
+  }
 
   if (!user || user.rol !== 'admin') {
     return (
@@ -19,9 +35,36 @@ export default function AdminPanel() {
           <h3 className="text-lg font-medium text-gray-900 mb-2">
             Acceso Restringido
           </h3>
-          <p className="text-gray-500">
+          <p className="text-gray-500 mb-4">
             Solo los administradores pueden acceder a esta sección.
           </p>
+          {user && (
+            <div className="space-y-2">
+              <p className="text-sm text-gray-400">
+                Usuario actual: {user.email}
+              </p>
+              <p className="text-sm text-gray-400">
+                Rol actual: {user.rol}
+              </p>
+              <button
+                onClick={handleRefreshUser}
+                disabled={refreshing}
+                className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50"
+              >
+                {refreshing ? (
+                  <>
+                    <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
+                    Refrescando...
+                  </>
+                ) : (
+                  <>
+                    <RefreshCw className="w-4 h-4 mr-2" />
+                    Refrescar Usuario
+                  </>
+                )}
+              </button>
+            </div>
+          )}
         </div>
       </div>
     )
@@ -59,6 +102,10 @@ export default function AdminPanel() {
     <CostasXICATable isAdmin={true} />
   )
 
+  const renderWordTemplates = () => (
+    <WordTemplateSettings />
+  )
+
   const renderContent = () => {
     switch (activeSection) {
       case 'criterios_ica':
@@ -73,6 +120,8 @@ export default function AdminPanel() {
         return renderMunicipioICA()
       case 'costasxica':
         return renderCostasXICA()
+      case 'word_templates':
+        return renderWordTemplates()
       default:
         return <div>Sección no implementada</div>
     }
@@ -160,6 +209,18 @@ export default function AdminPanel() {
           >
             <Calculator className="h-5 w-5" />
             <span>Costas por ICA</span>
+          </button>
+          
+          <button
+            onClick={() => setActiveSection('word_templates')}
+            className={`w-full flex items-center space-x-3 px-4 py-3 rounded-lg text-left transition-colors ${
+              activeSection === 'word_templates'
+                ? 'bg-purple-100 text-purple-700 border-purple-200 border'
+                : 'text-gray-700 hover:bg-gray-100'
+            }`}
+          >
+            <FileText className="h-5 w-5" />
+            <span>Plantillas HTML</span>
           </button>
         </div>
 
