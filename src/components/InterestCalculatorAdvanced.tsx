@@ -1,9 +1,10 @@
 import { useState, useEffect, useRef } from 'react'
-import { Calculator, TrendingUp, Upload, AlertCircle, Trash2 } from 'lucide-react'
+import { Calculator, TrendingUp, Upload, AlertCircle, Trash2, BarChart3 } from 'lucide-react'
 import { interestCalculator, initializeInterestCalculator } from '../lib/interestCalculator'
 import type { InterestCalculationInput, InterestCalculationResult } from '../lib/interestCalculator'
 import * as XLSX from 'xlsx'
 import CountUp from './CountUp'
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, BarChart, Bar } from 'recharts'
 
 interface ExcelRow {
   [key: string]: any
@@ -133,6 +134,18 @@ export default function InterestCalculatorAdvanced() {
       return
     }
 
+    // Validate TAE requirements
+    if ((globalModalidades.includes('tae') || globalModalidades.includes('tae_plus5')) && !globalTaeContrato) {
+      setError('Debe especificar la TAE del contrato para calcular intereses TAE')
+      return
+    }
+
+    // Validate judicial requirements
+    if (globalModalidades.includes('judicial') && !globalFechaSentencia) {
+      setError('Debe especificar la fecha de sentencia para calcular intereses judiciales')
+      return
+    }
+
     try {
       setCalculating(true)
       setError(null)
@@ -161,6 +174,15 @@ export default function InterestCalculatorAdvanced() {
 
           // Calculate for each selected modality
           for (const modalidad of globalModalidades) {
+            // Skip TAE modalities if no TAE contract rate is provided
+            if ((modalidad === 'tae' || modalidad === 'tae_plus5') && !globalTaeContrato) {
+              continue
+            }
+
+            // Skip judicial if no sentence date is provided
+            if (modalidad === 'judicial' && !globalFechaSentencia) {
+              continue
+            }
             // Parse dates
             const parsedFechaInicio = parseDate(fechaInicioValue)
             const parsedFechaFin = parseDate(globalFechaFin)
@@ -173,23 +195,28 @@ export default function InterestCalculatorAdvanced() {
               throw new Error(`Fecha fin inválida: ${globalFechaFin}`)
             }
 
-          const input: InterestCalculationInput = {
-            capital,
-            fechaInicio: parsedFechaInicio,
-            fechaFin: parsedFechaFin,
-            modalidad
-          }
+            const input: InterestCalculationInput = {
+              capital,
+              fechaInicio: parsedFechaInicio,
+              fechaFin: parsedFechaFin,
+              modalidad
+            }
 
-          // Add optional fields based on modality
-          if ((modalidad === 'tae' || modalidad === 'tae_plus5') && globalTaeContrato) {
-            input.taeContrato = parseFloat(globalTaeContrato)
-          }
+            // Add optional fields based on modality
+            if ((modalidad === 'tae' || modalidad === 'tae_plus5') && globalTaeContrato) {
+              input.taeContrato = parseFloat(globalTaeContrato)
+            }
 
             if (modalidad === 'judicial' && globalFechaSentencia) {
               input.fechaSentencia = new Date(globalFechaSentencia)
             }
 
             const result = interestCalculator.calcularIntereses(input)
+
+            // Skip if total interest is zero or negative
+            if (result.totalInteres <= 0) {
+              continue
+            }
 
             calculatedResults.push({
               ...row,
@@ -204,17 +231,8 @@ export default function InterestCalculatorAdvanced() {
           }
         } catch (rowError) {
           console.warn('Error calculating row:', rowError)
-          // For errors, add one entry per modality with error
-          for (const modalidad of globalModalidades) {
-            calculatedResults.push({
-              ...row,
-              cuantía: 0,
-              fecha_inicio: '',
-              fecha_fin: '',
-              modalidad,
-              error: rowError instanceof Error ? rowError.message : 'Error en el cálculo'
-            })
-          }
+          // Skip rows with errors completely - don't add any results
+          continue
         }
       }
 
@@ -346,26 +364,99 @@ export default function InterestCalculatorAdvanced() {
     )
   }
 
+  const processInterestEvolutionData = () => {
+    const yearlyData: { [key: string]: { [modality: string]: number } } = {}
+
+    results.forEach(result => {
+      if (!result.resultado) return
+
+      const startDate = parseDate(result.fecha_inicio)
+      const endDate = parseDate(result.fecha_fin)
+
+      if (!startDate || !endDate) return
+
+      // Calculate interest for each year in the period
+      let currentDate = new Date(startDate)
+      const endYear = endDate.getFullYear()
+
+      while (currentDate.getFullYear() <= endYear) {
+        const year = currentDate.getFullYear().toString()
+
+        if (!yearlyData[year]) {
+          yearlyData[year] = { legal: 0, judicial: 0, tae: 0, tae_plus5: 0 }
+        }
+
+        // For simplicity, we'll distribute the total interest evenly across years
+        // In a real scenario, you'd want to calculate year-by-year interest
+        const yearsDiff = endDate.getFullYear() - startDate.getFullYear() + 1
+        const yearlyInterest = result.resultado!.totalInteres / yearsDiff
+
+        yearlyData[year][result.modalidad] += yearlyInterest
+
+        currentDate.setFullYear(currentDate.getFullYear() + 1)
+      }
+    })
+
+    // Convert to array format for charts
+    const chartData = Object.keys(yearlyData)
+      .sort()
+      .map(year => ({
+        year,
+        Legal: Math.round(yearlyData[year].legal * 100) / 100,
+        Judicial: Math.round(yearlyData[year].judicial * 100) / 100,
+        TAE: Math.round(yearlyData[year].tae * 100) / 100,
+        'TAE+5%': Math.round(yearlyData[year].tae_plus5 * 100) / 100,
+        Total: Math.round((yearlyData[year].legal + yearlyData[year].judicial + yearlyData[year].tae + yearlyData[year].tae_plus5) * 100) / 100
+      }))
+
+    return chartData
+  }
+
   const exportToExcel = () => {
     const workbook = XLSX.utils.book_new()
 
+    // Calculate total days for each result
+    const calcularDias = (fecha1: Date, fecha2: Date): number => {
+      const diffTime = Math.abs(fecha2.getTime() - fecha1.getTime())
+      return Math.ceil(diffTime / (1000 * 60 * 60 * 24))
+    }
+
     globalModalidades.forEach(modalidad => {
-      const modalityResults = results.filter(r => r.modalidad === modalidad)
-      const data = modalityResults.map(result => ({
-        'Cuantía': result.cuantía,
-        'Fecha Inicio': result.fecha_inicio,
-        'Fecha Fin': result.fecha_fin,
-        'Modalidad': result.modalidad,
-        'TAE Contrato': result.tae_contrato || '',
-        'Fecha Sentencia': result.fecha_sentencia || '',
-        'Total Intereses': result.resultado?.totalInteres || 0,
-        'Estado': result.error ? result.error : 'Calculado'
-      }))
+      const modalityResults = results.filter(r => r.modalidad === modalidad && r.resultado)
+      
+      if (modalityResults.length === 0) return
+
+      const data = modalityResults.map(result => {
+        const fechaInicio = parseDate(result.fecha_inicio)
+        const fechaFin = parseDate(result.fecha_fin)
+        const dias = fechaInicio && fechaFin ? calcularDias(fechaInicio, fechaFin) : 0
+
+        return {
+          'Importe': result.cuantía,
+          'Fecha Origen': result.fecha_inicio,
+          'Fecha Fin': result.fecha_fin,
+          'Días': dias,
+          'Interés': result.resultado?.totalInteres || 0,
+          'Resultado': result.cuantía + (result.resultado?.totalInteres || 0)
+        }
+      })
 
       const worksheet = XLSX.utils.json_to_sheet(data)
+      
+      // Set column widths
+      worksheet['!cols'] = [
+        { wch: 12 }, // Importe
+        { wch: 12 }, // Fecha Origen
+        { wch: 12 }, // Fecha Fin
+        { wch: 8 },  // Días
+        { wch: 15 }, // Interés
+        { wch: 15 }  // Resultado
+      ]
+
       const sheetName = modalidad === 'legal' ? 'Legal' :
                        modalidad === 'judicial' ? 'Judicial' :
                        modalidad === 'tae' ? 'TAE' : 'TAE+5%'
+      
       XLSX.utils.book_append_sheet(workbook, worksheet, sheetName)
     })
 
@@ -580,7 +671,15 @@ export default function InterestCalculatorAdvanced() {
               <div className="space-x-2">
                 <button
                   onClick={calculateAllInterests}
-                  disabled={calculating || !initialized || !columnMapping.cuantía || !columnMapping.fecha_inicio || !globalFechaFin}
+                  disabled={
+                    calculating || 
+                    !initialized || 
+                    !columnMapping.cuantía || 
+                    !columnMapping.fecha_inicio || 
+                    !globalFechaFin ||
+                    ((globalModalidades.includes('tae') || globalModalidades.includes('tae_plus5')) && !globalTaeContrato) ||
+                    (globalModalidades.includes('judicial') && !globalFechaSentencia)
+                  }
                   className="inline-flex items-center px-4 py-2 bg-primary-600 text-white rounded-md hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   <Calculator className="h-4 w-4 mr-2" />
@@ -706,7 +805,7 @@ export default function InterestCalculatorAdvanced() {
                               {formatDate(result.fecha_inicio)} - {formatDate(result.fecha_fin)}
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                              {result.resultado ? <AnimatedCurrency amount={result.resultado.totalInteres} duration={1} /> : '-'}
+                              {result.resultado ? formatCurrency(result.resultado.totalInteres) : '-'}
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap text-sm">
                               {result.error ? (
@@ -720,42 +819,132 @@ export default function InterestCalculatorAdvanced() {
                       </tbody>
                     </table>
                   </div>
+
+                  {/* Modality Summary */}
+                  <div className="mt-4 bg-blue-50 border border-blue-200 rounded-lg p-4">
+                    <h5 className="text-md font-semibold text-blue-900 mb-2">
+                      Resumen {modalidad === 'legal' ? 'Legal' :
+                               modalidad === 'judicial' ? 'Judicial' :
+                               modalidad === 'tae' ? 'TAE' : 'TAE+5%'}
+                    </h5>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      <div className="text-center">
+                        <CountUp
+                          to={modalityResults.filter(r => r.resultado).length}
+                          duration={1}
+                          className="text-2xl font-bold text-blue-700"
+                        />
+                        <p className="text-sm text-blue-600">Cálculos exitosos</p>
+                      </div>
+                      <div className="text-center">
+                        <AnimatedCurrency
+                          amount={modalityResults.reduce((sum, r) => sum + (r.resultado?.totalInteres || 0), 0)}
+                          duration={1.5}
+                          className="text-3xl font-bold text-blue-800"
+                        />
+                        <p className="text-sm text-blue-600">Total intereses</p>
+                      </div>
+                      <div className="text-center">
+                        <CountUp
+                          to={modalityResults.filter(r => r.error).length}
+                          duration={1}
+                          className="text-2xl font-bold text-red-700"
+                        />
+                        <p className="text-sm text-blue-600">Errores</p>
+                      </div>
+                    </div>
+                  </div>
                 </div>
               )
             })}
+          </div>
+        )}
 
-            {/* Summary */}
-            <div className="mt-6 bg-primary-50 border border-primary-200 rounded-lg p-4">
-              <h4 className="text-lg font-semibold text-primary-900 mb-2">Resumen</h4>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div className="text-center">
-                  <CountUp
-                    to={results.filter(r => r.resultado).length}
-                    duration={1}
-                    className="text-2xl font-bold text-green-700"
-                  />
-                  <p className="text-sm text-primary-600">Cálculos exitosos</p>
+        {/* Interest Evolution Charts */}
+        {results.length > 0 && (() => {
+          const chartData = processInterestEvolutionData()
+          return chartData.length > 0 ? (
+            <div className="mt-8">
+              <div className="flex items-center space-x-2 mb-4">
+                <BarChart3 className="h-6 w-6 text-primary-600" />
+                <h3 className="text-lg font-semibold text-gray-900">
+                  Evolución de Intereses por Año
+                </h3>
+              </div>
+
+              <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+                <div className="mb-6">
+                  <h4 className="text-md font-semibold text-gray-800 mb-4">Evolución por Modalidad</h4>
+                  <ResponsiveContainer width="100%" height={300}>
+                    <LineChart data={chartData}>
+                      <CartesianGrid strokeDasharray="3 3" />
+                      <XAxis dataKey="year" />
+                      <YAxis tickFormatter={(value) => `€${value.toLocaleString()}`} />
+                      <Tooltip
+                        formatter={(value: number, name: string) => [`€${value.toLocaleString()}`, name]}
+                        labelFormatter={(label) => `Año ${label}`}
+                      />
+                      <Legend />
+                      <Line
+                        type="monotone"
+                        dataKey="Legal"
+                        stroke="#10B981"
+                        strokeWidth={2}
+                        dot={{ fill: '#10B981', strokeWidth: 2, r: 3 }}
+                      />
+                      <Line
+                        type="monotone"
+                        dataKey="Judicial"
+                        stroke="#F59E0B"
+                        strokeWidth={2}
+                        dot={{ fill: '#F59E0B', strokeWidth: 2, r: 3 }}
+                      />
+                      <Line
+                        type="monotone"
+                        dataKey="TAE"
+                        stroke="#EF4444"
+                        strokeWidth={2}
+                        dot={{ fill: '#EF4444', strokeWidth: 2, r: 3 }}
+                      />
+                      <Line
+                        type="monotone"
+                        dataKey="TAE+5%"
+                        stroke="#8B5CF6"
+                        strokeWidth={2}
+                        dot={{ fill: '#8B5CF6', strokeWidth: 2, r: 3 }}
+                      />
+                    </LineChart>
+                  </ResponsiveContainer>
                 </div>
-                <div className="text-center">
-                  <AnimatedCurrency
-                    amount={results.reduce((sum, r) => sum + (r.resultado?.totalInteres || 0), 0)}
-                    duration={1.5}
-                    className="text-3xl font-bold text-green-800"
-                  />
-                  <p className="text-sm text-primary-600">Total intereses</p>
+
+                <div className="mb-6">
+                  <h4 className="text-md font-semibold text-gray-800 mb-4">Intereses por Modalidad y Año</h4>
+                  <ResponsiveContainer width="100%" height={300}>
+                    <BarChart data={chartData}>
+                      <CartesianGrid strokeDasharray="3 3" />
+                      <XAxis dataKey="year" />
+                      <YAxis tickFormatter={(value) => `€${value.toLocaleString()}`} />
+                      <Tooltip
+                        formatter={(value: number) => [`€${value.toLocaleString()}`, 'Intereses']}
+                        labelFormatter={(label) => `Año ${label}`}
+                      />
+                      <Legend />
+                      <Bar dataKey="Legal" fill="#10B981" />
+                      <Bar dataKey="Judicial" fill="#F59E0B" />
+                      <Bar dataKey="TAE" fill="#EF4444" />
+                      <Bar dataKey="TAE+5%" fill="#8B5CF6" />
+                    </BarChart>
+                  </ResponsiveContainer>
                 </div>
-                <div className="text-center">
-                  <CountUp
-                    to={results.filter(r => r.error).length}
-                    duration={1}
-                    className="text-3xl font-bold text-green-800"
-                  />
-                  <p className="text-sm text-primary-600">Errores</p>
+
+                <div className="text-sm text-gray-600">
+                  <p>* Los intereses se distribuyen equitativamente entre los años del período de cálculo para fines de visualización.</p>
+                  <p>* Para cálculos más precisos año a año, considere períodos más cortos o cálculos específicos por año.</p>
                 </div>
               </div>
             </div>
-          </div>
-        )}
+          ) : null
+        })()}
       </div>
     </div>
   )

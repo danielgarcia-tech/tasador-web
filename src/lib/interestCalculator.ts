@@ -97,10 +97,12 @@ export class InterestCalculator {
         return tasaLegal ? tasaLegal + 0.02 : null; // Legal + 2%
 
       case 'tae':
-        return taeContrato || null;
+        // Convert percentage to decimal (e.g., 5.25% -> 0.0525)
+        return taeContrato ? taeContrato / 100 : null;
 
       case 'tae_plus5':
-        return taeContrato ? taeContrato + 0.05 : null; // TAE + 5%
+        // Convert percentage to decimal and add 5% (e.g., 5.25% -> 0.1025)
+        return taeContrato ? (taeContrato + 5) / 100 : null;
 
       default:
         return null;
