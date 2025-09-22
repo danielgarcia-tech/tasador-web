@@ -77,7 +77,7 @@ export function useTasaciones() {
       setIsOffline(false)
       
     } catch (error) {
-      console.error('Error fetching tasaciones:', error)
+      // console.error('Error fetching tasaciones:', error)
       
       // Para la carga inicial, no hacer reintentos automáticos
       // Solo mostrar el error y permitir que el usuario lo intente manualmente
@@ -105,7 +105,7 @@ export function useTasaciones() {
       setIsOffline(false)
       return data
     } catch (error) {
-      console.error('Error creating tasacion:', error)
+      // console.error('Error creating tasacion:', error)
       if (isConnectionError(error)) {
         setIsOffline(true)
       }
@@ -140,7 +140,7 @@ export function useTasaciones() {
       setIsOffline(false)
       return data
     } catch (error) {
-      console.error('Error updating tasacion:', error)
+      // console.error('Error updating tasacion:', error)
       if (isConnectionError(error)) {
         setIsOffline(true)
       }
@@ -170,7 +170,7 @@ export function useTasaciones() {
       setTasaciones(prev => prev.filter(t => t.id !== id))
       setIsOffline(false)
     } catch (error) {
-      console.error('Error deleting tasacion:', error)
+      // console.error('Error deleting tasacion:', error)
       if (isConnectionError(error)) {
         setIsOffline(true)
       }

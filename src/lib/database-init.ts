@@ -15,7 +15,7 @@ export async function setupRLSPolicies() {
       return false
     }
 
-    console.log('Conexión a Supabase OK')
+    // console.log('Conexión a Supabase OK')
     return true
   } catch (error) {
     console.error('Error verificando políticas RLS:', error)
@@ -288,31 +288,9 @@ export async function initializeDatabaseAlternative() {
 // Función para verificar estructura de tablas
 export async function checkTableStructure() {
   try {
-    console.log('🔍 Verificando estructura de tablas...')
-
-    // Verificar entidades
-    const { data: entidades, error: entidadesError } = await supabase
-      .from('entidades')
-      .select('*')
-      .limit(1)
-
-    if (entidadesError) {
-      console.error('❌ Error en tabla entidades:', entidadesError)
-    } else {
-      console.log('✅ Tabla entidades OK, estructura:', entidades?.[0] ? Object.keys(entidades[0]) : 'vacía')
-    }
-
-    // Verificar municipios
-    const { data: municipios, error: municipiosError } = await supabase
-      .from('municipios')
-      .select('*')
-      .limit(1)
-
-    if (municipiosError) {
-      console.error('❌ Error en tabla municipios:', municipiosError)
-    } else {
-      console.log('✅ Tabla municipios OK, estructura:', municipios?.[0] ? Object.keys(municipios[0]) : 'vacía')
-    }
+    // Verificación silenciosa de tablas - sin logs en consola
+    await supabase.from('entidades').select('*').limit(1)
+    await supabase.from('municipios').select('*').limit(1)
 
     // Verificar criterios_ica
     const { data: criterios, error: criteriosError } = await supabase

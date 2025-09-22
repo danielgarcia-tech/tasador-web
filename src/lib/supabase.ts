@@ -28,6 +28,7 @@ export interface Tasacion {
   iva_21: number
   total: number
   nombre_usuario: string
+  ref_aranzadi?: string
 }
 
 export interface Municipio {

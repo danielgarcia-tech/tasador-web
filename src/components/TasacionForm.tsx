@@ -2,8 +2,8 @@ import { useState, useEffect } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
-import { Calculator, Building, MapPin } from 'lucide-react'
-import { calcularCostas, obtenerFasesTerminacion } from '../lib/calculator'
+import { Building, MapPin } from 'lucide-react'
+import { calcularCostas, obtenerFasesTerminacion, valoresCriteriosICA } from '../lib/calculator'
 import { buscarMunicipios, obtenerTodosMunicipios } from '../lib/municipios'
 import { buscarEntidades, obtenerTodasEntidades, buscarEntidadPorCodigo } from '../lib/entidades'
 import { useTasaciones } from '../hooks/useTasaciones'
@@ -18,9 +18,19 @@ const tasacionSchema = z.object({
   tipo_proceso: z.enum(['Juicio Verbal', 'Juicio Ordinario']),
   fase_terminacion: z.string().min(1, 'La fase de terminación es requerida'),
   instancia: z.enum(['PRIMERA INSTANCIA', 'SEGUNDA INSTANCIA']),
+  ref_aranzadi: z.string().optional(),
 })
 
-type TasacionForm = z.infer<typeof tasacionSchema>
+type TasacionFormData = z.infer<typeof tasacionSchema>
+
+type ValoresCriterioICA = {
+  allanamiento: number;
+  audiencia_previa: number;
+  juicio: number;
+  factor_apelacion: number;
+  verbal_alegaciones: number;
+  verbal_vista: number;
+}
 
 export default function TasacionForm() {
   const [entidades, setEntidades] = useState<Array<{codigo: string, nombre: string}>>([])
@@ -50,7 +60,7 @@ export default function TasacionForm() {
     setValue,
     reset,
     formState: { errors, isSubmitting }
-  } = useForm<TasacionForm>({
+  } = useForm<TasacionFormData>({
     resolver: zodResolver(tasacionSchema),
     defaultValues: {
       tipo_proceso: 'Juicio Ordinario',
@@ -132,7 +142,7 @@ export default function TasacionForm() {
     buscarEntidadesAsync()
   }, [entidadWatch, todasEntidades])
 
-  const onSubmit = async (data: TasacionForm) => {
+  const onSubmit = async (data: TasacionFormData) => {
     try {
       if (!municipioSeleccionado) {
         alert('Por favor seleccione un municipio válido')
@@ -222,7 +232,8 @@ export default function TasacionForm() {
         costas: resultado.costas,
         iva: resultado.iva,
         total: resultado.total,
-        fecha: new Date().toLocaleDateString('es-ES')
+        fecha: new Date().toLocaleDateString('es-ES'),
+        refAranzadi: formData.ref_aranzadi || undefined
       }
 
       console.log('Generando documento DOCX con datos:', tasacionData)
@@ -240,6 +251,7 @@ export default function TasacionForm() {
           tipo_proceso: formData.tipo_proceso,
           fase_terminacion: formData.fase_terminacion,
           instancia: formData.instancia,
+          ref_aranzadi: formData.ref_aranzadi || '',
           costas_sin_iva: resultado.costas,
           iva_21: resultado.iva,
           total: resultado.total,
@@ -313,13 +325,6 @@ export default function TasacionForm() {
         }}
       /> */}
       <div className="card p-6">
-        <div className="flex items-center space-x-2 mb-6">
-          <Calculator className="h-6 w-6 text-primary-600" />
-          <h2 className="text-xl font-semibold text-gray-900">
-            Calculadora de Costas Judiciales
-          </h2>
-        </div>
-
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {/* Nombre Cliente */}
@@ -538,6 +543,20 @@ export default function TasacionForm() {
                 <option value="SEGUNDA INSTANCIA">Segunda Instancia</option>
               </select>
             </div>
+
+            {/* REF ARANZADI */}
+            <div>
+              <label className="label">
+                REF ARANZADI
+              </label>
+              <input
+                {...register('ref_aranzadi')}
+                type="text"
+                placeholder="Referencia única del expediente"
+                className="input"
+              />
+              <p className="text-sm text-gray-500 mt-1">Identificador único para el expediente</p>
+            </div>
           </div>
 
           <div className="flex justify-end">
@@ -576,6 +595,151 @@ export default function TasacionForm() {
                 €{resultado.total.toFixed(2)}
               </div>
               <div className="text-sm text-green-600">Total</div>
+            </div>
+          </div>
+
+          {/* Explicación detallada del cálculo */}
+          <div className="bg-white rounded-lg p-4 border border-green-200 mb-6">
+            <h4 className="text-md font-semibold text-green-900 mb-3">
+              📊 Detalle del Cálculo
+            </h4>
+            <div className="space-y-2 text-sm text-gray-700">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <strong>Criterio ICA:</strong> {municipioSeleccionado?.criterio_ica}
+                </div>
+                <div>
+                  <strong>Municipio:</strong> {watch('municipio')}
+                </div>
+                <div>
+                  <strong>Tipo de Proceso:</strong> {watch('tipo_proceso')}
+                </div>
+                <div>
+                  <strong>Fase de Terminación:</strong> {watch('fase_terminacion')}
+                </div>
+                <div>
+                  <strong>Instancia:</strong> {watch('instancia') === 'PRIMERA INSTANCIA' ? 'Primera Instancia' : 'Segunda Instancia'}
+                </div>
+              </div>
+
+              <div className="mt-4 p-3 bg-gray-50 rounded-lg">
+                <h5 className="font-medium text-gray-900 mb-2">💡 Explicación detallada del cálculo:</h5>
+                <div className="space-y-1 text-xs">
+                  {(() => {
+                    const formData = watch();
+                    const tipoJuicio = formData.tipo_proceso;
+                    const faseTerminacion = formData.fase_terminacion;
+                    const instancia = formData.instancia;
+                    const criterioICA = municipioSeleccionado?.criterio_ica;
+
+                    let explicacion = [];
+                    let importeBase = 0;
+
+                    // Usar valoresCriteriosICA importado
+                    const valoresCriterio: ValoresCriterioICA = criterioICA ? valoresCriteriosICA[criterioICA] || {
+                      allanamiento: 0,
+                      audiencia_previa: 0,
+                      juicio: 0,
+                      factor_apelacion: 0.5,
+                      verbal_alegaciones: 0.5,
+                      verbal_vista: 0.5
+                    } : {
+                      allanamiento: 0,
+                      audiencia_previa: 0,
+                      juicio: 0,
+                      factor_apelacion: 0.5,
+                      verbal_alegaciones: 0.5,
+                      verbal_vista: 0.5
+                    };
+
+                    explicacion.push(`📍 Municipio: ${municipioSeleccionado?.municipio || 'No seleccionado'} (Criterio ICA: ${criterioICA})`);
+                    explicacion.push(`⚖️ Tipo de proceso: ${tipoJuicio}`);
+                    explicacion.push(`📋 Fase de terminación: ${faseTerminacion || 'No seleccionada'}`);
+                    explicacion.push(`🏛️ Instancia: ${instancia || 'PRIMERA INSTANCIA'}`);
+                    explicacion.push('');
+
+                    if (!faseTerminacion) {
+                      explicacion.push('⚠️ Seleccione una fase de terminación para ver el cálculo detallado');
+                      explicacion.push('');
+                    } else {
+                      if (tipoJuicio === 'Juicio Ordinario') {
+                      explicacion.push('🔍 CÁLCULO PARA JUICIO ORDINARIO:');
+                      if (faseTerminacion === 'Allanamiento') {
+                        importeBase = valoresCriterio.allanamiento || 0;
+                        explicacion.push(`• Baremo base para Allanamiento: €${importeBase.toFixed(2)}`);
+                        explicacion.push(`  (Según baremos ICA ${criterioICA})`);
+                      } else if (faseTerminacion === 'Audiencia Previa') {
+                        importeBase = valoresCriterio.audiencia_previa || 0;
+                        explicacion.push(`• Baremo base para Audiencia Previa: €${importeBase.toFixed(2)}`);
+                        explicacion.push(`  (Según baremos ICA ${criterioICA})`);
+                      } else if (faseTerminacion === 'Juicio') {
+                        importeBase = valoresCriterio.juicio || 0;
+                        explicacion.push(`• Baremo base para Juicio: €${importeBase.toFixed(2)}`);
+                        explicacion.push(`  (Según baremos ICA ${criterioICA})`);
+                      }
+                    } else if (tipoJuicio === 'Juicio Verbal') {
+                      explicacion.push('🔍 CÁLCULO PARA JUICIO VERBAL:');
+                      if (faseTerminacion === 'Alegaciones') {
+                        if (valoresCriterio.verbal_alegaciones >= 1) {
+                          importeBase = valoresCriterio.verbal_alegaciones;
+                          explicacion.push(`• Baremo directo para Alegaciones: €${importeBase.toFixed(2)}`);
+                          explicacion.push(`  (Valor fijo según baremos ICA ${criterioICA})`);
+                        } else {
+                          const baseJuicio = valoresCriterio.juicio || 0;
+                          const porcentaje = valoresCriterio.verbal_alegaciones;
+                          importeBase = baseJuicio * porcentaje;
+                          explicacion.push(`• Cálculo porcentual sobre baremo base:`);
+                          explicacion.push(`  - Baremo base Juicio: €${baseJuicio.toFixed(2)}`);
+                          explicacion.push(`  - Porcentaje aplicado: ${porcentaje * 100}%`);
+                          explicacion.push(`  - Resultado: €${baseJuicio.toFixed(2)} × ${porcentaje * 100}% = €${importeBase.toFixed(2)}`);
+                        }
+                      } else if (faseTerminacion === 'Vista') {
+                        if (valoresCriterio.verbal_vista >= 1) {
+                          importeBase = valoresCriterio.verbal_vista;
+                          explicacion.push(`• Baremo directo para Vista: €${importeBase.toFixed(2)}`);
+                          explicacion.push(`  (Valor fijo según baremos ICA ${criterioICA})`);
+                        } else {
+                          const baseJuicio = valoresCriterio.juicio || 0;
+                          const porcentaje = valoresCriterio.verbal_vista;
+                          importeBase = baseJuicio * porcentaje;
+                          explicacion.push(`• Cálculo porcentual sobre baremo base:`);
+                          explicacion.push(`  - Baremo base Juicio: €${baseJuicio.toFixed(2)}`);
+                          explicacion.push(`  - Porcentaje aplicado: ${porcentaje * 100}%`);
+                          explicacion.push(`  - Resultado: €${baseJuicio.toFixed(2)} × ${porcentaje * 100}% = €${importeBase.toFixed(2)}`);
+                        }
+                      }
+                    }
+
+                    explicacion.push('');
+
+                    // Aplicar factor de apelación
+                    if (instancia === 'SEGUNDA INSTANCIA') {
+                      const factor = valoresCriterio.factor_apelacion || 0.5;
+                      const importeAntesFactor = importeBase;
+                      importeBase *= factor;
+                      explicacion.push('⚖️ AJUSTE POR SEGUNDA INSTANCIA:');
+                      explicacion.push(`• Factor de reducción aplicado: ${factor * 100}%`);
+                      explicacion.push(`• Importe antes del factor: €${importeAntesFactor.toFixed(2)}`);
+                      explicacion.push(`• Importe tras aplicar factor: €${importeAntesFactor.toFixed(2)} × ${factor * 100}% = €${importeBase.toFixed(2)}`);
+                      explicacion.push('');
+                    }
+                    }
+
+                    // Calcular IVA
+                    const ivaCalculado = importeBase * 0.21;
+                    const totalCalculado = importeBase + ivaCalculado;
+
+                    explicacion.push('💰 DESGLOSE FINAL:');
+                    explicacion.push(`• Base imponible (costas): €${importeBase.toFixed(2)}`);
+                    explicacion.push(`• IVA (21%): €${importeBase.toFixed(2)} × 21% = €${ivaCalculado.toFixed(2)}`);
+                    explicacion.push(`• Total con IVA: €${importeBase.toFixed(2)} + €${ivaCalculado.toFixed(2)} = €${totalCalculado.toFixed(2)}`);
+
+                    return explicacion.map((line, index) => (
+                      <div key={index} className={line === '' ? 'h-2' : ''}>{line}</div>
+                    ));
+                  })()}
+                </div>
+              </div>
             </div>
           </div>
 

@@ -13,10 +13,10 @@ export class TasacionMCPClient {
     try {
       // Configurar conexión con el servidor MCP de Supabase
       // Las credenciales se configuran en el archivo .vscode/mcp.json
-      console.log('MCP Supabase inicializado')
-      console.log('🔗 MCP Supabase inicializado')
+      // console.log('MCP Supabase inicializado')
+      // console.log('🔗 MCP Supabase inicializado')
     } catch (error) {
-      console.error('❌ Error inicializando MCP Supabase:', error)
+      // console.error('❌ Error inicializando MCP Supabase:', error)
     }
   }
 

@@ -12,6 +12,7 @@ interface TasacionData {
   iva: number
   total: number
   fecha: string
+  refAranzadi?: string
 }
 
 export async function generateMinutaDocx(tasacionData: TasacionData): Promise<void> {
@@ -410,7 +411,10 @@ export async function generateMinutaDocx(tasacionData: TasacionData): Promise<vo
     const blob = await Packer.toBlob(doc)
     
     // Descargar el archivo
-    saveAs(blob, `minuta_${tasacionData.numeroProcedimiento}.docx`)
+    const fileName = tasacionData.refAranzadi 
+      ? `MINUTA-${tasacionData.refAranzadi}.docx`
+      : `minuta_${tasacionData.numeroProcedimiento}.docx`
+    saveAs(blob, fileName)
 
   } catch (error) {
     console.error('Error generating DOCX:', error)

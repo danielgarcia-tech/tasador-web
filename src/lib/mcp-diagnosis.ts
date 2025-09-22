@@ -16,23 +16,23 @@ export async function diagnoseDatabaseIssues() {
 
     // 2. Diagnosticar base de datos completa
     console.log('2. Ejecutando diagnóstico de base de datos...')
-    const diagResult = await mcpClient.executeTool('diagnose_database', {
-      checkTables: true,
-      checkData: true,
-      checkRLS: true
-    })
+    // const diagResult = await mcpClient.executeTool('diagnose_database', {
+    //   checkTables: true,
+    //   checkData: true,
+    //   checkRLS: true
+    // })
 
-    console.log('Resultado del diagnóstico:')
-    console.log('- Estado general:', diagResult.overallStatus)
-    console.log('- Tablas encontradas:', Object.keys(diagResult.tableStatus || {}))
-    console.log('- Recomendaciones:', diagResult.recommendations || [])
+    // console.log('Resultado del diagnóstico:')
+    // console.log('- Estado general:', diagResult.overallStatus)
+    // console.log('- Tablas encontradas:', Object.keys(diagResult.tableStatus || {}))
+    // console.log('- Recomendaciones:', diagResult.recommendations || [])
 
-    // 3. Verificar estructura de tablas
-    console.log('3. Verificando estructura de tablas...')
+    // 3. Verificar estructura de tablas (sin logs)
+    // console.log('3. Verificando estructura de tablas...')
     const tables = ['entidades', 'municipios', 'criterios_ica', 'tasaciones']
 
     for (const table of tables) {
-      console.log(`Verificando tabla: ${table}`)
+      // console.log(`Verificando tabla: ${table}`)
       const tableResult = await mcpClient.executeTool('query_table_mcp', {
         table,
         columns: ['*'],
@@ -40,9 +40,9 @@ export async function diagnoseDatabaseIssues() {
       })
 
       if (tableResult.success) {
-        console.log(`✅ Tabla ${table}: ${tableResult.data?.length || 0} registros encontrados`)
+        // console.log(`✅ Tabla ${table}: ${tableResult.data?.length || 0} registros encontrados`)
       } else {
-        console.log(`❌ Error en tabla ${table}:`, tableResult.error)
+        // console.log(`❌ Error en tabla ${table}:`, tableResult.error)
       }
     }
 

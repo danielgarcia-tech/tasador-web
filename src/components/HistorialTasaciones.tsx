@@ -26,7 +26,8 @@ import {
 } from 'lucide-react'
 import { calcularCostas, obtenerFasesTerminacion } from '../lib/calculator'
 import { buscarMunicipios, obtenerTodosMunicipios } from '../lib/municipios'
-import { buscarEntidades, obtenerTodasEntidades } from '../lib/entidades'
+import { buscarEntidades, obtenerTodasEntidades, buscarEntidadPorCodigo } from '../lib/entidades'
+import { generateMinutaDocx } from '../lib/docx-generator'
 import { type Tasacion } from '../lib/supabase'
 
 const tasacionSchema = z.object({
@@ -38,6 +39,7 @@ const tasacionSchema = z.object({
   tipo_proceso: z.enum(['Juicio Verbal', 'Juicio Ordinario']),
   fase_terminacion: z.string().min(1, 'La fase de terminación es requerida'),
   instancia: z.enum(['PRIMERA INSTANCIA', 'SEGUNDA INSTANCIA']),
+  ref_aranzadi: z.string().optional(),
 })
 
 type TasacionForm = z.infer<typeof tasacionSchema>
@@ -139,6 +141,44 @@ export default function HistorialTasaciones() {
     }
   }
 
+  // Función para descargar minuta desde el historial
+  const handleDownloadMinuta = async (tasacion: Tasacion) => {
+    try {
+      // Buscar el nombre completo de la entidad demandada
+      let nombreCompletoEntidad = tasacion.entidad_demandada || ''
+      if (tasacion.entidad_demandada) {
+        const entidadCompleta = await buscarEntidadPorCodigo(tasacion.entidad_demandada)
+        if (entidadCompleta) {
+          nombreCompletoEntidad = entidadCompleta.nombre
+        }
+      }
+
+      // Preparar datos para el generador de documentos
+      const tasacionData = {
+        nombreCliente: tasacion.nombre_cliente,
+        numeroProcedimiento: tasacion.numero_procedimiento,
+        nombreJuzgado: tasacion.nombre_juzgado || '',
+        entidadDemandada: nombreCompletoEntidad,
+        municipio: tasacion.municipio,
+        instancia: tasacion.instancia,
+        costas: tasacion.costas_sin_iva,
+        iva: tasacion.iva_21,
+        total: tasacion.total,
+        fecha: new Date(tasacion.created_at).toLocaleDateString('es-ES'),
+        refAranzadi: tasacion.ref_aranzadi || undefined
+      }
+
+      console.log('Generando minuta desde historial:', tasacionData)
+
+      // Generar el documento
+      await generateMinutaDocx(tasacionData)
+
+    } catch (error) {
+      console.error('Error al generar minuta desde historial:', error)
+      alert('Error al generar la minuta. Por favor, inténtelo de nuevo.')
+    }
+  }
+
   const handleCancelDelete = () => {
     setShowDeleteModal(false)
     setTasacionToDelete(null)
@@ -203,6 +243,7 @@ export default function HistorialTasaciones() {
           tipo_proceso: editingTasacion.tipo_proceso,
           fase_terminacion: editingTasacion.fase_terminacion,
           instancia: editingTasacion.instancia,
+          ref_aranzadi: editingTasacion.ref_aranzadi || '',
         })
         setMunicipioSeleccionado({
           municipio: editingTasacion.municipio,
@@ -414,6 +455,20 @@ export default function HistorialTasaciones() {
             </p>
           </div>
         )}
+
+        {/* Campo REF ARANZADI */}
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            REF ARANZADI
+          </label>
+          <input
+            {...register('ref_aranzadi')}
+            type="text"
+            placeholder="Referencia única del expediente"
+            className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+          />
+          <p className="mt-1 text-sm text-gray-500">Identificador único para el expediente</p>
+        </div>
 
         {/* Botones */}
         <div className="flex justify-end gap-4 pt-6 border-t">
@@ -722,6 +777,9 @@ export default function HistorialTasaciones() {
                     📅 Fecha
                   </th>
                   <th className="px-6 py-4 text-left text-xs font-bold text-gray-600 uppercase tracking-wider">
+                    🔖 REF ARANZADI
+                  </th>
+                  <th className="px-6 py-4 text-left text-xs font-bold text-gray-600 uppercase tracking-wider">
                     ⚡ Acciones
                   </th>
                 </tr>
@@ -827,6 +885,21 @@ export default function HistorialTasaciones() {
                       </div>
                     </td>
                     <td className="px-6 py-4">
+                      <div className="flex items-center">
+                        <div className="bg-teal-100 rounded-full p-2 mr-4">
+                          <FileBarChart className="h-4 w-4 text-teal-600" />
+                        </div>
+                        <div>
+                          <div className="text-sm font-bold text-gray-900">
+                            {tasacion.ref_aranzadi || 'Sin referencia'}
+                          </div>
+                          <div className="text-xs text-gray-500 mt-1">
+                            🔖 ID único expediente
+                          </div>
+                        </div>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4">
                       <div className="flex items-center gap-1">
                         <button
                           className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-all duration-200 hover:shadow-md"
@@ -849,8 +922,9 @@ export default function HistorialTasaciones() {
                           <Trash2 className="h-4 w-4" />
                         </button>
                         <button
+                          onClick={() => handleDownloadMinuta(tasacion)}
                           className="p-2 text-emerald-600 hover:bg-emerald-50 rounded-lg transition-all duration-200 hover:shadow-md"
-                          title="Descargar reporte en PDF"
+                          title="Generar minuta en Word"
                         >
                           <Download className="h-4 w-4" />
                         </button>

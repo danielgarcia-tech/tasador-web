@@ -1,5 +1,6 @@
 import { LogOut, Calculator, FileText, Settings } from 'lucide-react'
 import { useAuth } from '../contexts/CustomAuthContext'
+import logoRua from '../assets/logo-rua.png'
 
 interface LayoutProps {
   children: React.ReactNode
@@ -11,7 +12,7 @@ export default function Layout({ children, currentTab, onTabChange }: LayoutProp
   const { user, logout } = useAuth()
 
   const tabs = [
-    { id: 'calculator' as const, label: 'Calculadora', icon: Calculator },
+    { id: 'calculator' as const, label: 'TASADOR COSTAS', icon: Calculator },
     { id: 'history' as const, label: 'Historial', icon: FileText },
     { id: 'settings' as const, label: 'Configuración', icon: Settings },
   ]
@@ -28,10 +29,14 @@ export default function Layout({ children, currentTab, onTabChange }: LayoutProp
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
             <div className="flex items-center space-x-3">
-              <Calculator className="h-8 w-8 text-primary-600" />
+              <img 
+                src={logoRua} 
+                alt="TASADOR COSTAS" 
+                className="h-8 w-8"
+              />
               <div>
                 <h1 className="text-xl font-bold text-gray-900">
-                  Tasador de Costas
+                  TASADOR COSTAS
                 </h1>
                 <p className="text-sm text-gray-500">
                   Sistema profesional de tasación judicial

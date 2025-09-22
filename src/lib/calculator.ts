@@ -531,3 +531,6 @@ export function existeCriterioICA(criterioICA: string): boolean {
 export function obtenerCriteriosICA(): string[] {
   return Object.keys(valoresCriteriosICA);
 }
+
+// Exportar valoresCriteriosICA para uso en componentes
+export { valoresCriteriosICA };
