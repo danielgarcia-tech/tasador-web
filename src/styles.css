@@ -63,3 +63,21 @@ body {
     @apply px-6 py-4 whitespace-nowrap text-sm text-gray-900;
   }
 }
+
+/* CountUp Animation Styles */
+.count-up-text {
+  font-variant-numeric: tabular-nums;
+  display: inline-block;
+  animation: countUpFadeIn 0.5s ease-out;
+}
+
+@keyframes countUpFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}

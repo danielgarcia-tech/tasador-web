@@ -5,9 +5,29 @@ import { z } from 'zod'
 import { Building, MapPin } from 'lucide-react'
 import { calcularCostas, obtenerFasesTerminacion, valoresCriteriosICA } from '../lib/calculator'
 import { buscarMunicipios, obtenerTodosMunicipios } from '../lib/municipios'
-import { buscarEntidades, obtenerTodasEntidades, buscarEntidadPorCodigo } from '../lib/entidades'
+import { buscarEntidades, buscarEntidadPorCodigo } from '../lib/entidades'
 import { useTasaciones } from '../hooks/useTasaciones'
 import { generateMinutaDocx } from '../lib/docx-generator'
+import CountUp from './CountUp'
+
+// Componente para animar valores monetarios
+interface AnimatedCurrencyProps {
+  amount: number
+  duration?: number
+  className?: string
+}
+
+function AnimatedCurrency({ amount, duration = 1, className = '' }: AnimatedCurrencyProps) {
+  return (
+    <CountUp
+      to={amount}
+      duration={duration}
+      separator="."
+      prefix="€"
+      className={className}
+    />
+  )
+}
 
 const tasacionSchema = z.object({
   nombre_cliente: z.string().min(1, 'El nombre del cliente es requerido'),
@@ -34,7 +54,6 @@ type ValoresCriterioICA = {
 
 export default function TasacionForm() {
   const [entidades, setEntidades] = useState<Array<{codigo: string, nombre: string}>>([])
-  const [todasEntidades, setTodasEntidades] = useState<Array<{codigo: string, nombre: string}>>([])
   const [municipioSeleccionado, setMunicipioSeleccionado] = useState<{municipio: string, criterio_ica: string} | null>(null)
   const [resultado, setResultado] = useState<{costas: number, iva: number, total: number} | null>(null)
   const [showMunicipios, setShowMunicipios] = useState(false)
@@ -91,19 +110,6 @@ export default function TasacionForm() {
     cargarTodosMunicipios()
   }, [])
 
-  // Cargar todas las entidades al montar el componente
-  useEffect(() => {
-    const cargarTodasEntidades = async () => {
-      try {
-        const resultados = await obtenerTodasEntidades()
-        setTodasEntidades(resultados)
-      } catch (error) {
-        console.error('Error cargando entidades:', error)
-      }
-    }
-    cargarTodasEntidades()
-  }, [])
-
   // Buscar municipios
   useEffect(() => {
     const buscarMunicipiosAsync = async () => {
@@ -129,10 +135,6 @@ export default function TasacionForm() {
         const resultados = await buscarEntidades(entidadWatch)
         setEntidades(resultados)
         setShowEntidades(true)
-      } else if (entidadWatch && entidadWatch.length === 0) {
-        // Si el campo está vacío, mostrar todas las entidades
-        setEntidades(todasEntidades.slice(0, 50))
-        setShowEntidades(true)
       } else {
         setEntidades([])
         setShowEntidades(false)
@@ -140,7 +142,7 @@ export default function TasacionForm() {
     }
     
     buscarEntidadesAsync()
-  }, [entidadWatch, todasEntidades])
+  }, [entidadWatch])
 
   const onSubmit = async (data: TasacionFormData) => {
     try {
@@ -382,9 +384,6 @@ export default function TasacionForm() {
                   placeholder="Buscar entidad..."
                   autoComplete="off"
                   onFocus={() => {
-                    if (entidades.length === 0 && todasEntidades.length > 0) {
-                      setEntidades(todasEntidades.slice(0, 50))
-                    }
                     setShowEntidades(true)
                   }}
                   onBlur={() => {
@@ -396,9 +395,6 @@ export default function TasacionForm() {
                   type="button"
                   className="absolute inset-y-0 right-0 pr-3 flex items-center"
                   onClick={() => {
-                    if (entidades.length === 0 && todasEntidades.length > 0) {
-                      setEntidades(todasEntidades.slice(0, 50))
-                    }
                     setShowEntidades(!showEntidades)
                   }}
                 >
@@ -579,21 +575,27 @@ export default function TasacionForm() {
           </h3>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
             <div className="text-center">
-              <div className="text-2xl font-bold text-green-700">
-                €{resultado.costas.toFixed(2)}
-              </div>
+              <AnimatedCurrency
+                amount={resultado.costas}
+                duration={1}
+                className="text-2xl font-bold text-green-700"
+              />
               <div className="text-sm text-green-600">Costas (sin IVA)</div>
             </div>
             <div className="text-center">
-              <div className="text-2xl font-bold text-green-700">
-                €{resultado.iva.toFixed(2)}
-              </div>
+              <AnimatedCurrency
+                amount={resultado.iva}
+                duration={1}
+                className="text-2xl font-bold text-green-700"
+              />
               <div className="text-sm text-green-600">IVA (21%)</div>
             </div>
             <div className="text-center">
-              <div className="text-3xl font-bold text-green-800">
-                €{resultado.total.toFixed(2)}
-              </div>
+              <AnimatedCurrency
+                amount={resultado.total}
+                duration={1.5}
+                className="text-3xl font-bold text-green-800"
+              />
               <div className="text-sm text-green-600">Total</div>
             </div>
           </div>
