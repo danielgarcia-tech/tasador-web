@@ -472,13 +472,28 @@ export function calcularCostas(params: CalculoCostasParams): ResultadoCalculo {
   } else if (tipoJuicio === 'Juicio Verbal') {
     switch (faseTerminacion) {
       case 'Alegaciones':
-        costas = valoresCriterio.verbal_alegaciones;
+        // Si verbal_alegaciones >= 1, usar valor directo, sino multiplicar por juicio_base
+        if (valoresCriterio.verbal_alegaciones >= 1) {
+          costas = valoresCriterio.verbal_alegaciones;
+        } else {
+          costas = valoresCriterio.juicio * valoresCriterio.verbal_alegaciones;
+        }
         break;
       case 'Vista':
-        costas = valoresCriterio.verbal_vista;
+        // Si verbal_vista >= 1, usar valor directo, sino multiplicar por juicio_base
+        if (valoresCriterio.verbal_vista >= 1) {
+          costas = valoresCriterio.verbal_vista;
+        } else {
+          costas = valoresCriterio.juicio * valoresCriterio.verbal_vista;
+        }
         break;
       default:
-        costas = valoresCriterio.verbal_vista;
+        // Por defecto usar Vista
+        if (valoresCriterio.verbal_vista >= 1) {
+          costas = valoresCriterio.verbal_vista;
+        } else {
+          costas = valoresCriterio.juicio * (valoresCriterio.verbal_alegaciones + valoresCriterio.verbal_vista);
+        }
     }
   }
 

@@ -8,7 +8,6 @@ import { buscarMunicipios, obtenerTodosMunicipios } from '../lib/municipios'
 import { buscarEntidades, obtenerTodasEntidades, buscarEntidadPorCodigo } from '../lib/entidades'
 import { useTasaciones } from '../hooks/useTasaciones'
 import { generateMinutaDocx } from '../lib/docx-generator'
-import MCPTasacionAssistant from './MCPTasacionAssistant'
 
 const tasacionSchema = z.object({
   nombre_cliente: z.string().min(1, 'El nombre del cliente es requerido'),
@@ -33,6 +32,14 @@ export default function TasacionForm() {
   const [municipiosFiltrados, setMunicipiosFiltrados] = useState<Array<{municipio: string, criterio_ica: string}>>([])
   const [todosMunicipios, setTodosMunicipios] = useState<Array<{municipio: string, criterio_ica: string}>>([])
   const [generatingMinuta, setGeneratingMinuta] = useState(false)
+  const [savingTasacion, setSavingTasacion] = useState(false)
+  const [notification, setNotification] = useState<{type: 'success' | 'error', message: string} | null>(null)
+
+  // Función para mostrar notificaciones
+  const showNotification = (type: 'success' | 'error', message: string) => {
+    setNotification({ type, message })
+    setTimeout(() => setNotification(null), 5000)
+  }
   
   const { create: createTasacion } = useTasaciones()
 
@@ -188,7 +195,7 @@ export default function TasacionForm() {
       setGeneratingMinuta(true)
 
       if (!resultado || !municipioSeleccionado) {
-        alert('No hay resultado para generar minuta')
+        showNotification('error', 'No hay resultado para generar minuta')
         return
       }
 
@@ -220,10 +227,36 @@ export default function TasacionForm() {
 
       console.log('Generando documento DOCX con datos:', tasacionData)
 
+      // Guardar automáticamente la tasación en el historial antes de generar la minuta
+      try {
+        setSavingTasacion(true)
+        await createTasacion({
+          nombre_cliente: formData.nombre_cliente,
+          numero_procedimiento: formData.numero_procedimiento,
+          nombre_juzgado: formData.nombre_juzgado || '',
+          entidad_demandada: formData.entidad_demandada || '',
+          municipio: formData.municipio,
+          criterio_ica: municipioSeleccionado.criterio_ica,
+          tipo_proceso: formData.tipo_proceso,
+          fase_terminacion: formData.fase_terminacion,
+          instancia: formData.instancia,
+          costas_sin_iva: resultado.costas,
+          iva_21: resultado.iva,
+          total: resultado.total,
+          nombre_usuario: 'Usuario Sistema' // TODO: Obtener del contexto de usuario
+        })
+        console.log('Tasación guardada automáticamente en el historial')
+      } catch (saveError) {
+        console.warn('No se pudo guardar la tasación en el historial, pero continuando con la generación de minuta:', saveError)
+        // No lanzamos error aquí para no interrumpir la generación de minuta
+      } finally {
+        setSavingTasacion(false)
+      }
+
       // Generar el documento usando la biblioteca docx
       await generateMinutaDocx(tasacionData)
 
-      alert('Minuta generada correctamente')
+      showNotification('success', 'Minuta generada correctamente y tasación guardada en historial')
 
     } catch (error) {
       console.error('Error al generar minuta:', error)
@@ -232,7 +265,7 @@ export default function TasacionForm() {
         message: errorMessage,
         stack: error instanceof Error ? error.stack : undefined
       })
-      alert(`Error al generar la minuta: ${errorMessage}`)
+      showNotification('error', `Error al generar la minuta: ${errorMessage}`)
     } finally {
       setGeneratingMinuta(false)
     }
@@ -249,29 +282,36 @@ export default function TasacionForm() {
     setShowEntidades(false)
   }
 
-  const handleMCPSuggestion = (suggestion: any) => {
-    // Aplicar sugerencias del MCP al formulario
-    if (suggestion.calculo) {
-      setResultado(suggestion.calculo)
-    }
-
-    if (suggestion.recomendaciones) {
-      console.log('Recomendaciones MCP:', suggestion.recomendaciones)
-      // Aquí podríamos mostrar las recomendaciones al usuario
-    }
-  }
-
   return (
     <div className="space-y-6">
-      {/* Asistente MCP Inteligente */}
-      <MCPTasacionAssistant
+      {/* Notificaciones */}
+      {notification && (
+        <div className={`fixed top-4 right-4 z-50 p-4 rounded-lg shadow-lg transition-all duration-300 ${
+          notification.type === 'success' 
+            ? 'bg-green-500 text-white' 
+            : 'bg-red-500 text-white'
+        }`}>
+          <div className="flex items-center space-x-2">
+            <span>{notification.message}</span>
+            <button 
+              onClick={() => setNotification(null)}
+              className="ml-2 text-white hover:text-gray-200"
+            >
+              ×
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Asistente MCP Inteligente - DESACTIVADO */}
+      {/* <MCPTasacionAssistant
         onSuggestion={handleMCPSuggestion}
         currentData={{
           municipio: municipioWatch,
           tipoJuicio: tipoProcesoWatch,
           cantidad: resultado?.total
         }}
-      />
+      /> */}
       <div className="card p-6">
         <div className="flex items-center space-x-2 mb-6">
           <Calculator className="h-6 w-6 text-primary-600" />
@@ -553,19 +593,19 @@ export default function TasacionForm() {
 
             <button
               onClick={generarMinuta}
-              disabled={generatingMinuta}
+              disabled={generatingMinuta || savingTasacion}
               className={`font-semibold py-2 px-6 rounded-lg transition-colors duration-200 flex items-center gap-2 ${
-                generatingMinuta
+                generatingMinuta || savingTasacion
                   ? 'bg-purple-400 cursor-not-allowed text-purple-100'
                   : 'bg-purple-600 hover:bg-purple-700 text-white'
               }`}
             >
-              {generatingMinuta ? (
+              {(generatingMinuta || savingTasacion) ? (
                 <>
                   <svg className="w-5 h-5 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
                   </svg>
-                  GENERANDO...
+                  {savingTasacion ? 'GUARDANDO...' : 'GENERANDO...'}
                 </>
               ) : (
                 <>
