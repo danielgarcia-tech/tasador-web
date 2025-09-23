@@ -1,10 +1,23 @@
 import { useState, useEffect, useRef } from 'react'
-import { Calculator, TrendingUp, Upload, AlertCircle, Trash2, BarChart3 } from 'lucide-react'
+import { Calculator, TrendingUp, Upload, AlertCircle, Trash2, BarChart3, Download } from 'lucide-react'
 import { interestCalculator, initializeInterestCalculator } from '../lib/interestCalculator'
 import type { InterestCalculationInput, InterestCalculationResult } from '../lib/interestCalculator'
 import * as XLSX from 'xlsx'
 import CountUp from './CountUp'
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, BarChart, Bar } from 'recharts'
+import jsPDF from 'jspdf'
+import autoTable from 'jspdf-autotable'
+
+// Extender el tipo jsPDF para incluir autoTable
+declare module 'jspdf' {
+  interface jsPDF {
+    autoTable: (options: any) => jsPDF
+    lastAutoTable: {
+      finalY: number
+    }
+  }
+}
+import html2canvas from 'html2canvas'
 
 interface ExcelRow {
   [key: string]: any
@@ -158,8 +171,13 @@ export default function InterestCalculatorAdvanced() {
           const cuantiaValue = row[columnMapping.cuantía]
           const fechaInicioValue = row[columnMapping.fecha_inicio]
 
-          if (!cuantiaValue || !fechaInicioValue) {
-            throw new Error('Faltan datos en la fila')
+          // Skip rows with invalid or missing data
+          if (!cuantiaValue || !fechaInicioValue ||
+              String(cuantiaValue).toLowerCase().includes('total') ||
+              String(fechaInicioValue).toLowerCase().includes('total') ||
+              String(cuantiaValue).trim() === '' ||
+              String(fechaInicioValue).trim() === '') {
+            continue
           }
 
           // Parse cuantía (handle both string and number)
@@ -575,6 +593,391 @@ export default function InterestCalculatorAdvanced() {
     XLSX.writeFile(workbook, `RESUMEN INTERESES Nº EXPT ${numeroExpediente}.xlsx`)
   }
 
+  const exportToPDF = async () => {
+    if (results.length === 0) {
+      setError('No hay resultados para exportar')
+      return
+    }
+
+    // Preguntar por el nombre del expediente
+    const nombreExpediente = prompt('Introduce el nombre del expediente:')
+    if (!nombreExpediente || nombreExpediente.trim() === '') {
+      alert('Debes introducir un nombre de expediente válido.')
+      return
+    }
+
+    try {
+      const pdf = new jsPDF()
+      let pageNumber = 1
+      const pageWidth = pdf.internal.pageSize.getWidth()
+      const pageHeight = pdf.internal.pageSize.getHeight()
+      const margin = 20
+      const contentWidth = pageWidth - (margin * 2)
+
+      // Función auxiliar para añadir pie de página
+      const addFooter = (pageNum: number) => {
+        pdf.setFontSize(8)
+        pdf.setFont('helvetica', 'italic')
+        pdf.text(`Página ${pageNum}`, margin, pageHeight - 10)
+        pdf.text(`Expediente: ${nombreExpediente}`, pageWidth - margin - 60, pageHeight - 10)
+        pdf.text('Generado por Tasador Web', pageWidth - margin - 60, pageHeight - 5)
+      }
+
+      // Función auxiliar para añadir nueva página
+      const addNewPage = () => {
+        pdf.addPage()
+        pageNumber++
+        addFooter(pageNumber)
+        return margin
+      }
+
+      // PORTADA
+      pdf.setFontSize(24)
+      pdf.setFont('helvetica', 'bold')
+      pdf.text('INFORME DE CÁLCULOS', pageWidth / 2, 80, { align: 'center' })
+
+      pdf.setFontSize(20)
+      pdf.setFont('helvetica', 'bold')
+      pdf.text('DE INTERESES', pageWidth / 2, 100, { align: 'center' })
+
+      pdf.setFontSize(16)
+      pdf.setFont('helvetica', 'normal')
+      pdf.text('Expediente:', pageWidth / 2, 130, { align: 'center' })
+
+      pdf.setFontSize(18)
+      pdf.setFont('helvetica', 'bold')
+      pdf.text(nombreExpediente.toUpperCase(), pageWidth / 2, 145, { align: 'center' })
+
+      pdf.setFontSize(12)
+      pdf.setFont('helvetica', 'normal')
+      pdf.text(`Fecha de generación: ${new Date().toLocaleDateString('es-ES')}`, pageWidth / 2, 170, { align: 'center' })
+      pdf.text(`Hora: ${new Date().toLocaleTimeString('es-ES')}`, pageWidth / 2, 180, { align: 'center' })
+
+      pdf.setFontSize(10)
+      pdf.text('Sistema de Cálculo de Intereses Legales', pageWidth / 2, 200, { align: 'center' })
+      pdf.text('Tasador Web v2.0', pageWidth / 2, 210, { align: 'center' })
+
+      addFooter(pageNumber)
+
+      // ÍNDICE
+      let yPosition = addNewPage()
+      pdf.setFontSize(20)
+      pdf.setFont('helvetica', 'bold')
+      pdf.text('ÍNDICE', pageWidth / 2, yPosition, { align: 'center' })
+      yPosition += 20
+
+      pdf.setFontSize(12)
+      pdf.setFont('helvetica', 'normal')
+
+      const indexItems = [
+        { title: '1. RESUMEN EJECUTIVO', page: 3 },
+        { title: '2. PARÁMETROS DE CÁLCULO', page: 4 },
+        { title: '3. RESULTADOS POR MODALIDAD', page: 5 }
+      ]
+
+      // Añadir resultados por modalidad al índice
+      let currentPage = 6
+      globalModalidades.forEach(modalidad => {
+        const modalityResults = results.filter(r => r.modalidad === modalidad)
+        if (modalityResults.length > 0) {
+          const title = `3.${globalModalidades.indexOf(modalidad) + 1}. ${modalidad === 'legal' ? 'INTERESES LEGALES' :
+                     modalidad === 'judicial' ? 'INTERESES JUDICIALES' :
+                     modalidad === 'tae' ? 'INTERESES TAE' : 'INTERESES TAE + 5%'}`
+          indexItems.push({ title, page: currentPage })
+          currentPage += Math.ceil(modalityResults.length / 15) + 1 // Estimación de páginas
+        }
+      })
+
+      indexItems.push({ title: '4. ANÁLISIS GRÁFICO', page: currentPage })
+      indexItems.push({ title: '5. DETALLE DE CÁLCULOS', page: currentPage + 2 })
+
+      indexItems.forEach(item => {
+        if (yPosition > pageHeight - 40) {
+          yPosition = addNewPage()
+        }
+        pdf.text(item.title, margin, yPosition)
+        pdf.text(item.page.toString(), pageWidth - margin - 20, yPosition, { align: 'right' })
+        yPosition += 8
+      })
+
+      // RESUMEN EJECUTIVO
+      yPosition = addNewPage()
+      pdf.setFontSize(18)
+      pdf.setFont('helvetica', 'bold')
+      pdf.text('1. RESUMEN EJECUTIVO', margin, yPosition)
+      yPosition += 15
+
+      pdf.setFontSize(12)
+      pdf.setFont('helvetica', 'normal')
+      pdf.text('Este informe contiene el cálculo de intereses correspondiente al expediente:', margin, yPosition)
+      yPosition += 8
+      pdf.setFont('helvetica', 'bold')
+      pdf.text(nombreExpediente, margin + 10, yPosition)
+      yPosition += 15
+
+      // Estadísticas generales
+      const totalCalculos = results.length
+      const totalIntereses = results.reduce((sum, r) => sum + (r.resultado?.totalInteres || 0), 0)
+      const totalCapital = results.reduce((sum, r) => sum + r.cuantía, 0)
+
+      pdf.setFont('helvetica', 'normal')
+      pdf.text(`• Total de cálculos realizados: ${totalCalculos}`, margin, yPosition)
+      yPosition += 8
+      pdf.text(`• Capital total analizado: ${totalCapital.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}`, margin, yPosition)
+      yPosition += 8
+      pdf.text(`• Intereses totales generados: ${totalIntereses.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}`, margin, yPosition)
+      yPosition += 8
+      pdf.text(`• Período de cálculo: Hasta ${new Date(globalFechaFin).toLocaleDateString('es-ES')}`, margin, yPosition)
+      yPosition += 8
+      pdf.text(`• Modalidades calculadas: ${globalModalidades.join(', ')}`, margin, yPosition)
+      yPosition += 15
+
+      // PARÁMETROS DE CÁLCULO
+      if (yPosition > pageHeight - 60) {
+        yPosition = addNewPage()
+      }
+      pdf.setFontSize(18)
+      pdf.setFont('helvetica', 'bold')
+      pdf.text('2. PARÁMETROS DE CÁLCULO', margin, yPosition)
+      yPosition += 15
+
+      pdf.setFontSize(12)
+      pdf.setFont('helvetica', 'normal')
+      pdf.text('Parámetros utilizados en los cálculos:', margin, yPosition)
+      yPosition += 10
+
+      pdf.text(`• Fecha fin de cálculo: ${new Date(globalFechaFin).toLocaleDateString('es-ES')}`, margin + 10, yPosition)
+      yPosition += 8
+
+      if (globalModalidades.includes('tae') || globalModalidades.includes('tae_plus5')) {
+        pdf.text(`• TAE del contrato: ${globalTaeContrato}%`, margin + 10, yPosition)
+        yPosition += 8
+      }
+
+      if (globalModalidades.includes('judicial')) {
+        pdf.text(`• Fecha de sentencia: ${new Date(globalFechaSentencia).toLocaleDateString('es-ES')}`, margin + 10, yPosition)
+        yPosition += 8
+      }
+
+      pdf.text(`• Modalidades de cálculo: ${globalModalidades.map(m =>
+        m === 'legal' ? 'Legal' :
+        m === 'judicial' ? 'Judicial' :
+        m === 'tae' ? 'TAE' : 'TAE + 5%'
+      ).join(', ')}`, margin + 10, yPosition)
+      yPosition += 15
+
+      // RESULTADOS POR MODALIDAD
+      yPosition = addNewPage()
+      pdf.setFontSize(18)
+      pdf.setFont('helvetica', 'bold')
+      pdf.text('3. RESULTADOS POR MODALIDAD', margin, yPosition)
+      yPosition += 15
+
+      globalModalidades.forEach((modalidad, index) => {
+        const modalityResults = results.filter(r => r.modalidad === modalidad)
+        if (modalityResults.length === 0) return
+
+        if (yPosition > pageHeight - 60) {
+          yPosition = addNewPage()
+        }
+
+        const title = `${index + 1}. ${modalidad === 'legal' ? 'INTERESES LEGALES' :
+                   modalidad === 'judicial' ? 'INTERESES JUDICIALES' :
+                   modalidad === 'tae' ? 'INTERESES TAE' : 'INTERESES TAE + 5%'}`
+        pdf.setFontSize(14)
+        pdf.setFont('helvetica', 'bold')
+        pdf.text(title, margin, yPosition)
+        yPosition += 10
+
+        const totalInteresesModalidad = modalityResults.reduce((sum, r) => sum + (r.resultado?.totalInteres || 0), 0)
+        const capitalModalidad = modalityResults.reduce((sum, r) => sum + r.cuantía, 0)
+
+        pdf.setFontSize(11)
+        pdf.setFont('helvetica', 'normal')
+        pdf.text(`• Número de cálculos: ${modalityResults.length}`, margin + 10, yPosition)
+        yPosition += 7
+        pdf.text(`• Capital total: ${capitalModalidad.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}`, margin + 10, yPosition)
+        yPosition += 7
+        pdf.text(`• Intereses totales: ${totalInteresesModalidad.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}`, margin + 10, yPosition)
+        yPosition += 12
+
+        // Tabla de resultados
+        if (yPosition > pageHeight - 80) {
+          yPosition = addNewPage()
+        }
+
+        const tableData = modalityResults.map(r => [
+          r.cuantía.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
+          new Date(r.fecha_inicio).toLocaleDateString('es-ES'),
+          new Date(r.fecha_fin).toLocaleDateString('es-ES'),
+          (r.resultado?.totalInteres || 0).toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+        ])
+
+        autoTable(pdf, {
+          startY: yPosition,
+          head: [['Capital (€)', 'Fecha Inicio', 'Fecha Fin', 'Intereses (€)']],
+          body: tableData,
+          theme: 'grid',
+          styles: { fontSize: 8, cellPadding: 3 },
+          headStyles: { fillColor: [41, 128, 185], textColor: 255 },
+          margin: { left: margin, right: margin },
+          columnStyles: {
+            0: { halign: 'right' },
+            3: { halign: 'right' }
+          },
+          didDrawPage: (data) => {
+            yPosition = (data.cursor?.y || yPosition) + 15
+          }
+        })
+
+        yPosition += 15
+      })
+
+      // ANÁLISIS GRÁFICO
+      yPosition = addNewPage()
+      pdf.setFontSize(18)
+      pdf.setFont('helvetica', 'bold')
+      pdf.text('4. ANÁLISIS GRÁFICO', margin, yPosition)
+      yPosition += 15
+
+      pdf.setFontSize(12)
+      pdf.setFont('helvetica', 'normal')
+      pdf.text('Evolución temporal de los intereses calculados:', margin, yPosition)
+      yPosition += 15
+
+      // Intentar capturar gráficos
+      const chartElements = document.querySelectorAll('.recharts-wrapper')
+      if (chartElements.length > 0) {
+        try {
+          for (let i = 0; i < Math.min(chartElements.length, 2); i++) {
+            if (yPosition > pageHeight - 120) {
+              yPosition = addNewPage()
+            }
+
+            const canvas = await html2canvas(chartElements[i] as HTMLElement, {
+              useCORS: true,
+              allowTaint: true
+            })
+
+            const imgData = canvas.toDataURL('image/png')
+            const imgWidth = contentWidth
+            const imgHeight = (canvas.height * imgWidth) / canvas.width
+
+            if (imgHeight > pageHeight - yPosition - 40) {
+              // Si la imagen es demasiado grande, reducirla
+              const scale = (pageHeight - yPosition - 40) / imgHeight
+              const scaledWidth = imgWidth * scale
+              const scaledHeight = imgHeight * scale
+              pdf.addImage(imgData, 'PNG', margin, yPosition, scaledWidth, scaledHeight)
+              yPosition += scaledHeight + 10
+            } else {
+              pdf.addImage(imgData, 'PNG', margin, yPosition, imgWidth, imgHeight)
+              yPosition += imgHeight + 10
+            }
+
+            // Añadir título al gráfico
+            pdf.setFontSize(10)
+            pdf.setFont('helvetica', 'italic')
+            pdf.text(`Gráfico ${i + 1}: Evolución de intereses por modalidad`, margin, yPosition - 5)
+            yPosition += 10
+          }
+        } catch (error) {
+          console.warn('No se pudieron capturar los gráficos:', error)
+          pdf.setFontSize(10)
+          pdf.setFont('helvetica', 'normal')
+          pdf.text('Nota: Los gráficos no pudieron ser incluidos en el PDF.', margin, yPosition)
+          pdf.text('Para ver los gráficos completos, consulte la aplicación web.', margin, yPosition + 8)
+          yPosition += 20
+        }
+      } else {
+        pdf.setFontSize(10)
+        pdf.setFont('helvetica', 'normal')
+        pdf.text('No hay gráficos disponibles para incluir en el informe.', margin, yPosition)
+        yPosition += 15
+      }
+
+      // DETALLE DE CÁLCULOS
+      yPosition = addNewPage()
+      pdf.setFontSize(18)
+      pdf.setFont('helvetica', 'bold')
+      pdf.text('5. DETALLE DE CÁLCULOS', margin, yPosition)
+      yPosition += 15
+
+      pdf.setFontSize(12)
+      pdf.setFont('helvetica', 'normal')
+      pdf.text('Detalle año a año de todos los cálculos realizados:', margin, yPosition)
+      yPosition += 15
+
+      globalModalidades.forEach(modalidad => {
+        const modalityResults = results.filter(r => r.modalidad === modalidad && r.resultado?.detallePorAño)
+        if (modalityResults.length === 0) return
+
+        if (yPosition > pageHeight - 60) {
+          yPosition = addNewPage()
+        }
+
+        pdf.setFontSize(14)
+        pdf.setFont('helvetica', 'bold')
+        pdf.text(`${modalidad === 'legal' ? 'Intereses Legales' :
+                  modalidad === 'judicial' ? 'Intereses Judiciales' :
+                  modalidad === 'tae' ? 'Intereses TAE' : 'Intereses TAE + 5%'}`, margin, yPosition)
+        yPosition += 12
+
+        modalityResults.forEach(result => {
+          if (!result.resultado?.detallePorAño) return
+
+          if (yPosition > pageHeight - 80) {
+            yPosition = addNewPage()
+          }
+
+          pdf.setFontSize(10)
+          pdf.setFont('helvetica', 'bold')
+          pdf.text(`Capital: ${result.cuantía.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}`, margin + 10, yPosition)
+          yPosition += 8
+          pdf.text(`Período: ${new Date(result.fecha_inicio).toLocaleDateString('es-ES')} - ${new Date(result.fecha_fin).toLocaleDateString('es-ES')}`, margin + 10, yPosition)
+          yPosition += 10
+
+          const detailData = result.resultado.detallePorAño.map(year => [
+            year.año.toString(),
+            year.dias.toString(),
+            (year.tasa * 100).toFixed(4) + '%',
+            year.interes.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+          ])
+
+          autoTable(pdf, {
+            startY: yPosition,
+            head: [['Año', 'Días', 'Tasa', 'Interés (€)']],
+            body: detailData,
+            theme: 'grid',
+            styles: { fontSize: 7, cellPadding: 2 },
+            headStyles: { fillColor: [52, 152, 219], textColor: 255 },
+            margin: { left: margin + 10, right: margin },
+            columnStyles: {
+              1: { halign: 'center' },
+              2: { halign: 'right' },
+              3: { halign: 'right' }
+            },
+            didDrawPage: (data) => {
+              yPosition = (data.cursor?.y || yPosition) + 12
+            }
+          })
+
+          yPosition += 12
+        })
+      })
+
+      // Descargar el PDF
+      const fileName = `INFORME_INTERESES_${nombreExpediente.replace(/[^a-zA-Z0-9]/g, '_').toUpperCase()}.pdf`
+      pdf.save(fileName)
+
+      alert(`PDF generado correctamente: ${fileName}`)
+
+    } catch (error) {
+      console.error('Error generando PDF:', error)
+      setError('Error al generar el PDF')
+    }
+  }
+
   if (loading) {
     return (
       <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
@@ -854,6 +1257,13 @@ export default function InterestCalculatorAdvanced() {
               >
                 <Upload className="h-4 w-4 mr-2" />
                 Exportar a Excel
+              </button>
+              <button
+                onClick={exportToPDF}
+                className="inline-flex items-center px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 ml-2"
+              >
+                <Download className="h-4 w-4 mr-2" />
+                Descargar PDF
               </button>
             </div>
 
