@@ -18,6 +18,7 @@ declare module 'jspdf' {
   }
 }
 import html2canvas from 'html2canvas'
+import logoRua from '../assets/logo-rua.png'
 
 interface ExcelRow {
   [key: string]: any
@@ -632,30 +633,52 @@ export default function InterestCalculatorAdvanced() {
       }
 
       // PORTADA
+      // Añadir logo en la parte superior
+      try {
+        // Convertir la imagen importada a base64 para jsPDF
+        const img = new Image()
+        img.src = logoRua
+        const canvas = document.createElement('canvas')
+        const ctx = canvas.getContext('2d')
+        canvas.width = img.width
+        canvas.height = img.height
+        ctx?.drawImage(img, 0, 0)
+        const imgData = canvas.toDataURL('image/png')
+
+        // Añadir logo centrado en la parte superior
+        const logoWidth = 80
+        const logoHeight = (img.height * logoWidth) / img.width
+        const logoX = (pageWidth - logoWidth) / 2
+        pdf.addImage(imgData, 'PNG', logoX, 30, logoWidth, logoHeight)
+      } catch (error) {
+        // Si hay error con el logo, continuar sin él
+        console.warn('No se pudo cargar el logo:', error)
+      }
+
       pdf.setFontSize(24)
       pdf.setFont('helvetica', 'bold')
-      pdf.text('INFORME DE CÁLCULOS', pageWidth / 2, 80, { align: 'center' })
+      pdf.text('INFORME DE CÁLCULOS', pageWidth / 2, 130, { align: 'center' })
 
       pdf.setFontSize(20)
       pdf.setFont('helvetica', 'bold')
-      pdf.text('DE INTERESES', pageWidth / 2, 100, { align: 'center' })
+      pdf.text('DE INTERESES', pageWidth / 2, 150, { align: 'center' })
 
       pdf.setFontSize(16)
       pdf.setFont('helvetica', 'normal')
-      pdf.text('Expediente:', pageWidth / 2, 130, { align: 'center' })
+      pdf.text('Expediente:', pageWidth / 2, 180, { align: 'center' })
 
       pdf.setFontSize(18)
       pdf.setFont('helvetica', 'bold')
-      pdf.text(nombreExpediente.toUpperCase(), pageWidth / 2, 145, { align: 'center' })
+      pdf.text(nombreExpediente.toUpperCase(), pageWidth / 2, 195, { align: 'center' })
 
       pdf.setFontSize(12)
       pdf.setFont('helvetica', 'normal')
-      pdf.text(`Fecha de generación: ${new Date().toLocaleDateString('es-ES')}`, pageWidth / 2, 170, { align: 'center' })
-      pdf.text(`Hora: ${new Date().toLocaleTimeString('es-ES')}`, pageWidth / 2, 180, { align: 'center' })
+      pdf.text(`Fecha de generación: ${new Date().toLocaleDateString('es-ES')}`, pageWidth / 2, 220, { align: 'center' })
+      pdf.text(`Hora: ${new Date().toLocaleTimeString('es-ES')}`, pageWidth / 2, 230, { align: 'center' })
 
       pdf.setFontSize(10)
-      pdf.text('Sistema de Cálculo de Intereses Legales', pageWidth / 2, 200, { align: 'center' })
-      pdf.text('Tasador Web v2.0', pageWidth / 2, 210, { align: 'center' })
+      pdf.text('Sistema de Cálculo de Intereses Legales', pageWidth / 2, 250, { align: 'center' })
+      pdf.text('Tasador Web v2.0', pageWidth / 2, 260, { align: 'center' })
 
       addFooter(pageNumber)
 
