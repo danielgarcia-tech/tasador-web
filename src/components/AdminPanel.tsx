@@ -1,18 +1,58 @@
-import { useState } from 'react'
-import { Settings, MapPin, Building2, Calculator, FileText, RefreshCw, Users } from 'lucide-react'
+import { useState, useEffect } from 'react'
+import { Settings, MapPin, Building2, Calculator, FileText, RefreshCw, Users, TrendingUp, BarChart3, Database } from 'lucide-react'
 import { useAuth } from '../contexts/CustomAuthContext'
+import { supabase } from '../lib/supabase'
 import EntidadesTable from './EntidadesTable'
 import MunicipioICATable from './MunicipioICATable'
 import CostasXICATable from './CostasXICATable'
 import WordTemplateSettings from './WordTemplateSettings.tsx'
 import UsersManagement from './UsersManagement'
+import InteresesLegalesTable from './InteresesLegalesTable.tsx'
+import FormulasCalculoTable from './FormulasCalculoTable'
+import BaremosHonorarios from './BaremosHonorarios'
 
-type AdminSection = 'valores_ica' | 'criterios_ica' | 'municipios' | 'entidades' | 'municipio_ica' | 'costasxica' | 'word_templates' | 'users'
+type AdminSection = 'dashboard' | 'entidades' | 'municipio_ica' | 'costasxica' | 'word_templates' | 'users' | 'intereses_legales' | 'formulas_calculo' | 'baremos_honorarios'
 
 export default function AdminPanel() {
   const { user, refreshUser } = useAuth()
-  const [activeSection, setActiveSection] = useState<AdminSection>('municipio_ica')
+  const [activeSection, setActiveSection] = useState<AdminSection>('dashboard')
   const [refreshing, setRefreshing] = useState(false)
+  const [stats, setStats] = useState({
+    totalTasaciones: 0,
+    totalUsuarios: 0,
+    totalMunicipios: 0,
+    totalEntidades: 0,
+    totalFormulas: 0
+  })
+
+  // Cargar estadísticas
+  useEffect(() => {
+    const loadStats = async () => {
+      try {
+        const [tasacionesResult, usuariosResult, municipiosResult, entidadesResult, formulasResult] = await Promise.all([
+          supabase.from('tasaciones').select('id', { count: 'exact', head: true }),
+          supabase.from('usuarios_personalizados').select('id', { count: 'exact', head: true }),
+          supabase.from('municipios_ica').select('id', { count: 'exact', head: true }),
+          supabase.from('entidades').select('id', { count: 'exact', head: true }),
+          supabase.from('formulas_calculo').select('id', { count: 'exact', head: true })
+        ])
+
+        setStats({
+          totalTasaciones: tasacionesResult.count || 0,
+          totalUsuarios: usuariosResult.count || 0,
+          totalMunicipios: municipiosResult.count || 0,
+          totalEntidades: entidadesResult.count || 0,
+          totalFormulas: formulasResult.count || 0
+        })
+      } catch (error) {
+        console.error('Error cargando estadísticas:', error)
+      }
+    }
+
+    if (user?.rol === 'admin') {
+      loadStats()
+    }
+  }, [user])
 
   const handleRefreshUser = async () => {
     setRefreshing(true)
@@ -71,26 +111,6 @@ export default function AdminPanel() {
     )
   }
 
-  const renderCriteriosICA = () => (
-    <CostasXICATable isAdmin={true} />
-  )
-
-  const renderValoresICA = () => (
-    <div className="space-y-4">
-      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-        <h4 className="font-semibold text-blue-800 mb-2">Nota:</h4>
-        <p className="text-blue-700">
-          Esta sección era para valores ICA legacy. Los valores actuales se encuentran en la sección "Costas por ICA".
-        </p>
-      </div>
-      <CostasXICATable isAdmin={true} />
-    </div>
-  )
-
-  const renderMunicipios = () => (
-    <MunicipioICATable isAdmin={true} />
-  )
-
   const renderEntidades = () => (
     <EntidadesTable isAdmin={true} />
   )
@@ -111,14 +131,236 @@ export default function AdminPanel() {
     <UsersManagement />
   )
 
+  const renderInteresesLegales = () => (
+    <InteresesLegalesTable />
+  )
+
+  const renderFormulasCalculo = () => (
+    <FormulasCalculoTable isAdmin={true} />
+  )
+
+  const renderBaremosHonorarios = () => (
+    <BaremosHonorarios />
+  )
+
+  const renderDashboard = () => (
+    <div className="space-y-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {/* Estadísticas principales */}
+        <div className="bg-white overflow-hidden shadow rounded-lg">
+          <div className="p-5">
+            <div className="flex items-center">
+              <div className="flex-shrink-0">
+                <Calculator className="h-6 w-6 text-gray-400" />
+              </div>
+              <div className="ml-5 w-0 flex-1">
+                <dl>
+                  <dt className="text-sm font-medium text-gray-500 truncate">
+                    Total Tasaciones
+                  </dt>
+                  <dd className="text-lg font-medium text-gray-900">
+                    {stats.totalTasaciones}
+                  </dd>
+                </dl>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="bg-white overflow-hidden shadow rounded-lg">
+          <div className="p-5">
+            <div className="flex items-center">
+              <div className="flex-shrink-0">
+                <Users className="h-6 w-6 text-gray-400" />
+              </div>
+              <div className="ml-5 w-0 flex-1">
+                <dl>
+                  <dt className="text-sm font-medium text-gray-500 truncate">
+                    Usuarios Registrados
+                  </dt>
+                  <dd className="text-lg font-medium text-gray-900">
+                    {stats.totalUsuarios}
+                  </dd>
+                </dl>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="bg-white overflow-hidden shadow rounded-lg">
+          <div className="p-5">
+            <div className="flex items-center">
+              <div className="flex-shrink-0">
+                <MapPin className="h-6 w-6 text-gray-400" />
+              </div>
+              <div className="ml-5 w-0 flex-1">
+                <dl>
+                  <dt className="text-sm font-medium text-gray-500 truncate">
+                    Municipios Configurados
+                  </dt>
+                  <dd className="text-lg font-medium text-gray-900">
+                    {stats.totalMunicipios}
+                  </dd>
+                </dl>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="bg-white overflow-hidden shadow rounded-lg">
+          <div className="p-5">
+            <div className="flex items-center">
+              <div className="flex-shrink-0">
+                <Building2 className="h-6 w-6 text-gray-400" />
+              </div>
+              <div className="ml-5 w-0 flex-1">
+                <dl>
+                  <dt className="text-sm font-medium text-gray-500 truncate">
+                    Entidades
+                  </dt>
+                  <dd className="text-lg font-medium text-gray-900">
+                    {stats.totalEntidades}
+                  </dd>
+                </dl>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="bg-white overflow-hidden shadow rounded-lg">
+          <div className="p-5">
+            <div className="flex items-center">
+              <div className="flex-shrink-0">
+                <TrendingUp className="h-6 w-6 text-gray-400" />
+              </div>
+              <div className="ml-5 w-0 flex-1">
+                <dl>
+                  <dt className="text-sm font-medium text-gray-500 truncate">
+                    Fórmulas de Cálculo
+                  </dt>
+                  <dd className="text-lg font-medium text-gray-900">
+                    {stats.totalFormulas}
+                  </dd>
+                </dl>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="bg-white overflow-hidden shadow rounded-lg">
+          <div className="p-5">
+            <div className="flex items-center">
+              <div className="flex-shrink-0">
+                <Database className="h-6 w-6 text-gray-400" />
+              </div>
+              <div className="ml-5 w-0 flex-1">
+                <dl>
+                  <dt className="text-sm font-medium text-gray-500 truncate">
+                    Estado del Sistema
+                  </dt>
+                  <dd className="text-lg font-medium text-green-600">
+                    Operativo
+                  </dd>
+                </dl>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Accesos rápidos */}
+      <div className="bg-white shadow rounded-lg">
+        <div className="px-4 py-5 sm:p-6">
+          <h3 className="text-lg leading-6 font-medium text-gray-900 mb-4">
+            Accesos Rápidos
+          </h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            <button
+              onClick={() => setActiveSection('municipio_ica')}
+              className="flex items-center p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
+            >
+              <MapPin className="h-8 w-8 text-blue-500 mr-3" />
+              <div className="text-left">
+                <div className="font-medium text-gray-900">Municipios PJ-ICA</div>
+                <div className="text-sm text-gray-500">Configurar municipios y valores ICA</div>
+              </div>
+            </button>
+
+            <button
+              onClick={() => setActiveSection('costasxica')}
+              className="flex items-center p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
+            >
+              <Calculator className="h-8 w-8 text-green-500 mr-3" />
+              <div className="text-left">
+                <div className="font-medium text-gray-900">Costas por ICA</div>
+                <div className="text-sm text-gray-500">Gestionar criterios de cálculo</div>
+              </div>
+            </button>
+
+            <button
+              onClick={() => setActiveSection('formulas_calculo')}
+              className="flex items-center p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
+            >
+              <TrendingUp className="h-8 w-8 text-purple-500 mr-3" />
+              <div className="text-left">
+                <div className="font-medium text-gray-900">Fórmulas de Cálculo</div>
+                <div className="text-sm text-gray-500">Administrar fórmulas matemáticas</div>
+              </div>
+            </button>
+
+            <button
+              onClick={() => setActiveSection('users')}
+              className="flex items-center p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
+            >
+              <Users className="h-8 w-8 text-red-500 mr-3" />
+              <div className="text-left">
+                <div className="font-medium text-gray-900">Gestión de Usuarios</div>
+                <div className="text-sm text-gray-500">Administrar usuarios del sistema</div>
+              </div>
+            </button>
+
+            <button
+              onClick={() => setActiveSection('entidades')}
+              className="flex items-center p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
+            >
+              <Building2 className="h-8 w-8 text-indigo-500 mr-3" />
+              <div className="text-left">
+                <div className="font-medium text-gray-900">Entidades</div>
+                <div className="text-sm text-gray-500">Gestionar entidades bancarias</div>
+              </div>
+            </button>
+
+            <button
+              onClick={() => setActiveSection('word_templates')}
+              className="flex items-center p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
+            >
+              <FileText className="h-8 w-8 text-orange-500 mr-3" />
+              <div className="text-left">
+                <div className="font-medium text-gray-900">Plantillas HTML</div>
+                <div className="text-sm text-gray-500">Configurar plantillas de documentos</div>
+              </div>
+            </button>
+
+            <button
+              onClick={() => setActiveSection('baremos_honorarios')}
+              className="flex items-center p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
+            >
+              <FileText className="h-8 w-8 text-indigo-500 mr-3" />
+              <div className="text-left">
+                <div className="font-medium text-gray-900">Baremos Honorarios</div>
+                <div className="text-sm text-gray-500">Consultar baremos profesionales</div>
+              </div>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+
   const renderContent = () => {
     switch (activeSection) {
-      case 'criterios_ica':
-        return renderCriteriosICA()
-      case 'valores_ica':
-        return renderValoresICA()
-      case 'municipios':
-        return renderMunicipios()
+      case 'dashboard':
+        return renderDashboard()
       case 'entidades':
         return renderEntidades()
       case 'municipio_ica':
@@ -129,6 +371,12 @@ export default function AdminPanel() {
         return renderWordTemplates()
       case 'users':
         return renderUsers()
+      case 'intereses_legales':
+        return renderInteresesLegales()
+      case 'formulas_calculo':
+        return renderFormulasCalculo()
+      case 'baremos_honorarios':
+        return renderBaremosHonorarios()
       default:
         return <div>Sección no implementada</div>
     }
@@ -145,54 +393,37 @@ export default function AdminPanel() {
         {/* Sidebar */}
         <div className="w-64 space-y-2">
           <button
-            onClick={() => setActiveSection('criterios_ica')}
+            onClick={() => setActiveSection('dashboard')}
             className={`w-full flex items-center space-x-3 px-4 py-3 rounded-lg text-left transition-colors ${
-              activeSection === 'criterios_ica'
-                ? 'bg-primary-100 text-primary-700 border-primary-200 border'
+              activeSection === 'dashboard'
+                ? 'bg-indigo-100 text-indigo-700 border-indigo-200 border'
                 : 'text-gray-700 hover:bg-gray-100'
             }`}
           >
-            <Calculator className="h-5 w-5" />
-            <span>Criterios ICA</span>
+            <BarChart3 className="h-5 w-5" />
+            <span>Dashboard</span>
           </button>
+
+          <hr className="my-2" />
           
-          <button
-            onClick={() => setActiveSection('valores_ica')}
-            className={`w-full flex items-center space-x-3 px-4 py-3 rounded-lg text-left transition-colors ${
-              activeSection === 'valores_ica'
-                ? 'bg-primary-100 text-primary-700 border-primary-200 border'
-                : 'text-gray-700 hover:bg-gray-100'
-            }`}
-          >
-            <Calculator className="h-5 w-5" />
-            <span>Valores ICA (Legacy)</span>
-          </button>
-          
-          <button
-            onClick={() => setActiveSection('municipios')}
-            className={`w-full flex items-center space-x-3 px-4 py-3 rounded-lg text-left transition-colors ${
-              activeSection === 'municipios'
-                ? 'bg-primary-100 text-primary-700 border-primary-200 border'
-                : 'text-gray-700 hover:bg-gray-100'
-            }`}
-          >
-            <MapPin className="h-5 w-5" />
-            <span>Municipios (Old)</span>
-          </button>
+          {/* Configuración Principal */}
+          <div className="px-3 py-2">
+            <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
+              Configuración Principal
+            </h4>
+          </div>
           
           <button
             onClick={() => setActiveSection('entidades')}
             className={`w-full flex items-center space-x-3 px-4 py-3 rounded-lg text-left transition-colors ${
               activeSection === 'entidades'
-                ? 'bg-primary-100 text-primary-700 border-primary-200 border'
+                ? 'bg-indigo-100 text-indigo-700 border-indigo-200 border'
                 : 'text-gray-700 hover:bg-gray-100'
             }`}
           >
             <Building2 className="h-5 w-5" />
             <span>Entidades</span>
           </button>
-
-          <hr className="my-2" />
           
           <button
             onClick={() => setActiveSection('municipio_ica')}
@@ -219,6 +450,51 @@ export default function AdminPanel() {
           </button>
           
           <button
+            onClick={() => setActiveSection('intereses_legales')}
+            className={`w-full flex items-center space-x-3 px-4 py-3 rounded-lg text-left transition-colors ${
+              activeSection === 'intereses_legales'
+                ? 'bg-blue-100 text-blue-700 border-blue-200 border'
+                : 'text-gray-700 hover:bg-gray-100'
+            }`}
+          >
+            <TrendingUp className="h-5 w-5" />
+            <span>Intereses Legales</span>
+          </button>
+          
+          <button
+            onClick={() => setActiveSection('formulas_calculo')}
+            className={`w-full flex items-center space-x-3 px-4 py-3 rounded-lg text-left transition-colors ${
+              activeSection === 'formulas_calculo'
+                ? 'bg-purple-100 text-purple-700 border-purple-200 border'
+                : 'text-gray-700 hover:bg-gray-100'
+            }`}
+          >
+            <Calculator className="h-5 w-5" />
+            <span>Fórmulas de Cálculo</span>
+          </button>
+
+          <button
+            onClick={() => setActiveSection('baremos_honorarios')}
+            className={`w-full flex items-center space-x-3 px-4 py-3 rounded-lg text-left transition-colors ${
+              activeSection === 'baremos_honorarios'
+                ? 'bg-orange-100 text-orange-700 border-orange-200 border'
+                : 'text-gray-700 hover:bg-gray-100'
+            }`}
+          >
+            <FileText className="h-5 w-5" />
+            <span>Baremos Honorarios</span>
+          </button>
+
+          <hr className="my-2" />
+          
+          {/* Configuración Avanzada */}
+          <div className="px-3 py-2">
+            <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
+              Configuración Avanzada
+            </h4>
+          </div>
+          
+          <button
             onClick={() => setActiveSection('word_templates')}
             className={`w-full flex items-center space-x-3 px-4 py-3 rounded-lg text-left transition-colors ${
               activeSection === 'word_templates'
@@ -231,6 +507,13 @@ export default function AdminPanel() {
           </button>
 
           <hr className="my-2" />
+          
+          {/* Sistema */}
+          <div className="px-3 py-2">
+            <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
+              Sistema
+            </h4>
+          </div>
           
           <button
             onClick={() => setActiveSection('users')}

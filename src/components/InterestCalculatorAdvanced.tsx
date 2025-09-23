@@ -413,54 +413,166 @@ export default function InterestCalculatorAdvanced() {
   }
 
   const exportToExcel = () => {
-    const workbook = XLSX.utils.book_new()
+    // Preguntar al usuario por el número de expediente
+    const numeroExpediente = prompt('Introduce el número de expediente:')
 
-    // Calculate total days for each result
-    const calcularDias = (fecha1: Date, fecha2: Date): number => {
-      const diffTime = Math.abs(fecha2.getTime() - fecha1.getTime())
-      return Math.ceil(diffTime / (1000 * 60 * 60 * 24))
+    if (!numeroExpediente || numeroExpediente.trim() === '') {
+      alert('Debes introducir un número de expediente válido.')
+      return
     }
+
+    const workbook = XLSX.utils.book_new()
 
     globalModalidades.forEach(modalidad => {
       const modalityResults = results.filter(r => r.modalidad === modalidad && r.resultado)
-      
+
       if (modalityResults.length === 0) return
 
-      const data = modalityResults.map(result => {
-        const fechaInicio = parseDate(result.fecha_inicio)
-        const fechaFin = parseDate(result.fecha_fin)
-        const dias = fechaInicio && fechaFin ? calcularDias(fechaInicio, fechaFin) : 0
+      const data: any[] = []
 
-        return {
-          'Importe': result.cuantía,
-          'Fecha Origen': result.fecha_inicio,
-          'Fecha Fin': result.fecha_fin,
-          'Días': dias,
-          'Interés': result.resultado?.totalInteres || 0,
-          'Resultado': result.cuantía + (result.resultado?.totalInteres || 0)
-        }
+      // Agregar título de la hoja
+      const tituloHoja = `RESUMEN INTERESES - ${modalidad.toUpperCase()} - EXPEDIENTE ${numeroExpediente}`
+      data.push([tituloHoja])
+      data.push(['']) // Fila vacía
+
+      // Agregar encabezados
+      data.push([
+        'Importe',
+        'Fecha Origen',
+        'Fecha Fin',
+        'Año',
+        'Días',
+        'Tasa (%)',
+        'Interés Año',
+        'Tipo'
+      ])
+
+      modalityResults.forEach(result => {
+        if (!result.resultado?.detallePorAño) return
+
+        // Add a row for each year calculation
+        result.resultado.detallePorAño.forEach(yearDetail => {
+          data.push([
+            { v: result.cuantía, t: 'n', z: '#,##0.00 €' },
+            result.fecha_inicio,
+            result.fecha_fin,
+            yearDetail.año,
+            yearDetail.dias,
+            { v: yearDetail.tasa, t: 'n', z: '0.0000%' },
+            { v: yearDetail.interes, t: 'n', z: '#,##0.00 €' },
+            yearDetail.tipo
+          ])
+        })
+
+        // Add summary row for this calculation
+        data.push([
+          { v: result.cuantía, t: 'n', z: '#,##0.00 €' },
+          result.fecha_inicio,
+          result.fecha_fin,
+          'TOTAL',
+          '',
+          '',
+          { v: result.resultado.totalInteres, t: 'n', z: '#,##0.00 €' },
+          'RESUMEN'
+        ])
+
+        // Add empty row for separation
+        data.push(['', '', '', '', '', '', '', ''])
       })
 
-      const worksheet = XLSX.utils.json_to_sheet(data)
-      
+      const worksheet = XLSX.utils.aoa_to_sheet(data)
+
+      // Aplicar estilos y formato
+      const range = XLSX.utils.decode_range(worksheet['!ref'] || 'A1')
+
+      // Estilos para el título
+      if (worksheet['A1']) {
+        worksheet['A1'].s = {
+          font: { bold: true, sz: 14, color: { rgb: 'FFFFFF' } },
+          fill: { fgColor: { rgb: '2B6CB0' } },
+          alignment: { horizontal: 'center', vertical: 'center' }
+        }
+      }
+
+      // Estilos para los encabezados
+      for (let col = 0; col < 8; col++) {
+        const cellAddress = XLSX.utils.encode_cell({ r: 2, c: col })
+        if (worksheet[cellAddress]) {
+          worksheet[cellAddress].s = {
+            font: { bold: true, sz: 11, color: { rgb: 'FFFFFF' } },
+            fill: { fgColor: { rgb: '4A5568' } },
+            alignment: { horizontal: 'center', vertical: 'center' },
+            border: {
+              top: { style: 'thin', color: { rgb: '000000' } },
+              bottom: { style: 'thin', color: { rgb: '000000' } },
+              left: { style: 'thin', color: { rgb: '000000' } },
+              right: { style: 'thin', color: { rgb: '000000' } }
+            }
+          }
+        }
+      }
+
+      // Aplicar bordes a todas las celdas de datos
+      for (let row = 3; row <= range.e.r; row++) {
+        for (let col = 0; col < 8; col++) {
+          const cellAddress = XLSX.utils.encode_cell({ r: row, c: col })
+          if (worksheet[cellAddress]) {
+            worksheet[cellAddress].s = {
+              ...worksheet[cellAddress].s,
+              border: {
+                top: { style: 'thin', color: { rgb: 'D1D5DB' } },
+                bottom: { style: 'thin', color: { rgb: 'D1D5DB' } },
+                left: { style: 'thin', color: { rgb: 'D1D5DB' } },
+                right: { style: 'thin', color: { rgb: 'D1D5DB' } }
+              },
+              alignment: col < 4 ? { horizontal: 'left' } : { horizontal: 'center' }
+            }
+          }
+        }
+      }
+
+      // Estilos especiales para filas TOTAL
+      for (let row = 3; row <= range.e.r; row++) {
+        const tipoCell = XLSX.utils.encode_cell({ r: row, c: 7 })
+        if (worksheet[tipoCell] && worksheet[tipoCell].v === 'RESUMEN') {
+          for (let col = 0; col < 8; col++) {
+            const cellAddress = XLSX.utils.encode_cell({ r: row, c: col })
+            if (worksheet[cellAddress]) {
+              worksheet[cellAddress].s = {
+                ...worksheet[cellAddress].s,
+                font: { bold: true, color: { rgb: '2D3748' } },
+                fill: { fgColor: { rgb: 'EDF2F7' } }
+              }
+            }
+          }
+        }
+      }
+
+      // Combinar celdas para el título
+      worksheet['!merges'] = [
+        { s: { r: 0, c: 0 }, e: { r: 0, c: 7 } }
+      ]
+
       // Set column widths
       worksheet['!cols'] = [
-        { wch: 12 }, // Importe
+        { wch: 15 }, // Importe
         { wch: 12 }, // Fecha Origen
         { wch: 12 }, // Fecha Fin
+        { wch: 8 },  // Año
         { wch: 8 },  // Días
-        { wch: 15 }, // Interés
-        { wch: 15 }  // Resultado
+        { wch: 12 }, // Tasa (%)
+        { wch: 18 }, // Interés Año
+        { wch: 12 }  // Tipo
       ]
 
       const sheetName = modalidad === 'legal' ? 'Legal' :
                        modalidad === 'judicial' ? 'Judicial' :
                        modalidad === 'tae' ? 'TAE' : 'TAE+5%'
-      
+
       XLSX.utils.book_append_sheet(workbook, worksheet, sheetName)
     })
 
-    XLSX.writeFile(workbook, 'resultados_calculo_intereses.xlsx')
+    XLSX.writeFile(workbook, `RESUMEN INTERESES Nº EXPT ${numeroExpediente}.xlsx`)
   }
 
   if (loading) {
