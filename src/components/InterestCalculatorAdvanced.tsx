@@ -31,6 +31,7 @@ interface CalculationResult extends ExcelRow {
   modalidad: 'legal' | 'judicial' | 'tae' | 'tae_plus5'
   tae_contrato?: number
   fecha_sentencia?: string
+  concepto?: string
   resultado?: InterestCalculationResult
   error?: string
 }
@@ -38,6 +39,7 @@ interface CalculationResult extends ExcelRow {
 interface ColumnMapping {
   cuantía: string
   fecha_inicio: string
+  concepto?: string
 }
 
 export default function InterestCalculatorAdvanced() {
@@ -46,7 +48,7 @@ export default function InterestCalculatorAdvanced() {
   const [error, setError] = useState<string | null>(null)
   const [excelData, setExcelData] = useState<ExcelRow[]>([])
   const [availableColumns, setAvailableColumns] = useState<string[]>([])
-  const [columnMapping, setColumnMapping] = useState<ColumnMapping>({ cuantía: '', fecha_inicio: '' })
+  const [columnMapping, setColumnMapping] = useState<ColumnMapping>({ cuantía: '', fecha_inicio: '', concepto: '' })
   const [globalModalidades, setGlobalModalidades] = useState<Array<'legal' | 'judicial' | 'tae' | 'tae_plus5'>>(['legal'])
   const [globalFechaFin, setGlobalFechaFin] = useState<string>('')
   const [globalTaeContrato, setGlobalTaeContrato] = useState<string>('')
@@ -82,7 +84,7 @@ export default function InterestCalculatorAdvanced() {
       setExcelData([])
       setResults([])
       setAvailableColumns([])
-      setColumnMapping({ cuantía: '', fecha_inicio: '' })
+      setColumnMapping({ cuantía: '', fecha_inicio: '', concepto: '' })
 
       const data = await file.arrayBuffer()
       const workbook = XLSX.read(data, { type: 'array' })
@@ -171,6 +173,7 @@ export default function InterestCalculatorAdvanced() {
           // Get values using column mapping
           const cuantiaValue = row[columnMapping.cuantía]
           const fechaInicioValue = row[columnMapping.fecha_inicio]
+          const conceptoValue = columnMapping.concepto ? row[columnMapping.concepto] : undefined
 
           // Skip rows with invalid or missing data
           if (!cuantiaValue || !fechaInicioValue ||
@@ -245,6 +248,7 @@ export default function InterestCalculatorAdvanced() {
               modalidad,
               tae_contrato: globalTaeContrato ? parseFloat(globalTaeContrato) : undefined,
               fecha_sentencia: globalFechaSentencia || undefined,
+              concepto: conceptoValue ? String(conceptoValue) : undefined,
               resultado: result
             })
           }
@@ -829,16 +833,30 @@ export default function InterestCalculatorAdvanced() {
           yPosition = addNewPage()
         }
 
-        const tableData = modalityResults.map(r => [
-          r.cuantía.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
-          new Date(r.fecha_inicio).toLocaleDateString('es-ES'),
-          new Date(r.fecha_fin).toLocaleDateString('es-ES'),
-          (r.resultado?.totalInteres || 0).toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
-        ])
+        const tableData = modalityResults.map(r => {
+          const row = [
+            r.cuantía.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
+            new Date(r.fecha_inicio).toLocaleDateString('es-ES'),
+            new Date(r.fecha_fin).toLocaleDateString('es-ES'),
+            (r.resultado?.totalInteres || 0).toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+          ]
+          
+          // Agregar concepto al inicio si está disponible
+          if (r.concepto) {
+            row.unshift(r.concepto)
+          }
+          
+          return row
+        })
+
+        const tableHeaders = [['Capital (€)', 'Fecha Inicio', 'Fecha Fin', 'Intereses (€)']]
+        if (modalityResults.some(r => r.concepto)) {
+          tableHeaders[0].unshift('Concepto')
+        }
 
         autoTable(pdf, {
           startY: yPosition,
-          head: [['Capital (€)', 'Fecha Inicio', 'Fecha Fin', 'Intereses (€)']],
+          head: tableHeaders,
           body: tableData,
           theme: 'grid',
           styles: { fontSize: 8, cellPadding: 3 },
@@ -1074,7 +1092,7 @@ export default function InterestCalculatorAdvanced() {
             <p className="text-blue-700 mb-4">
               Selecciona qué columnas de tu Excel corresponden a los campos requeridos:
             </p>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
               <div>
                 <label className="block text-sm font-medium text-blue-900 mb-2">
                   Columna de Cuantía *
@@ -1100,6 +1118,21 @@ export default function InterestCalculatorAdvanced() {
                   className="w-full px-3 py-2 border border-blue-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                 >
                   <option value="">Seleccionar columna...</option>
+                  {availableColumns.map((col, index) => (
+                    <option key={index} value={col}>{col}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-blue-900 mb-2">
+                  Columna de Concepto (opcional)
+                </label>
+                <select
+                  value={columnMapping.concepto || ''}
+                  onChange={(e) => setColumnMapping(prev => ({ ...prev, concepto: e.target.value || undefined }))}
+                  className="w-full px-3 py-2 border border-blue-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="">Sin concepto</option>
                   {availableColumns.map((col, index) => (
                     <option key={index} value={col}>{col}</option>
                   ))}
@@ -1203,6 +1236,9 @@ export default function InterestCalculatorAdvanced() {
                   <p className="text-sm text-gray-600 mt-1">
                     Mapeo aplicado: <span className="font-medium text-blue-600">"{columnMapping.cuantía}" → Cuantía</span>, 
                     <span className="font-medium text-blue-600 ml-1">"{columnMapping.fecha_inicio}" → Fecha Inicio</span>
+                    {columnMapping.concepto && (
+                      <span className="font-medium text-green-600 ml-1">"{columnMapping.concepto}" → Concepto</span>
+                    )}
                   </p>
                 )}
               </div>
@@ -1242,6 +1278,7 @@ export default function InterestCalculatorAdvanced() {
                         {col}
                         {col === columnMapping.cuantía && <span className="ml-1 text-blue-600">→ Cuantía</span>}
                         {col === columnMapping.fecha_inicio && <span className="ml-1 text-blue-600">→ Fecha Inicio</span>}
+                        {col === columnMapping.concepto && <span className="ml-1 text-green-600">→ Concepto</span>}
                       </th>
                     ))}
                   </tr>
