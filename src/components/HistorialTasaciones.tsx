@@ -86,7 +86,7 @@ export default function HistorialTasaciones() {
       }
 
       // Calcular las costas con los nuevos datos
-      const resultado = calcularCostas({
+      const resultado = await calcularCostas({
         criterioICA: municipioSeleccionado.criterio_ica,
         tipoJuicio: data.tipo_proceso,
         faseTerminacion: data.fase_terminacion,

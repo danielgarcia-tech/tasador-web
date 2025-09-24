@@ -56,7 +56,7 @@ export async function testCalculoCostas() {
 
   try {
     // Prueba 1: Juicio Ordinario - Allanamiento
-    const resultado1 = calcularCostas({
+    const resultado1 = await calcularCostas({
       criterioICA: 'Madrid',
       tipoJuicio: 'Juicio Ordinario',
       faseTerminacion: 'Allanamiento',
@@ -65,7 +65,7 @@ export async function testCalculoCostas() {
     console.log('✅ Juicio Ordinario - Allanamiento:', resultado1)
 
     // Prueba 2: Juicio Verbal - Alegaciones
-    const resultado2 = calcularCostas({
+    const resultado2 = await calcularCostas({
       criterioICA: 'Madrid',
       tipoJuicio: 'Juicio Verbal',
       faseTerminacion: 'Alegaciones',
@@ -74,7 +74,7 @@ export async function testCalculoCostas() {
     console.log('✅ Juicio Verbal - Alegaciones:', resultado2)
 
     // Prueba 3: Segunda Instancia
-    const resultado3 = calcularCostas({
+    const resultado3 = await calcularCostas({
       criterioICA: 'Madrid',
       tipoJuicio: 'Juicio Ordinario',
       faseTerminacion: 'Juicio',

@@ -3,7 +3,7 @@ import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { Building, MapPin } from 'lucide-react'
-import { calcularCostas, obtenerFasesTerminacion, valoresCriteriosICA } from '../lib/calculator'
+import { calcularCostas, obtenerFasesTerminacion } from '../lib/calculator'
 import { buscarMunicipios, obtenerTodosMunicipios } from '../lib/municipios'
 import { buscarEntidades, buscarEntidadPorCodigo } from '../lib/entidades'
 import { useTasaciones } from '../hooks/useTasaciones'
@@ -42,15 +42,6 @@ const tasacionSchema = z.object({
 })
 
 type TasacionFormData = z.infer<typeof tasacionSchema>
-
-type ValoresCriterioICA = {
-  allanamiento: number;
-  audiencia_previa: number;
-  juicio: number;
-  factor_apelacion: number;
-  verbal_alegaciones: number;
-  verbal_vista: number;
-}
 
 export default function TasacionForm() {
   const [entidades, setEntidades] = useState<Array<{codigo: string, nombre: string}>>([])
@@ -152,7 +143,7 @@ export default function TasacionForm() {
       }
 
       // Calcular costas
-      const resultadoCalculo = calcularCostas({
+      const resultadoCalculo = await calcularCostas({
         criterioICA: municipioSeleccionado.criterio_ica,
         tipoJuicio: data.tipo_proceso,
         faseTerminacion: data.fase_terminacion,
@@ -625,7 +616,7 @@ export default function TasacionForm() {
               </div>
 
               <div className="mt-4 p-3 bg-gray-50 rounded-lg">
-                <h5 className="font-medium text-gray-900 mb-2">💡 Explicación detallada del cálculo:</h5>
+                <h5 className="font-medium text-gray-900 mb-2">💡 Información del cálculo:</h5>
                 <div className="space-y-1 text-xs">
                   {(() => {
                     const formData = watch();
@@ -635,106 +626,20 @@ export default function TasacionForm() {
                     const criterioICA = municipioSeleccionado?.criterio_ica;
 
                     let explicacion = [];
-                    let importeBase = 0;
-
-                    // Usar valoresCriteriosICA importado
-                    const valoresCriterio: ValoresCriterioICA = criterioICA ? valoresCriteriosICA[criterioICA] || {
-                      allanamiento: 0,
-                      audiencia_previa: 0,
-                      juicio: 0,
-                      factor_apelacion: 0.5,
-                      verbal_alegaciones: 0.5,
-                      verbal_vista: 0.5
-                    } : {
-                      allanamiento: 0,
-                      audiencia_previa: 0,
-                      juicio: 0,
-                      factor_apelacion: 0.5,
-                      verbal_alegaciones: 0.5,
-                      verbal_vista: 0.5
-                    };
 
                     explicacion.push(`📍 Municipio: ${municipioSeleccionado?.municipio || 'No seleccionado'} (Criterio ICA: ${criterioICA})`);
                     explicacion.push(`⚖️ Tipo de proceso: ${tipoJuicio}`);
                     explicacion.push(`📋 Fase de terminación: ${faseTerminacion || 'No seleccionada'}`);
                     explicacion.push(`🏛️ Instancia: ${instancia || 'PRIMERA INSTANCIA'}`);
                     explicacion.push('');
-
-                    if (!faseTerminacion) {
-                      explicacion.push('⚠️ Seleccione una fase de terminación para ver el cálculo detallado');
-                      explicacion.push('');
-                    } else {
-                      if (tipoJuicio === 'Juicio Ordinario') {
-                      explicacion.push('🔍 CÁLCULO PARA JUICIO ORDINARIO:');
-                      if (faseTerminacion === 'Allanamiento') {
-                        importeBase = valoresCriterio.allanamiento || 0;
-                        explicacion.push(`• Baremo base para Allanamiento: €${importeBase.toFixed(2)}`);
-                        explicacion.push(`  (Según baremos ICA ${criterioICA})`);
-                      } else if (faseTerminacion === 'Audiencia Previa') {
-                        importeBase = valoresCriterio.audiencia_previa || 0;
-                        explicacion.push(`• Baremo base para Audiencia Previa: €${importeBase.toFixed(2)}`);
-                        explicacion.push(`  (Según baremos ICA ${criterioICA})`);
-                      } else if (faseTerminacion === 'Juicio') {
-                        importeBase = valoresCriterio.juicio || 0;
-                        explicacion.push(`• Baremo base para Juicio: €${importeBase.toFixed(2)}`);
-                        explicacion.push(`  (Según baremos ICA ${criterioICA})`);
-                      }
-                    } else if (tipoJuicio === 'Juicio Verbal') {
-                      explicacion.push('🔍 CÁLCULO PARA JUICIO VERBAL:');
-                      if (faseTerminacion === 'Alegaciones') {
-                        if (valoresCriterio.verbal_alegaciones >= 1) {
-                          importeBase = valoresCriterio.verbal_alegaciones;
-                          explicacion.push(`• Baremo directo para Alegaciones: €${importeBase.toFixed(2)}`);
-                          explicacion.push(`  (Valor fijo según baremos ICA ${criterioICA})`);
-                        } else {
-                          const baseJuicio = valoresCriterio.juicio || 0;
-                          const porcentaje = valoresCriterio.verbal_alegaciones;
-                          importeBase = baseJuicio * porcentaje;
-                          explicacion.push(`• Cálculo porcentual sobre baremo base:`);
-                          explicacion.push(`  - Baremo base Juicio: €${baseJuicio.toFixed(2)}`);
-                          explicacion.push(`  - Porcentaje aplicado: ${porcentaje * 100}%`);
-                          explicacion.push(`  - Resultado: €${baseJuicio.toFixed(2)} × ${porcentaje * 100}% = €${importeBase.toFixed(2)}`);
-                        }
-                      } else if (faseTerminacion === 'Vista') {
-                        if (valoresCriterio.verbal_vista >= 1) {
-                          importeBase = valoresCriterio.verbal_vista;
-                          explicacion.push(`• Baremo directo para Vista: €${importeBase.toFixed(2)}`);
-                          explicacion.push(`  (Valor fijo según baremos ICA ${criterioICA})`);
-                        } else {
-                          const baseJuicio = valoresCriterio.juicio || 0;
-                          const porcentaje = valoresCriterio.verbal_vista;
-                          importeBase = baseJuicio * porcentaje;
-                          explicacion.push(`• Cálculo porcentual sobre baremo base:`);
-                          explicacion.push(`  - Baremo base Juicio: €${baseJuicio.toFixed(2)}`);
-                          explicacion.push(`  - Porcentaje aplicado: ${porcentaje * 100}%`);
-                          explicacion.push(`  - Resultado: €${baseJuicio.toFixed(2)} × ${porcentaje * 100}% = €${importeBase.toFixed(2)}`);
-                        }
-                      }
-                    }
-
+                    explicacion.push('🔍 El cálculo se realiza consultando los baremos actualizados desde la base de datos.');
+                    explicacion.push('� Los valores se obtienen dinámicamente según el criterio ICA del municipio seleccionado.');
                     explicacion.push('');
 
-                    // Aplicar factor de apelación
-                    if (instancia === 'SEGUNDA INSTANCIA') {
-                      const factor = valoresCriterio.factor_apelacion || 0.5;
-                      const importeAntesFactor = importeBase;
-                      importeBase *= factor;
-                      explicacion.push('⚖️ AJUSTE POR SEGUNDA INSTANCIA:');
-                      explicacion.push(`• Factor de reducción aplicado: ${factor * 100}%`);
-                      explicacion.push(`• Importe antes del factor: €${importeAntesFactor.toFixed(2)}`);
-                      explicacion.push(`• Importe tras aplicar factor: €${importeAntesFactor.toFixed(2)} × ${factor * 100}% = €${importeBase.toFixed(2)}`);
-                      explicacion.push('');
-                    }
-                    }
-
-                    // Calcular IVA
-                    const ivaCalculado = importeBase * 0.21;
-                    const totalCalculado = importeBase + ivaCalculado;
-
                     explicacion.push('💰 DESGLOSE FINAL:');
-                    explicacion.push(`• Base imponible (costas): €${importeBase.toFixed(2)}`);
-                    explicacion.push(`• IVA (21%): €${importeBase.toFixed(2)} × 21% = €${ivaCalculado.toFixed(2)}`);
-                    explicacion.push(`• Total con IVA: €${importeBase.toFixed(2)} + €${ivaCalculado.toFixed(2)} = €${totalCalculado.toFixed(2)}`);
+                    explicacion.push(`• Base imponible (costas): €${resultado.costas.toFixed(2)}`);
+                    explicacion.push(`• IVA (21%): €${resultado.iva.toFixed(2)}`);
+                    explicacion.push(`• Total con IVA: €${resultado.total.toFixed(2)}`);
 
                     return explicacion.map((line, index) => (
                       <div key={index} className={line === '' ? 'h-2' : ''}>{line}</div>

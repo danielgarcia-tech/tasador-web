@@ -87,7 +87,7 @@ export default function TestPanel() {
 
   const testCalculo = async () => {
     try {
-      const resultado = calcularCostas({
+      const resultado = await calcularCostas({
         criterioICA: 'Madrid',
         tipoJuicio: 'Juicio Ordinario',
         faseTerminacion: 'Juicio',

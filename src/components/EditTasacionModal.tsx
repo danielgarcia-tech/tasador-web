@@ -61,20 +61,24 @@ export default function EditTasacionModal({ tasacion, isOpen, onClose }: EditTas
 
   // Recalcular costas cuando cambien los parámetros relevantes
   useEffect(() => {
-    if (criterioIca && faseTerminacion && instancia && tipoJuicio) {
-      try {
-        const resultado = calcularCostas({
-          criterioICA: criterioIca,
-          tipoJuicio: tipoJuicio as 'Juicio Verbal' | 'Juicio Ordinario',
-          faseTerminacion,
-          instancia
-        })
-        setCostas(resultado)
-      } catch (error) {
-        console.error('Error calculating costas:', error)
-        setCostas(null)
+    const calcularCostasAsync = async () => {
+      if (criterioIca && faseTerminacion && instancia && tipoJuicio) {
+        try {
+          const resultado = await calcularCostas({
+            criterioICA: criterioIca,
+            tipoJuicio: tipoJuicio as 'Juicio Verbal' | 'Juicio Ordinario',
+            faseTerminacion,
+            instancia
+          })
+          setCostas(resultado)
+        } catch (error) {
+          console.error('Error calculating costas:', error)
+          setCostas(null)
+        }
       }
     }
+    
+    calcularCostasAsync()
   }, [criterioIca, tipoJuicio, faseTerminacion, instancia])
 
   const onSubmit = async (data: EditTasacionFormData) => {
