@@ -266,3 +266,26 @@ El sistema incluye un editor HTML WYSIWYG integrado en el panel de administraci�
 1. **HTML**: Si hay plantilla HTML configurada, se genera documento HTML
 2. **DOCX**: Si no hay HTML pero hay plantilla DOCX, se genera documento Word
 3. **Servidor**: Si está configurado `VITE_RENDER_SERVER_MINUTA_URL`, se usa el endpoint serverless
+
+## 📝 Changelog Reciente
+
+### 2025-09-25 - Corrección de Políticas RLS y Errores 401
+
+**Problema resuelto**: Errores 401 Unauthorized durante la inicialización de la base de datos
+
+**Cambios aplicados**:
+- ✅ **Política RLS corregida**: Agregada política `"Anyone can view municipios"` para permitir SELECT público en tabla `municipios`
+- ✅ **Upsert operations**: Las operaciones de inserción/actualización durante inicialización ahora funcionan correctamente
+- ✅ **Database initialization**: La aplicación ahora se inicia sin errores de autorización
+- ✅ **Consistencia de políticas**: Alineadas las políticas de `municipios` con las de `entidades`
+
+**Contexto técnico**:
+- Las operaciones `upsert` requieren permisos SELECT + INSERT + UPDATE
+- La tabla `municipios` tenía políticas INSERT/UPDATE públicas pero SELECT solo para authenticated
+- La tabla `entidades` ya tenía la configuración correcta con SELECT público
+- La corrección permite la inicialización automática de datos de referencia
+
+**Impacto**: 
+- ✅ Eliminación completa de errores 401 durante startup
+- ✅ Inicialización correcta de datos de municipios y entidades
+- ✅ Experiencia de usuario mejorada sin errores de carga
