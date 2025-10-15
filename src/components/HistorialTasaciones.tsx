@@ -25,6 +25,7 @@ import {
   WifiOff
 } from 'lucide-react'
 import { calcularCostas, obtenerFasesTerminacion } from '../lib/calculator'
+import * as XLSX from 'xlsx'
 import { buscarMunicipios, obtenerTodosMunicipios } from '../lib/municipios'
 import { buscarEntidades, obtenerTodasEntidades, buscarEntidadPorCodigo } from '../lib/entidades'
 import { generateMinutaDocx } from '../lib/docx-generator'
@@ -50,6 +51,8 @@ export default function HistorialTasaciones() {
   const [searchTerm, setSearchTerm] = useState('')
   const [filterTipoProceso, setFilterTipoProceso] = useState('')
   const [filterInstancia, setFilterInstancia] = useState('')
+  const [filterDateFrom, setFilterDateFrom] = useState('')
+  const [filterDateTo, setFilterDateTo] = useState('')
   const [currentPage, setCurrentPage] = useState(1)
   const itemsPerPage = 10
 
@@ -176,6 +179,42 @@ export default function HistorialTasaciones() {
     } catch (error) {
       console.error('Error al generar minuta desde historial:', error)
       alert('Error al generar la minuta. Por favor, inténtelo de nuevo.')
+    }
+  }
+
+  const descargarReporteExcel = (rows: Tasacion[]) => {
+    try {
+      // Mapear las filas a un formato plano
+      const data = rows.map(r => ({
+        id: r.id,
+        fecha: new Date(r.created_at).toLocaleString('es-ES'),
+        nombre_cliente: r.nombre_cliente,
+        numero_procedimiento: r.numero_procedimiento,
+        municipio: r.municipio,
+        tipo_proceso: r.tipo_proceso,
+        instancia: r.instancia,
+        total: r.total,
+        ref_aranzadi: r.ref_aranzadi || ''
+      }))
+
+      const ws = XLSX.utils.json_to_sheet(data)
+      const wb = XLSX.utils.book_new()
+      XLSX.utils.book_append_sheet(wb, ws, 'Historial')
+
+      // Generar buffer y forzar descarga
+      const wbout = XLSX.write(wb, { bookType: 'xlsx', type: 'array' })
+      const blob = new Blob([wbout], { type: 'application/octet-stream' })
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `reporte_tasaciones_${new Date().toISOString().slice(0,10)}.xlsx`
+      document.body.appendChild(a)
+      a.click()
+      a.remove()
+      URL.revokeObjectURL(url)
+    } catch (error) {
+      console.error('Error generando reporte Excel:', error)
+      alert('No se pudo generar el reporte. Revisa la consola para más detalles.')
     }
   }
 
@@ -516,7 +555,23 @@ export default function HistorialTasaciones() {
     const matchesTipoProceso = !filterTipoProceso || tasacion.tipo_proceso === filterTipoProceso
     const matchesInstancia = !filterInstancia || tasacion.instancia === filterInstancia
 
-    return matchesSearch && matchesTipoProceso && matchesInstancia
+    // Filtrado por rango de fechas (created_at)
+    let matchesDate = true
+    try {
+      const createdAt = new Date(tasacion.created_at)
+      if (filterDateFrom) {
+        const from = new Date(filterDateFrom + 'T00:00:00')
+        if (createdAt < from) matchesDate = false
+      }
+      if (filterDateTo) {
+        const to = new Date(filterDateTo + 'T23:59:59')
+        if (createdAt > to) matchesDate = false
+      }
+    } catch (e) {
+      matchesDate = true
+    }
+
+    return matchesSearch && matchesTipoProceso && matchesInstancia && matchesDate
   })
 
   // Paginación
@@ -524,9 +579,9 @@ export default function HistorialTasaciones() {
   const startIndex = (currentPage - 1) * itemsPerPage
   const paginatedTasaciones = filteredTasaciones.slice(startIndex, startIndex + itemsPerPage)
 
-  // Estadísticas
-  const totalTasaciones = tasaciones.length
-  const totalCostas = tasaciones.reduce((sum, t) => sum + (t.total || 0), 0)
+  // Estadísticas basadas en el conjunto filtrado para actualizar en directo
+  const totalTasaciones = filteredTasaciones.length
+  const totalCostas = filteredTasaciones.reduce((sum, t) => sum + (t.total || 0), 0)
   const promedioTasacion = totalTasaciones > 0 ? totalCostas / totalTasaciones : 0
 
   if (loading) {
@@ -581,13 +636,22 @@ export default function HistorialTasaciones() {
           <h1 className="text-3xl font-bold text-gray-900">Historial de Tasaciones</h1>
           <p className="text-gray-600 mt-1">Gestiona y consulta todas las tasaciones realizadas</p>
         </div>
-        <button
-          onClick={() => refresh()}
-          className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition-colors"
-        >
-          <RefreshCw className="h-4 w-4" />
-          Actualizar
-        </button>
+        <div className="flex items-center gap-3">
+          <button
+            onClick={() => descargarReporteExcel(filteredTasaciones)}
+            className="flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg transition-colors"
+          >
+            <Download className="h-4 w-4" />
+            Descargar reporte
+          </button>
+          <button
+            onClick={() => refresh()}
+            className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition-colors"
+          >
+            <RefreshCw className="h-4 w-4" />
+            Actualizar
+          </button>
+        </div>
       </div>
 
       {/* Indicador de Conexión */}
@@ -694,6 +758,27 @@ export default function HistorialTasaciones() {
               <option value="SEGUNDA INSTANCIA">Segunda Instancia</option>
             </select>
           </div>
+
+          {/* Filtro rango de fechas */}
+          <div className="w-full lg:w-72">
+            <label className="block text-sm font-semibold text-gray-800 mb-3">📅 Rango de Fecha</label>
+            <div className="flex gap-2">
+              <input
+                type="date"
+                value={filterDateFrom}
+                onChange={(e) => setFilterDateFrom(e.target.value)}
+                className="w-1/2 border-2 border-gray-200 rounded-xl px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                aria-label="Fecha desde"
+              />
+              <input
+                type="date"
+                value={filterDateTo}
+                onChange={(e) => setFilterDateTo(e.target.value)}
+                className="w-1/2 border-2 border-gray-200 rounded-xl px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                aria-label="Fecha hasta"
+              />
+            </div>
+          </div>
         </div>
 
         {/* Resultados del filtro */}
@@ -709,6 +794,8 @@ export default function HistorialTasaciones() {
                 setSearchTerm('')
                 setFilterTipoProceso('')
                 setFilterInstancia('')
+                setFilterDateFrom('')
+                setFilterDateTo('')
                 setCurrentPage(1)
               }}
               className="flex items-center gap-2 bg-red-50 text-red-600 hover:bg-red-100 px-4 py-2 rounded-lg transition-colors duration-200 font-medium"
@@ -741,10 +828,12 @@ export default function HistorialTasaciones() {
           {(searchTerm || filterTipoProceso || filterInstancia) && (
             <button
               onClick={() => {
-                setSearchTerm('')
-                setFilterTipoProceso('')
-                setFilterInstancia('')
-              }}
+                  setSearchTerm('')
+                  setFilterTipoProceso('')
+                  setFilterInstancia('')
+                  setFilterDateFrom('')
+                  setFilterDateTo('')
+                }}
               className="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-xl transition-colors duration-200 font-medium shadow-lg hover:shadow-xl"
             >
               <RefreshCw className="h-5 w-5" />

@@ -117,15 +117,23 @@ export default function UsersManagement() {
     }
 
     try {
-      // Eliminar usuario de la tabla usuarios_personalizados
-      const { error } = await supabase
-        .from('usuarios_personalizados')
-        .delete()
-        .eq('id', id)
+      // Llamar al endpoint server-side que usa la service role key
+      const session = await supabase.auth.getSession()
+      const token = session?.data?.session?.access_token
 
-      if (error) {
-        console.error('Error eliminando usuario:', error)
-        showNotification('error', `Error al eliminar usuario: ${error.message}`)
+      const res = await fetch('/api/admin/delete-user', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({ id }),
+      })
+
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}))
+        console.error('Error eliminando usuario (server):', body)
+        showNotification('error', `Error al eliminar usuario: ${body?.error || res.statusText}`)
         return
       }
 
@@ -187,6 +195,39 @@ export default function UsersManagement() {
     } catch (error) {
       console.error('Error general restableciendo contraseña:', error)
       showNotification('error', `Error al restablecer contraseña: ${error instanceof Error ? error.message : 'Error desconocido'}`)
+    }
+  }
+
+  const quitarPassword = async (id: string, email: string) => {
+    if (!window.confirm(`¿Está seguro de quitar la contraseña del usuario ${email}? Esto dejará su contraseña en blanco.`)) {
+      return
+    }
+
+    try {
+      const session = await supabase.auth.getSession()
+      const token = session?.data?.session?.access_token
+
+      const res = await fetch('/api/admin/wipe-password', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({ id }),
+      })
+
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}))
+        console.error('Error quitando contraseña (server):', body)
+        showNotification('error', `Error al quitar contraseña: ${body?.error || res.statusText}`)
+        return
+      }
+
+      showNotification('success', 'Contraseña eliminada (NULL) correctamente')
+      cargarUsuarios()
+    } catch (error) {
+      console.error('Error quitando contraseña:', error)
+      showNotification('error', 'Error al quitar contraseña')
     }
   }
 
@@ -426,6 +467,14 @@ export default function UsersManagement() {
                       className="text-blue-600 hover:text-blue-900 inline-flex items-center"
                       title="Restablecer contraseña"
                     >
+                      <Key className="h-4 w-4" />
+                    </button>
+                    <button
+                      onClick={() => quitarPassword(usuario.id, usuario.email)}
+                      className="text-yellow-600 hover:text-yellow-900 inline-flex items-center ml-2"
+                      title="Quitar contraseña (poner NULL)"
+                    >
+                      {/* Re-uso ícono Key; cambiar si quieres otro */}
                       <Key className="h-4 w-4" />
                     </button>
                     <button
