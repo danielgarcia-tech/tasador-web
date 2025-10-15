@@ -177,7 +177,7 @@ Este proyecto está bajo la Licencia MIT. Ver el archivo `LICENSE` para más det
 
 **Desarrollador**: Daniel García
 **Email**: danielgarcia@ruaabogados.es
-**LinkedIn**: [Tu LinkedIn]
+
 
 ---
 
