@@ -51,6 +51,7 @@ export default function HistorialTasaciones() {
   const [searchTerm, setSearchTerm] = useState('')
   const [filterTipoProceso, setFilterTipoProceso] = useState('')
   const [filterInstancia, setFilterInstancia] = useState('')
+  const [filterUsuario, setFilterUsuario] = useState('')
   const [filterDateFrom, setFilterDateFrom] = useState('')
   const [filterDateTo, setFilterDateTo] = useState('')
   const [currentPage, setCurrentPage] = useState(1)
@@ -61,6 +62,8 @@ export default function HistorialTasaciones() {
   const [showEditModal, setShowEditModal] = useState(false)
   const [showDeleteModal, setShowDeleteModal] = useState(false)
   const [tasacionToDelete, setTasacionToDelete] = useState<Tasacion | null>(null)
+  const [showDetailsModal, setShowDetailsModal] = useState(false)
+  const [tasacionDetails, setTasacionDetails] = useState<Tasacion | null>(null)
   const [isUpdating, setIsUpdating] = useState(false)
   const [isDeleting, setIsDeleting] = useState(false)
   const [updateError, setUpdateError] = useState<string | null>(null)
@@ -71,6 +74,11 @@ export default function HistorialTasaciones() {
     setEditingTasacion(tasacion)
     setShowEditModal(true)
     setUpdateError(null)
+  }
+
+  const handleViewDetails = (tasacion: Tasacion) => {
+    setTasacionDetails(tasacion)
+    setShowDetailsModal(true)
   }
 
   const handleEditSubmit = async (data: TasacionForm) => {
@@ -188,6 +196,7 @@ export default function HistorialTasaciones() {
       const data = rows.map(r => ({
         id: r.id,
         fecha: new Date(r.created_at).toLocaleString('es-ES'),
+        usuario: r.usuarios_personalizados?.nombre || r.nombre_usuario || 'Desconocido',
         nombre_cliente: r.nombre_cliente,
         numero_procedimiento: r.numero_procedimiento,
         municipio: r.municipio,
@@ -544,6 +553,15 @@ export default function HistorialTasaciones() {
   // Este useEffect ha sido removido para evitar loops infinitos
   // El hook useTasaciones ya maneja la carga inicial de datos
 
+  // Obtener lista de usuarios únicos
+  const usuariosUnicos = Array.from(
+    new Set(
+      tasaciones
+        .map(t => t.usuarios_personalizados?.nombre || t.nombre_usuario || 'Desconocido')
+        .filter(nombre => nombre !== 'Desconocido')
+    )
+  ).sort()
+
   // Filtrar tasaciones
   const filteredTasaciones = tasaciones.filter(tasacion => {
     const matchesSearch =
@@ -554,6 +572,7 @@ export default function HistorialTasaciones() {
 
     const matchesTipoProceso = !filterTipoProceso || tasacion.tipo_proceso === filterTipoProceso
     const matchesInstancia = !filterInstancia || tasacion.instancia === filterInstancia
+    const matchesUsuario = !filterUsuario || (tasacion.usuarios_personalizados?.nombre || tasacion.nombre_usuario || 'Desconocido') === filterUsuario
 
     // Filtrado por rango de fechas (created_at)
     let matchesDate = true
@@ -571,7 +590,7 @@ export default function HistorialTasaciones() {
       matchesDate = true
     }
 
-    return matchesSearch && matchesTipoProceso && matchesInstancia && matchesDate
+    return matchesSearch && matchesTipoProceso && matchesInstancia && matchesUsuario && matchesDate
   })
 
   // Paginación
@@ -759,6 +778,23 @@ export default function HistorialTasaciones() {
             </select>
           </div>
 
+          {/* Filtro Usuario */}
+          <div className="w-full lg:w-52">
+            <label className="block text-sm font-semibold text-gray-800 mb-3">👤 Usuario</label>
+            <select
+              value={filterUsuario}
+              onChange={(e) => setFilterUsuario(e.target.value)}
+              className="w-full border-2 border-gray-200 rounded-xl px-4 py-3 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 text-gray-700 bg-white"
+            >
+              <option value="">Todos los usuarios</option>
+              {usuariosUnicos.map((usuario) => (
+                <option key={usuario} value={usuario}>
+                  {usuario}
+                </option>
+              ))}
+            </select>
+          </div>
+
           {/* Filtro rango de fechas */}
           <div className="w-full lg:w-72">
             <label className="block text-sm font-semibold text-gray-800 mb-3">📅 Rango de Fecha</label>
@@ -788,12 +824,13 @@ export default function HistorialTasaciones() {
               📊 Mostrando <span className="font-semibold text-gray-800">{paginatedTasaciones.length}</span> de <span className="font-semibold text-gray-800">{filteredTasaciones.length}</span> tasaciones
             </span>
           </div>
-          {(searchTerm || filterTipoProceso || filterInstancia) && (
+          {(searchTerm || filterTipoProceso || filterInstancia || filterUsuario) && (
             <button
               onClick={() => {
                 setSearchTerm('')
                 setFilterTipoProceso('')
                 setFilterInstancia('')
+                setFilterUsuario('')
                 setFilterDateFrom('')
                 setFilterDateTo('')
                 setCurrentPage(1)
@@ -854,7 +891,10 @@ export default function HistorialTasaciones() {
                     👤 Cliente
                   </th>
                   <th className="px-6 py-4 text-left text-xs font-bold text-gray-600 uppercase tracking-wider">
-                    📍 Ubicación
+                    �‍💼 Usuario
+                  </th>
+                  <th className="px-6 py-4 text-left text-xs font-bold text-gray-600 uppercase tracking-wider">
+                    �📍 Ubicación
                   </th>
                   <th className="px-6 py-4 text-left text-xs font-bold text-gray-600 uppercase tracking-wider">
                     ⚖️ Proceso
@@ -902,6 +942,21 @@ export default function HistorialTasaciones() {
                           </div>
                           <div className="text-xs text-gray-500 mt-1">
                             🏢 {tasacion.entidad_demandada || 'Sin entidad'}
+                          </div>
+                        </div>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4">
+                      <div className="flex items-center">
+                        <div className="bg-blue-100 rounded-full p-2 mr-4">
+                          <User className="h-4 w-4 text-blue-600" />
+                        </div>
+                        <div>
+                          <div className="text-sm font-bold text-gray-900">
+                            {tasacion.usuarios_personalizados?.nombre || tasacion.nombre_usuario || 'Desconocido'}
+                          </div>
+                          <div className="text-xs text-gray-500 mt-1">
+                            👤 Usuario
                           </div>
                         </div>
                       </div>
@@ -991,6 +1046,7 @@ export default function HistorialTasaciones() {
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-1">
                         <button
+                          onClick={() => handleViewDetails(tasacion)}
                           className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-all duration-200 hover:shadow-md"
                           title="Ver detalles completos de la tasación"
                         >
@@ -1168,6 +1224,167 @@ export default function HistorialTasaciones() {
                       Eliminar Tasación
                     </>
                   )}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal de Detalles */}
+      {showDetailsModal && tasacionDetails && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="p-6">
+              <div className="flex items-center justify-between mb-6">
+                <h2 className="text-2xl font-bold text-gray-900">Detalles de la Tasación</h2>
+                <button
+                  onClick={() => setShowDetailsModal(false)}
+                  className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                >
+                  <X className="h-5 w-5" />
+                </button>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {/* Información General */}
+                <div className="bg-gray-50 rounded-lg p-4">
+                  <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+                    <FileText className="h-5 w-5 text-blue-600" />
+                    Información General
+                  </h3>
+                  <div className="space-y-3">
+                    <div>
+                      <span className="text-sm font-medium text-gray-600">ID:</span>
+                      <p className="text-sm text-gray-900 font-mono">{tasacionDetails.id}</p>
+                    </div>
+                    <div>
+                      <span className="text-sm font-medium text-gray-600">Cliente:</span>
+                      <p className="text-sm text-gray-900">{tasacionDetails.nombre_cliente}</p>
+                    </div>
+                    <div>
+                      <span className="text-sm font-medium text-gray-600">Número de Procedimiento:</span>
+                      <p className="text-sm text-gray-900">{tasacionDetails.numero_procedimiento}</p>
+                    </div>
+                    <div>
+                      <span className="text-sm font-medium text-gray-600">Juzgado:</span>
+                      <p className="text-sm text-gray-900">{tasacionDetails.nombre_juzgado || 'No especificado'}</p>
+                    </div>
+                    <div>
+                      <span className="text-sm font-medium text-gray-600">Entidad Demandada:</span>
+                      <p className="text-sm text-gray-900">{tasacionDetails.entidad_demandada || 'No especificada'}</p>
+                    </div>
+                    <div>
+                      <span className="text-sm font-medium text-gray-600">Usuario:</span>
+                      <p className="text-sm text-gray-900">{tasacionDetails.usuarios_personalizados?.nombre || tasacionDetails.nombre_usuario || 'Desconocido'}</p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Información del Proceso */}
+                <div className="bg-gray-50 rounded-lg p-4">
+                  <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+                    <Scale className="h-5 w-5 text-green-600" />
+                    Información del Proceso
+                  </h3>
+                  <div className="space-y-3">
+                    <div>
+                      <span className="text-sm font-medium text-gray-600">Tipo de Proceso:</span>
+                      <p className="text-sm text-gray-900">{tasacionDetails.tipo_proceso}</p>
+                    </div>
+                    <div>
+                      <span className="text-sm font-medium text-gray-600">Instancia:</span>
+                      <p className="text-sm text-gray-900">{tasacionDetails.instancia}</p>
+                    </div>
+                    <div>
+                      <span className="text-sm font-medium text-gray-600">Fase de Terminación:</span>
+                      <p className="text-sm text-gray-900">{tasacionDetails.fase_terminacion}</p>
+                    </div>
+                    <div>
+                      <span className="text-sm font-medium text-gray-600">Municipio:</span>
+                      <p className="text-sm text-gray-900">{tasacionDetails.municipio}</p>
+                    </div>
+                    <div>
+                      <span className="text-sm font-medium text-gray-600">Criterio ICA:</span>
+                      <p className="text-sm text-gray-900">{tasacionDetails.criterio_ica}</p>
+                    </div>
+                    <div>
+                      <span className="text-sm font-medium text-gray-600">REF ARANZADI:</span>
+                      <p className="text-sm text-gray-900">{tasacionDetails.ref_aranzadi || 'No especificada'}</p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Información Económica */}
+                <div className="bg-gray-50 rounded-lg p-4">
+                  <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+                    <Euro className="h-5 w-5 text-emerald-600" />
+                    Información Económica
+                  </h3>
+                  <div className="space-y-3">
+                    <div>
+                      <span className="text-sm font-medium text-gray-600">Costas (sin IVA):</span>
+                      <p className="text-lg font-bold text-emerald-600">
+                        €{tasacionDetails.costas_sin_iva?.toLocaleString('es-ES', { minimumFractionDigits: 2 })}
+                      </p>
+                    </div>
+                    <div>
+                      <span className="text-sm font-medium text-gray-600">IVA (21%):</span>
+                      <p className="text-lg font-bold text-blue-600">
+                        €{tasacionDetails.iva_21?.toLocaleString('es-ES', { minimumFractionDigits: 2 })}
+                      </p>
+                    </div>
+                    <div>
+                      <span className="text-sm font-medium text-gray-600">Total:</span>
+                      <p className="text-2xl font-bold text-green-600">
+                        €{tasacionDetails.total?.toLocaleString('es-ES', { minimumFractionDigits: 2 })}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Fechas y Metadata */}
+                <div className="bg-gray-50 rounded-lg p-4">
+                  <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+                    <Calendar className="h-5 w-5 text-purple-600" />
+                    Fechas y Metadata
+                  </h3>
+                  <div className="space-y-3">
+                    <div>
+                      <span className="text-sm font-medium text-gray-600">Fecha de Creación:</span>
+                      <p className="text-sm text-gray-900">
+                        {new Date(tasacionDetails.created_at).toLocaleString('es-ES', {
+                          year: 'numeric',
+                          month: 'long',
+                          day: 'numeric',
+                          hour: '2-digit',
+                          minute: '2-digit'
+                        })}
+                      </p>
+                    </div>
+                    <div>
+                      <span className="text-sm font-medium text-gray-600">Última Actualización:</span>
+                      <p className="text-sm text-gray-900">
+                        {new Date(tasacionDetails.updated_at).toLocaleString('es-ES', {
+                          year: 'numeric',
+                          month: 'long',
+                          day: 'numeric',
+                          hour: '2-digit',
+                          minute: '2-digit'
+                        })}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Botón de Cerrar */}
+              <div className="flex justify-end mt-6">
+                <button
+                  onClick={() => setShowDetailsModal(false)}
+                  className="px-6 py-2 bg-gray-600 hover:bg-gray-700 text-white rounded-lg transition-colors"
+                >
+                  Cerrar
                 </button>
               </div>
             </div>

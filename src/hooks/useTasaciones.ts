@@ -61,7 +61,7 @@ export function useTasaciones() {
       
       let query = supabase
         .from('tasaciones')
-        .select('*')
+        .select('*, usuarios_personalizados!user_id(nombre)')
         .order('created_at', { ascending: false })
 
       // Si el usuario NO es admin, filtrar solo sus tasaciones

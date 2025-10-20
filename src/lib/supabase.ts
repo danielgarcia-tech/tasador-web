@@ -29,6 +29,9 @@ export interface Tasacion {
   total: number
   nombre_usuario: string
   ref_aranzadi?: string
+  usuarios_personalizados?: {
+    nombre: string
+  }
 }
 
 export interface Municipio {

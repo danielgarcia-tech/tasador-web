@@ -7,6 +7,7 @@ import { calcularCostas, obtenerFasesTerminacion } from '../lib/calculator'
 import { buscarMunicipios, obtenerTodosMunicipios } from '../lib/municipios'
 import { buscarEntidades, buscarEntidadPorCodigo } from '../lib/entidades'
 import { useTasaciones } from '../hooks/useTasaciones'
+import { useAuth } from '../contexts/CustomAuthContext'
 import { generateMinutaDocx } from '../lib/docx-generator'
 import CountUp from './CountUp'
 
@@ -62,6 +63,7 @@ export default function TasacionForm() {
   }
   
   const { create: createTasacion } = useTasaciones()
+  const { user } = useAuth()
 
   const {
     register,
@@ -564,6 +566,9 @@ export default function TasacionForm() {
           <h3 className="text-lg font-semibold text-green-900 mb-4">
             Resultado del Cálculo
           </h3>
+          <div className="mb-4 text-sm text-green-700">
+            👤 Tasación realizada por: <span className="font-semibold">{user?.nombre || user?.email || 'Usuario desconocido'}</span>
+          </div>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
             <div className="text-center">
               <AnimatedCurrency
