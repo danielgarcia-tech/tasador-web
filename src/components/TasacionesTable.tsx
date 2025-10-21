@@ -59,9 +59,21 @@ export function TasacionesTable({
                 📍 Ubicación
               </th>
               <th className="px-6 py-4 text-left text-xs font-bold text-gray-600 uppercase tracking-wider">
-                ⚖️ Proceso
+                📋 Tipo Procedimiento
               </th>
               <th className="px-6 py-4 text-left text-xs font-bold text-gray-600 uppercase tracking-wider">
+                📍 Fase Terminación
+              </th>
+              <th className="px-6 py-4 text-left text-xs font-bold text-gray-600 uppercase tracking-wider">
+                🏛️ Instancia
+              </th>
+              <th className="px-6 py-4 text-right text-xs font-bold text-gray-600 uppercase tracking-wider">
+                💶 Costas s/IVA
+              </th>
+              <th className="px-6 py-4 text-right text-xs font-bold text-gray-600 uppercase tracking-wider">
+                📊 IVA 21%
+              </th>
+              <th className="px-6 py-4 text-right text-xs font-bold text-gray-600 uppercase tracking-wider">
                 💰 Total
               </th>
               <th className="px-6 py-4 text-left text-xs font-bold text-gray-600 uppercase tracking-wider">
@@ -148,22 +160,73 @@ export function TasacionesTable({
                         {tasacion.tipo_proceso}
                       </div>
                       <div className="text-xs text-gray-500 mt-1">
-                        📋 {tasacion.fase_terminacion} • {tasacion.instancia}
+                        📋 Procedimiento
                       </div>
                     </div>
                   </div>
                 </td>
                 <td className="px-6 py-4">
                   <div className="flex items-center">
+                    <div className="bg-cyan-100 rounded-full p-2 mr-4">
+                      <MapPin className="h-4 w-4 text-cyan-600" />
+                    </div>
+                    <div>
+                      <div className="text-sm font-bold text-gray-900">
+                        {tasacion.fase_terminacion}
+                      </div>
+                      <div className="text-xs text-gray-500 mt-1">
+                        📍 Fase
+                      </div>
+                    </div>
+                  </div>
+                </td>
+                <td className="px-6 py-4">
+                  <div className="flex items-center">
+                    <div className="bg-rose-100 rounded-full p-2 mr-4">
+                      <FileText className="h-4 w-4 text-rose-600" />
+                    </div>
+                    <div>
+                      <div className="text-sm font-bold text-gray-900">
+                        {tasacion.instancia}
+                      </div>
+                      <div className="text-xs text-gray-500 mt-1">
+                        🏛️ Instancia
+                      </div>
+                    </div>
+                  </div>
+                </td>
+                <td className="px-6 py-4 text-right">
+                  <div className="flex items-center justify-end">
+                    <div className="bg-blue-100 rounded-full p-2 mr-3">
+                      <Euro className="h-4 w-4 text-blue-600" />
+                    </div>
+                    <div>
+                      <div className="text-sm font-bold text-blue-600">
+                        €{tasacion.costas_sin_iva?.toLocaleString('es-ES', { minimumFractionDigits: 2 }) || '0.00'}
+                      </div>
+                    </div>
+                  </div>
+                </td>
+                <td className="px-6 py-4 text-right">
+                  <div className="flex items-center justify-end">
+                    <div className="bg-amber-100 rounded-full p-2 mr-3">
+                      <Euro className="h-4 w-4 text-amber-600" />
+                    </div>
+                    <div>
+                      <div className="text-sm font-bold text-amber-600">
+                        €{tasacion.iva_21?.toLocaleString('es-ES', { minimumFractionDigits: 2 }) || '0.00'}
+                      </div>
+                    </div>
+                  </div>
+                </td>
+                <td className="px-6 py-4 text-right">
+                  <div className="flex items-center justify-end">
                     <div className="bg-emerald-100 rounded-full p-2 mr-3">
                       <Euro className="h-4 w-4 text-emerald-600" />
                     </div>
                     <div>
                       <div className="text-lg font-bold text-emerald-600">
                         €{tasacion.total?.toLocaleString('es-ES', { minimumFractionDigits: 2 }) || '0.00'}
-                      </div>
-                      <div className="text-xs text-gray-500">
-                        IVA: €{tasacion.iva_21?.toLocaleString('es-ES', { minimumFractionDigits: 2 }) || '0.00'}
                       </div>
                     </div>
                   </div>
