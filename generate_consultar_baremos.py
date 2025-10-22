@@ -1,95 +1,48 @@
-import { useState, useMemo } from 'react'
-import { ChevronRight, Download, MapPin, File } from 'lucide-react'
+import os
+import json
 
-// Estructura simple: CCAA -> PROVINCIA -> [nombres de archivos]
-// La ruta se construye como: BAREMOS HONORARIOS/CRITERIOS TASACIÓN COSTAS/{CCAA}/{PROVINCIA}/{archivo}
-const BAREMOS_DATA: { [ccaa: string]: { [provincia: string]: string[] } } = {
-  'ANDALUCIA': {
-    'ALMERIA': ['2023 Colegio Almería - Criterios ICA Barcelona.pdf', 'Criterio Honorarios ICA Almer｡a.pdf'],
-    'CORDOBA': ['Criterio Honorarios ICA C｢rdoba.pdf'],
-    'CÁDIZ': ['Criterio Honorarios ICA Cadiz.pdf'],
-    'GRANADA': ['Criterio Honorarios ICA Granada.pdf'],
-    'HUELVA': ['Criterio Honorarios ICA Huelva.pdf'],
-    'JAEN': ['Criterio Honorarios ICA Jaén.pdf'],
-    'JEREZ': ['Criterio Honorarios ICA Jerez.pdf'],
-    'MALAGA': ['Criterio Honorarios ICA Mlaga.pdf'],
-    'SEVILLA': ['Criterio Honorarios ICA Sevilla.pdf', 'Criterios Tasación SEVILLA.pdf']
-  },
-  'ARAGÓN': {
-    'HUESCA': ['Criterio Honorarios ICA Huesca.pdf'],
-    'TERUEL': ['Criterio Honorarios ICA Teruel.pdf'],
-    'ZARAGOZA': ['Criterio Honorarios ICA Zaragoza 2001.pdf', 'Criterio Honorarios ICA Zaragoza 2011.pdf', 'DICTAMEN COSTAS EXCESIVAS ZARAGOZA.pdf']
-  },
-  'ASTURIAS': {
-    'GIJÓN': ['CRITERIOS DE HONORARIOS ICA GIJON.pdf'],
-    'OVIEDO': ['Criterios-honorarios-2011-ICAO OVIEDO.pdf']
-  },
-  'CANTABRIA': {
-    'CANTABRIA': ['Criterio Honorarios ICA CANTABRIA - ESCALA ICA CANTABRIA.xls', 'Criterio Honorarios ICA CANTABRIA 15-12-2014.pdf', 'Criterio Honorarios ICA Cantabria.pdf']
-  },
-  'CASTILLA LA MANCHA': {
-    'GUADALAJARA': ['Criterio Honorarios ICA Guadalajara.pdf']
-  },
-  'CASTILLA Y LEÓN': {
-    'CASTILLA Y LEON': ['CASTILLA Y LEÓN 2006.pdf', 'Criterio Honorarios ICA Castilla León 2014.pdf', 'Criterio Honorarios ICA Castilla Le｢n 2009.pdf', 'Criterio Honorarios ICA Castilla Le｢n 2016 con Escala.pdf', 'Criterios Castilla y Leon viejos pero definitvos en tablas.pdf', 'Criterios Castilla y Le｢n definitivos 2016.doc']
-  },
-  'CATALUÑA': {
-    'BARCELONA': ['Criterio Honorarios ICA Barcelona - 2020.pdf', 'Criterio Honorarios ICA Barcelona - Antiguos.pdf', 'Criterios Tasación BARCELONA.pdf', 'Explicación minuta 2ª instancia.docx', 'Explicación minuta cuantía indeterminada.pdf', 'Explicación minuta incidente impugnación TC.docx', 'Explicación minuta incidente recurso revisión.docx'],
-    'GENERAL': ['Criterio Honorarios ICA Catalu､a.pdf'],
-    'GERONA': ['criterios_orientadors_lletrats_girona.pdf', 'MINUTA CI (ALLANAMIENTO).pdf'],
-    'GRANOLLERS': ['Criterio Honorarios ICA Granollers.pdf'],
-    'LLEIDA': ['Criterio Honorarios ICA Lleida.pdf'],
-    'MATARO': ['Criterio Honorarios ICA Matar｢.pdf'],
-    'SANT FELIU DE LLOBREGAT': ['Criterio Honorarios ICA Sant Feliu de Llobregat.pdf'],
-    'TARRAGONA': ['Criterio Honorarios ICA Tarragona (Mayo 2011).pdf', 'Criterio Honorarios ICA Tarragona.pdf', 'MINUTA LETRADO TARRAGONA CI.pdf'],
-    'TERRASSA': ['Criterio Honorarios ICA Terrassa.pdf']
-  },
-  'CEUTA Y MELILLA': {
-    'CEUTA Y MELILLA': ['Criterio Honorarios ICA Cadiz.pdf']
-  },
-  'COMUNIDAD VALENCIANA': {
-    'ALICANTE': ['Criterio Honorarios ICA Alicante.pdf'],
-    'CASTELLON': ['Criterio Honorarios ICA Castellon 2015 - Escala.pdf', 'Criterio Honorarios ICA Castellon 2015.pdf'],
-    'SUECA (VALENCIA)': ['CRITERIOS HONORARIOS 2012 SUECA.pdf', 'EscalaBaremo SUECA.pdf'],
-    'VALENCIA': ['Criterio Honorarios ICA Valencia (2).pdf', 'Criterio Honorarios ICA Valencia.pdf', 'Criterio Honorarios ICA Valencia1.pdf']
-  },
-  'EXTREMADURA': {
-    'BADAJOZ': ['Criterio Honorarios ICA Badajoz 1.pdf', 'Criterio Honorarios ICA Badajoz.pdf'],
-    'CACERES': ['Criterio Honorarios ICA Cceres.pdf', 'Modificaci｢n criterios 51 y 55Criterio Honorarios ICA Cceres.pdf']
-  },
-  'GALICIA': {
-    'A CORUÑA': ['Criterio Honorarios ICA Galicia.pdf'],
-    'OURENSE': ['Criterio Honorarios ICA Ourense.pdf'],
-    'PONTEVEDRA': ['Criterio Honorarios ICA Pontevedra.pdf'],
-    'SANTIAGO': ['Criterio Honorarios ICA Santiago de Compostela.pdf'],
-    'VIGO': ['Criterio Honorarios ICA Vigo.pdf']
-  },
-  'ISLAS BALEARES': {
-    'ISLAS BALEARES': ['Criterio Honorarios ICA Baleares.pdf', 'Criterio Honorarios ICAB.pdf']
-  },
-  'ISLAS CANARIAS': {
-    'ISLAS CANARIAS': ['Criterio Honorarios ICA Las Palmas de Gran Canarias.pdf', 'DOC 1 INFORME ICATF.pdf.PDF']
-  },
-  'LA RIOJA': {
-    'LA RIOJA': ['Criterio Honorarios ICA La Rioja.pdf']
-  },
-  'MADRID': {
-    'MADRID': ['Criterio Honorarios ICA Madrid.pdf', 'Criterios-Orientativos-Honorarios-ICAM.pdf', 'INFORME ICAM 1500+IVA.pdf']
-  },
-  'MURCIA': {
-    'MURCIA': ['Criterio Honorarios ICA Murcia.pdf']
-  },
-  'NAVARRA': {
-    'Estella': ['2020 HONORARIOS ESTELLA revisada 21 septiembre.pdf'],
-    'Pamplona': ['Criterio Honorarios ICA Pamplona.pdf']
-  },
-  'PAIS VASCO': {
-    'PAIS VASCO': ['Criterio Honorarios ICA Pa｡s Vasco - F・de erratas.pdf', 'Criterio Honorarios ICA Pa｡s Vasco.pdf']
-  }
-}
+base_path = r'public\BAREMOS HONORARIOS\CRITERIOS TASACIÓN COSTAS'
+baremos_data = {}
+
+for ccaa in sorted(os.listdir(base_path)):
+    ccaa_path = os.path.join(base_path, ccaa)
+    if os.path.isdir(ccaa_path):
+        provinces = {}
+        for prov in sorted(os.listdir(ccaa_path)):
+            prov_path = os.path.join(ccaa_path, prov)
+            if os.path.isdir(prov_path):
+                files = sorted([f for f in os.listdir(prov_path) if os.path.isfile(os.path.join(prov_path, f))])
+                if files:  # Solo incluir si tiene archivos
+                    provinces[prov] = files
         
+        if provinces:  # Solo incluir si tiene provincias
+            baremos_data[ccaa] = provinces
 
-export default function ConsultarBaremos() {
+# Generar código TypeScript
+ts_code = "import { useState, useMemo } from 'react'\n"
+ts_code += "import { ChevronRight, Download, MapPin, File } from 'lucide-react'\n\n"
+
+ts_code += "// Estructura cargada dinámicamente desde public/BAREMOS HONORARIOS/CRITERIOS TASACIÓN COSTAS\n"
+ts_code += "// CCAA -> PROVINCIA -> [archivos PDF]\n"
+ts_code += "const BAREMOS_DATA: { [ccaa: string]: { [provincia: string]: string[] } } = {\n"
+
+for ccaa, provinces in baremos_data.items():
+    ts_code += f"  '{ccaa}': {{\n"
+    for prov, files in provinces.items():
+        ts_code += f"    '{prov}': [\n"
+        for file in files:
+            # Construir ruta completa
+            file_path = f"BAREMOS HONORARIOS/CRITERIOS TASACIÓN COSTAS/{ccaa}/{prov}/{file}"
+            ts_code += f"      '{file}',\n"
+        ts_code = ts_code.rstrip(',\n') + "\n"
+        ts_code += "    ],\n"
+    ts_code = ts_code.rstrip(',\n') + "\n"
+    ts_code += "  },\n"
+
+ts_code = ts_code.rstrip(',\n') + "\n"
+ts_code += "}\n\n"
+
+ts_code += """export default function ConsultarBaremos() {
   const [selectedCCAAKey, setSelectedCCAAKey] = useState<string | null>(null)
   const [selectedProvince, setSelectedProvince] = useState<string | null>(null)
   
@@ -106,9 +59,11 @@ export default function ConsultarBaremos() {
   }, [selectedCCAAKey, selectedProvince])
   
   const handleDownload = (fileName: string) => {
-    if (!selectedCCAAKey || !selectedProvince) return
+    const ccaaKey = selectedCCAAKey
+    const province = selectedProvince
+    if (!ccaaKey || !province) return
     
-    const filePath = `BAREMOS HONORARIOS/CRITERIOS TASACIÓN COSTAS/${selectedCCAAKey}/${selectedProvince}/${fileName}`
+    const filePath = `BAREMOS HONORARIOS/CRITERIOS TASACIÓN COSTAS/${ccaaKey}/${province}/${fileName}`
     const link = document.createElement('a')
     link.href = `/${filePath}`
     link.download = fileName
@@ -132,7 +87,7 @@ export default function ConsultarBaremos() {
             <h1 className="text-4xl font-bold text-gray-900">Consultar Baremos</h1>
           </div>
           <p className="text-gray-600 text-lg">
-            Accede a los criterios de honorarios reales de cada comunidad autónoma y provincia
+            Accede a los criterios de honorarios de cada comunidad autónoma y provincia
           </p>
         </div>
 
@@ -263,7 +218,7 @@ export default function ConsultarBaremos() {
           </div>
         </div>
 
-        {/* Footer Info */}
+        {/* Info */}
         <div className="mt-12 bg-blue-50 border border-blue-200 rounded-lg p-6">
           <h3 className="text-lg font-semibold text-blue-900 mb-2">ℹ️ Información</h3>
           <p className="text-blue-800">
@@ -273,4 +228,6 @@ export default function ConsultarBaremos() {
       </div>
     </div>
   )
-}
+}"""
+
+print(ts_code)
