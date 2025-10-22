@@ -1,5 +1,6 @@
 import { useState, useMemo } from 'react'
-import { ChevronRight, Download, MapPin, File } from 'lucide-react'
+import { ChevronRight, Download, MapPin, File, MessageSquare } from 'lucide-react'
+import BaremoChatbot from './BaremoChatbot'
 
 // Estructura simple: CCAA -> PROVINCIA -> [nombres de archivos]
 // La ruta se construye como: BAREMOS HONORARIOS/CRITERIOS TASACIÓN COSTAS/{CCAA}/{PROVINCIA}/{archivo}
@@ -92,6 +93,7 @@ const BAREMOS_DATA: { [ccaa: string]: { [provincia: string]: string[] } } = {
 export default function ConsultarBaremos() {
   const [selectedCCAAKey, setSelectedCCAAKey] = useState<string | null>(null)
   const [selectedProvince, setSelectedProvince] = useState<string | null>(null)
+  const [showChatbot, setShowChatbot] = useState(false)
   
   const ccaaList = useMemo(() => Object.keys(BAREMOS_DATA).sort(), [])
   
@@ -210,7 +212,7 @@ export default function ConsultarBaremos() {
               <div className="flex items-center justify-center h-8 w-8 bg-blue-600 text-white rounded-full font-bold text-sm">
                 3
               </div>
-              <h2 className="text-xl font-bold text-gray-900">Descargas</h2>
+              <h2 className="text-xl font-bold text-gray-900">Descargas & IA</h2>
             </div>
 
             {!selectedProvince ? (
@@ -238,6 +240,22 @@ export default function ConsultarBaremos() {
                     <Download className="h-4 w-4 text-green-600 flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity" />
                   </button>
                 ))}
+
+                {/* Botón Chatbot */}
+                {selectedProvince && (
+                  <button
+                    onClick={() => setShowChatbot(true)}
+                    className="w-full flex items-center gap-3 px-4 py-3 bg-gradient-to-r from-purple-50 to-blue-50 hover:from-purple-100 hover:to-blue-100 border border-purple-300 rounded-lg transition-all text-left group mt-4"
+                  >
+                    <MessageSquare className="h-5 w-5 text-purple-600 flex-shrink-0" />
+                    <div className="flex-1">
+                      <p className="text-sm font-medium text-gray-900 group-hover:text-purple-700">
+                        Consultar con IA
+                      </p>
+                      <p className="text-xs text-gray-600">Haz preguntas sobre este baremo</p>
+                    </div>
+                  </button>
+                )}
               </div>
             )}
           </div>
@@ -271,6 +289,15 @@ export default function ConsultarBaremos() {
           </p>
         </div>
       </div>
+
+      {/* Chatbot Modal */}
+      {showChatbot && selectedCCAAKey && selectedProvince && (
+        <BaremoChatbot
+          ccaa={selectedCCAAKey}
+          provincia={selectedProvince}
+          onClose={() => setShowChatbot(false)}
+        />
+      )}
     </div>
   )
 }

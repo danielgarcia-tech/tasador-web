@@ -1,0 +1,298 @@
+{
+  "type": "json_schema",
+  "json_schema": {
+    "name": "calculo_honorarios",
+    "description": "Respuesta estructurada para cálculos de honorarios según baremos",
+    "schema": {
+      "type": "object",
+      "properties": {
+        "resumen": {
+          "type": "object",
+          "description": "Resumen ejecutivo de la respuesta",
+          "properties": {
+            "honorario_total": {
+              "type": "number",
+              "description": "Honorario final calculado en EUR",
+              "minimum": 0
+            },
+            "moneda": {
+              "type": "string",
+              "enum": ["EUR"],
+              "description": "Moneda del cálculo"
+            },
+            "estado": {
+              "type": "string",
+              "enum": ["calculado", "estimacion", "no_encontrado", "error"],
+              "description": "Estado del cálculo"
+            }
+          },
+          "required": ["honorario_total", "moneda", "estado"]
+        },
+        "cuantia_proceso": {
+          "type": "object",
+          "description": "Detalles de la cuantía del proceso",
+          "properties": {
+            "valor": {
+              "type": "number",
+              "description": "Valor monetario del proceso en EUR",
+              "minimum": 0
+            },
+            "tipo": {
+              "type": "string",
+              "enum": ["determinada", "indeterminada"],
+              "description": "Si la cuantía es determinada o indeterminada"
+            },
+            "rango_aplicable": {
+              "type": "string",
+              "description": "Rango de cuantía donde cae (ej: €30.000-€60.000)"
+            }
+          },
+          "required": ["valor", "tipo"]
+        },
+        "criterio_base": {
+          "type": "object",
+          "description": "Criterio base aplicado para el cálculo",
+          "properties": {
+            "codigo": {
+              "type": "string",
+              "description": "Código del criterio (ej: 3.1)"
+            },
+            "nombre": {
+              "type": "string",
+              "description": "Nombre descriptivo del criterio"
+            },
+            "porcentaje": {
+              "type": "number",
+              "description": "Porcentaje aplicado",
+              "minimum": 0,
+              "maximum": 100
+            },
+            "valor_calculado": {
+              "type": "number",
+              "description": "Valor resultante en EUR",
+              "minimum": 0
+            },
+            "fundamentacion": {
+              "type": "string",
+              "description": "Explicación de por qué aplica este criterio"
+            }
+          },
+          "required": ["codigo", "nombre", "porcentaje", "valor_calculado"]
+        },
+        "incrementos": {
+          "type": "array",
+          "description": "Incrementos aplicados al honorario base",
+          "items": {
+            "type": "object",
+            "properties": {
+              "criterio": {
+                "type": "string",
+                "description": "Código del criterio de incremento (ej: 5.2)"
+              },
+              "tipo": {
+                "type": "string",
+                "enum": ["complejidad", "diligencia", "responsabilidad", "otro"],
+                "description": "Tipo de incremento"
+              },
+              "nivel": {
+                "type": "string",
+                "enum": ["baja", "media", "alta"],
+                "description": "Nivel del incremento"
+              },
+              "porcentaje": {
+                "type": "number",
+                "description": "Porcentaje de incremento",
+                "minimum": 0
+              },
+              "valor_calculado": {
+                "type": "number",
+                "description": "Valor del incremento en EUR"
+              },
+              "aplicado": {
+                "type": "boolean",
+                "description": "Si el incremento fue aplicado"
+              },
+              "motivo": {
+                "type": "string",
+                "description": "Explicación de por qué se aplicó"
+              }
+            },
+            "required": ["criterio", "tipo", "porcentaje", "valor_calculado", "aplicado"]
+          }
+        },
+        "reducciones": {
+          "type": "array",
+          "description": "Reducciones aplicadas al honorario",
+          "items": {
+            "type": "object",
+            "properties": {
+              "criterio": {
+                "type": "string",
+                "description": "Código del criterio de reducción (ej: 7.1)"
+              },
+              "tipo": {
+                "type": "string",
+                "enum": ["alegaciones", "desistimiento", "conformidad", "otro"],
+                "description": "Tipo de reducción"
+              },
+              "porcentaje": {
+                "type": "number",
+                "description": "Porcentaje de reducción",
+                "minimum": 0,
+                "maximum": 100
+              },
+              "valor_calculado": {
+                "type": "number",
+                "description": "Valor de la reducción en EUR (negativo)"
+              },
+              "aplicado": {
+                "type": "boolean",
+                "description": "Si la reducción fue aplicada"
+              },
+              "motivo": {
+                "type": "string",
+                "description": "Razón de la reducción"
+              }
+            },
+            "required": ["criterio", "tipo", "porcentaje", "valor_calculado", "aplicado"]
+          }
+        },
+        "desglose_calculos": {
+          "type": "array",
+          "description": "Paso a paso del cálculo",
+          "items": {
+            "type": "object",
+            "properties": {
+              "paso": {
+                "type": "integer",
+                "description": "Número de paso",
+                "minimum": 1
+              },
+              "descripcion": {
+                "type": "string",
+                "description": "Descripción de la operación"
+              },
+              "operacion": {
+                "type": "string",
+                "description": "Fórmula matemática (ej: 50000 × 4%)"
+              },
+              "resultado": {
+                "type": "number",
+                "description": "Resultado de esta operación"
+              },
+              "subtotal": {
+                "type": "number",
+                "description": "Subtotal acumulado hasta este paso"
+              }
+            },
+            "required": ["paso", "descripcion", "operacion", "resultado"]
+          }
+        },
+        "criterios_aplicables": {
+          "type": "array",
+          "description": "Lista de todos los criterios relevantes encontrados",
+          "items": {
+            "type": "object",
+            "properties": {
+              "codigo": {
+                "type": "string",
+                "description": "Código del criterio"
+              },
+              "nombre": {
+                "type": "string",
+                "description": "Nombre del criterio"
+              },
+              "descripcion": {
+                "type": "string",
+                "description": "Descripción completa"
+              },
+              "aplicado": {
+                "type": "boolean",
+                "description": "Si fue aplicado en este cálculo"
+              },
+              "razon_no_aplicado": {
+                "type": "string",
+                "description": "Si no se aplicó, la razón"
+              }
+            },
+            "required": ["codigo", "nombre", "aplicado"]
+          }
+        },
+        "condiciones_especiales": {
+          "type": "object",
+          "description": "Condiciones especiales del baremo",
+          "properties": {
+            "acumulacion_criterios": {
+              "type": "string",
+              "description": "Explicación sobre si se acumulan criterios"
+            },
+            "limitaciones": {
+              "type": "array",
+              "description": "Limitaciones aplicables",
+              "items": {
+                "type": "string"
+              }
+            },
+            "excepciones": {
+              "type": "array",
+              "description": "Excepciones encontradas",
+              "items": {
+                "type": "string"
+              }
+            }
+          }
+        },
+        "fuente": {
+          "type": "object",
+          "description": "Información de la fuente del baremo",
+          "properties": {
+            "baremo": {
+              "type": "string",
+              "description": "Nombre del baremo (ej: ICA Madrid)"
+            },
+            "ccaa": {
+              "type": "string",
+              "description": "Comunidad autónoma"
+            },
+            "ano": {
+              "type": "integer",
+              "description": "Año del baremo",
+              "minimum": 2000
+            },
+            "paginas": {
+              "type": "string",
+              "description": "Páginas consultadas (ej: 8-12)"
+            },
+            "referencia_completa": {
+              "type": "string",
+              "description": "Referencia completa del documento"
+            }
+          },
+          "required": ["baremo", "ccaa"]
+        },
+        "observaciones": {
+          "type": "array",
+          "description": "Observaciones importantes sobre el cálculo",
+          "items": {
+            "type": "string"
+          }
+        },
+        "proximos_pasos": {
+          "type": "array",
+          "description": "Sugerencias o próximos pasos si aplica",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "required": [
+        "resumen",
+        "cuantia_proceso",
+        "criterio_base",
+        "fuente"
+      ],
+      "additionalProperties": false
+    },
+    "strict": true
+  }
+}
