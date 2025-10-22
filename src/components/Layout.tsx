@@ -1,12 +1,12 @@
-import { LogOut, Calculator, FileText, Settings, TrendingUp } from 'lucide-react'
+import { LogOut, Calculator, FileText, Settings, TrendingUp, MapPin } from 'lucide-react'
 import { useAuth } from '../contexts/CustomAuthContext'
 import logoRua from '../assets/logo-rua.png'
 import LiquidEther from './LiquidEther'
 
 interface LayoutProps {
   children: React.ReactNode
-  currentTab: 'calculator' | 'intereses' | 'intereses-avanzado' | 'history' | 'settings' | 'help'
-  onTabChange: (tab: 'calculator' | 'intereses' | 'intereses-avanzado' | 'history' | 'settings' | 'help') => void
+  currentTab: 'calculator' | 'intereses' | 'intereses-avanzado' | 'history' | 'settings' | 'help' | 'baremos'
+  onTabChange: (tab: 'calculator' | 'intereses' | 'intereses-avanzado' | 'history' | 'settings' | 'help' | 'baremos') => void
 }
 
 export default function Layout({ children, currentTab, onTabChange }: LayoutProps) {
@@ -16,6 +16,7 @@ export default function Layout({ children, currentTab, onTabChange }: LayoutProp
     { id: 'calculator' as const, label: 'TASADOR COSTAS', icon: Calculator },
     { id: 'intereses' as const, label: 'CALCULO INTERÉS', icon: TrendingUp },
     { id: 'intereses-avanzado' as const, label: 'CÁLCULO INTERÉS AVANZADO', icon: TrendingUp },
+    { id: 'baremos' as const, label: 'CONSULTAR BAREMOS', icon: MapPin },
     { id: 'history' as const, label: 'Historial', icon: FileText },
     { id: 'help' as const, label: 'Ayuda', icon: FileText },
     { id: 'settings' as const, label: 'Configuración', icon: Settings },
