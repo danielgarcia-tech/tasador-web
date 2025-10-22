@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
-import { Calculator, TrendingUp, Upload, AlertCircle, Trash2, BarChart3, Download } from 'lucide-react'
+import { Calculator, TrendingUp, Upload, AlertCircle, Trash2, BarChart3, Download, X } from 'lucide-react'
 import { interestCalculator, initializeInterestCalculator } from '../lib/interestCalculator'
 import type { InterestCalculationInput, InterestCalculationResult } from '../lib/interestCalculator'
 import * as XLSX from 'xlsx'
@@ -57,6 +57,64 @@ export default function InterestCalculatorAdvanced() {
   const [calculating, setCalculating] = useState(false)
   const [expandedModalities, setExpandedModalities] = useState<Set<string>>(new Set())
   const fileInputRef = useRef<HTMLInputElement>(null)
+
+  // Estados para personalización del informe
+  const [reportTitle, setReportTitle] = useState<string>('INFORME DE CÁLCULOS DE INTERESES')
+  const [reportSubtitle, setReportSubtitle] = useState<string>('DE INTERESES')
+  const [reportNotes, setReportNotes] = useState<string>('')
+  const [reportAdditionalInfo, setReportAdditionalInfo] = useState<string>('')
+  const [reportFooter, setReportFooter] = useState<string>('Sistema de Cálculo de Intereses Legales - Tasador Web v2.0')
+  const [showReportCustomization, setShowReportCustomization] = useState<boolean>(false)
+  const [reportTemplates, setReportTemplates] = useState<Array<{name: string, config: any}>>([])
+  const [templateName, setTemplateName] = useState<string>('')
+
+  // Funciones para guardar/cargar plantillas
+  const saveReportTemplate = () => {
+    if (!templateName.trim()) {
+      alert('Por favor, introduce un nombre para la plantilla')
+      return
+    }
+
+    const template = {
+      name: templateName,
+      config: {
+        reportTitle,
+        reportSubtitle,
+        reportNotes,
+        reportAdditionalInfo,
+        reportFooter
+      }
+    }
+
+    const existingTemplates = JSON.parse(localStorage.getItem('reportTemplates') || '[]')
+    const updatedTemplates = [...existingTemplates.filter((t: any) => t.name !== templateName), template]
+    localStorage.setItem('reportTemplates', JSON.stringify(updatedTemplates))
+    setReportTemplates(updatedTemplates)
+    setTemplateName('')
+    alert('Plantilla guardada correctamente')
+  }
+
+  const loadReportTemplate = (template: any) => {
+    setReportTitle(template.config.reportTitle)
+    setReportSubtitle(template.config.reportSubtitle)
+    setReportNotes(template.config.reportNotes)
+    setReportAdditionalInfo(template.config.reportAdditionalInfo)
+    setReportFooter(template.config.reportFooter)
+    alert(`Plantilla "${template.name}" cargada correctamente`)
+  }
+
+  const deleteReportTemplate = (templateName: string) => {
+    const existingTemplates = JSON.parse(localStorage.getItem('reportTemplates') || '[]')
+    const updatedTemplates = existingTemplates.filter((t: any) => t.name !== templateName)
+    localStorage.setItem('reportTemplates', JSON.stringify(updatedTemplates))
+    setReportTemplates(updatedTemplates)
+  }
+
+  // Cargar plantillas al inicializar
+  useEffect(() => {
+    const savedTemplates = JSON.parse(localStorage.getItem('reportTemplates') || '[]')
+    setReportTemplates(savedTemplates)
+  }, [])
 
   // Initialize calculator
   useEffect(() => {
@@ -661,11 +719,11 @@ export default function InterestCalculatorAdvanced() {
 
       pdf.setFontSize(24)
       pdf.setFont('helvetica', 'bold')
-      pdf.text('INFORME DE CÁLCULOS', pageWidth / 2, 130, { align: 'center' })
+      pdf.text(reportTitle, pageWidth / 2, 130, { align: 'center' })
 
       pdf.setFontSize(20)
       pdf.setFont('helvetica', 'bold')
-      pdf.text('DE INTERESES', pageWidth / 2, 150, { align: 'center' })
+      pdf.text(reportSubtitle, pageWidth / 2, 150, { align: 'center' })
 
       pdf.setFontSize(16)
       pdf.setFont('helvetica', 'normal')
@@ -681,8 +739,7 @@ export default function InterestCalculatorAdvanced() {
       pdf.text(`Hora: ${new Date().toLocaleTimeString('es-ES')}`, pageWidth / 2, 230, { align: 'center' })
 
       pdf.setFontSize(10)
-      pdf.text('Sistema de Cálculo de Intereses Legales', pageWidth / 2, 250, { align: 'center' })
-      pdf.text('Tasador Web v2.0', pageWidth / 2, 260, { align: 'center' })
+      pdf.text(reportFooter, pageWidth / 2, 250, { align: 'center' })
 
       addFooter(pageNumber)
 
@@ -758,6 +815,34 @@ export default function InterestCalculatorAdvanced() {
       yPosition += 8
       pdf.text(`• Modalidades calculadas: ${globalModalidades.join(', ')}`, margin, yPosition)
       yPosition += 15
+
+      // Notas personalizadas
+      if (reportNotes.trim()) {
+        pdf.setFontSize(14)
+        pdf.setFont('helvetica', 'bold')
+        pdf.text('NOTAS DEL EXPEDIENTE', margin, yPosition)
+        yPosition += 12
+
+        pdf.setFontSize(11)
+        pdf.setFont('helvetica', 'normal')
+        const notesLines = pdf.splitTextToSize(reportNotes, contentWidth)
+        pdf.text(notesLines, margin, yPosition)
+        yPosition += (notesLines.length * 5) + 10
+      }
+
+      // Información adicional
+      if (reportAdditionalInfo.trim()) {
+        pdf.setFontSize(14)
+        pdf.setFont('helvetica', 'bold')
+        pdf.text('INFORMACIÓN ADICIONAL', margin, yPosition)
+        yPosition += 12
+
+        pdf.setFontSize(11)
+        pdf.setFont('helvetica', 'normal')
+        const infoLines = pdf.splitTextToSize(reportAdditionalInfo, contentWidth)
+        pdf.text(infoLines, margin, yPosition)
+        yPosition += (infoLines.length * 5) + 15
+      }
 
       // PARÁMETROS DE CÁLCULO
       if (yPosition > pageHeight - 60) {
@@ -1319,6 +1404,13 @@ export default function InterestCalculatorAdvanced() {
                 Exportar a Excel
               </button>
               <button
+                onClick={() => setShowReportCustomization(!showReportCustomization)}
+                className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+              >
+                <BarChart3 className="h-4 w-4 mr-2" />
+                Personalizar Informe
+              </button>
+              <button
                 onClick={exportToPDF}
                 className="inline-flex items-center px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 ml-2"
               >
@@ -1528,6 +1620,167 @@ export default function InterestCalculatorAdvanced() {
           ) : null
         })()}
       </div>
+
+      {/* Sección de Personalización del Informe */}
+      {showReportCustomization && (
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mt-6">
+          <div className="flex items-center justify-between mb-6">
+            <div className="flex items-center space-x-2">
+              <BarChart3 className="h-6 w-6 text-blue-600" />
+              <h2 className="text-xl font-bold text-gray-900">Personalización del Informe PDF</h2>
+            </div>
+            <button
+              onClick={() => setShowReportCustomization(false)}
+              className="text-gray-400 hover:text-gray-600"
+            >
+              <X className="h-6 w-6" />
+            </button>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Título Principal
+              </label>
+              <input
+                type="text"
+                value={reportTitle}
+                onChange={(e) => setReportTitle(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                placeholder="INFORME DE CÁLCULOS DE INTERESES"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Subtítulo
+              </label>
+              <input
+                type="text"
+                value={reportSubtitle}
+                onChange={(e) => setReportSubtitle(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                placeholder="DE INTERESES"
+              />
+            </div>
+
+            <div className="md:col-span-2">
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Notas del Expediente
+              </label>
+              <textarea
+                value={reportNotes}
+                onChange={(e) => setReportNotes(e.target.value)}
+                rows={3}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                placeholder="Agregue aquí notas específicas del expediente, observaciones importantes o información adicional..."
+              />
+            </div>
+
+            <div className="md:col-span-2">
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Información Adicional
+              </label>
+              <textarea
+                value={reportAdditionalInfo}
+                onChange={(e) => setReportAdditionalInfo(e.target.value)}
+                rows={3}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                placeholder="Información adicional sobre el caso, referencias legales, o cualquier otro detalle relevante..."
+              />
+            </div>
+
+            <div className="md:col-span-2">
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Pie de Página
+              </label>
+              <input
+                type="text"
+                value={reportFooter}
+                onChange={(e) => setReportFooter(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                placeholder="Sistema de Cálculo de Intereses Legales - Tasador Web v2.0"
+              />
+            </div>
+          </div>
+
+          <div className="mt-6 flex justify-end space-x-3">
+            <button
+              onClick={() => {
+                setReportTitle('INFORME DE CÁLCULOS DE INTERESES')
+                setReportSubtitle('DE INTERESES')
+                setReportNotes('')
+                setReportAdditionalInfo('')
+                setReportFooter('Sistema de Cálculo de Intereses Legales - Tasador Web v2.0')
+              }}
+              className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50"
+            >
+              Restablecer Valores
+            </button>
+            <button
+              onClick={() => setShowReportCustomization(false)}
+              className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+            >
+              Aplicar Cambios
+            </button>
+          </div>
+
+          {/* Sección de Plantillas */}
+          <div className="mt-8 border-t pt-6">
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">Plantillas de Informes</h3>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Nombre de la Plantilla
+                </label>
+                <input
+                  type="text"
+                  value={templateName}
+                  onChange={(e) => setTemplateName(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="Ej: Informe Judicial Completo"
+                />
+              </div>
+              <div className="flex items-end">
+                <button
+                  onClick={saveReportTemplate}
+                  className="w-full px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700"
+                >
+                  💾 Guardar Plantilla
+                </button>
+              </div>
+            </div>
+
+            {reportTemplates.length > 0 && (
+              <div>
+                <h4 className="text-md font-medium text-gray-800 mb-3">Plantillas Guardadas</h4>
+                <div className="space-y-2">
+                  {reportTemplates.map((template, index) => (
+                    <div key={index} className="flex items-center justify-between p-3 bg-gray-50 rounded-md">
+                      <span className="text-sm font-medium text-gray-900">{template.name}</span>
+                      <div className="flex space-x-2">
+                        <button
+                          onClick={() => loadReportTemplate(template)}
+                          className="px-3 py-1 text-xs bg-blue-600 text-white rounded hover:bg-blue-700"
+                        >
+                          Cargar
+                        </button>
+                        <button
+                          onClick={() => deleteReportTemplate(template.name)}
+                          className="px-3 py-1 text-xs bg-red-600 text-white rounded hover:bg-red-700"
+                        >
+                          Eliminar
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   )
 }
