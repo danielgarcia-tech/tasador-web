@@ -5,6 +5,7 @@ import Layout from './components/Layout'
 import CalculatorContainer from './components/CalculatorContainer'
 import InterestCalculator from './components/InterestCalculator'
 import InterestCalculatorAdvanced from './components/InterestCalculatorAdvanced'
+import Help from './components/Help'
 import HistorialTasaciones from './components/HistorialTasaciones'
 import AdminPanel from './components/AdminPanel'
 import LiquidEther from './components/LiquidEther'
@@ -12,7 +13,7 @@ import { initializeDatabase } from './lib/database-init'
 
 function AppContent() {
   const { user, loading } = useAuth()
-  const [currentTab, setCurrentTab] = useState<'calculator' | 'intereses' | 'intereses-avanzado' | 'history' | 'settings'>('calculator')
+  const [currentTab, setCurrentTab] = useState<'calculator' | 'intereses' | 'intereses-avanzado' | 'history' | 'settings' | 'help'>('calculator')
 
   // Inicializar base de datos al cargar la aplicación
   useEffect(() => {
@@ -95,6 +96,8 @@ function AppContent() {
         return <HistorialTasaciones />
       case 'settings':
         return <AdminPanel />
+      case 'help':
+        return <Help />
       default:
         return <CalculatorContainer />
     }

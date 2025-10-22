@@ -154,7 +154,22 @@ La aplicación utiliza las siguientes tablas principales:
 3. **Reportes**: Generar estadísticas y reportes
 4. **Mantenimiento**: Herramientas de diagnóstico y mantenimiento
 
-## 🔒 Seguridad
+## � Documentación
+
+### Para Usuarios Finales
+- **[Manual de Usuario Completo](./docs/MANUAL_USUARIO.md)** - Guía paso a paso para:
+  - ✏️ Crear tasaciones
+  - 💰 Calcular intereses (simple y avanzado)
+  - 📋 Gestionar historial
+  - 📊 Exportar reportes
+
+### Para Desarrolladores
+- **[Documentación de Tasaciones](./docs/02-TASACIONES.md)** - Descripción técnica del módulo de tasaciones
+- **[Cálculo de Intereses](./docs/03-CALCULADORA_INTERESES.md)** - Lógica y algoritmos
+- **[Arquitectura General](./docs/01-ARQUITECTURA.md)** - Estructura del proyecto
+- **[Deployment en Vercel](./docs/07-DEPLOYMENT_VERCEL.md)** - Guía de producción
+
+## �🔒 Seguridad
 
 - **Autenticación**: Sistema seguro con hash de contraseñas
 - **Autorización**: Control de acceso basado en roles

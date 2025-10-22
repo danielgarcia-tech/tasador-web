@@ -5,8 +5,8 @@ import LiquidEther from './LiquidEther'
 
 interface LayoutProps {
   children: React.ReactNode
-  currentTab: 'calculator' | 'intereses' | 'intereses-avanzado' | 'history' | 'settings'
-  onTabChange: (tab: 'calculator' | 'intereses' | 'intereses-avanzado' | 'history' | 'settings') => void
+  currentTab: 'calculator' | 'intereses' | 'intereses-avanzado' | 'history' | 'settings' | 'help'
+  onTabChange: (tab: 'calculator' | 'intereses' | 'intereses-avanzado' | 'history' | 'settings' | 'help') => void
 }
 
 export default function Layout({ children, currentTab, onTabChange }: LayoutProps) {
@@ -17,6 +17,7 @@ export default function Layout({ children, currentTab, onTabChange }: LayoutProp
     { id: 'intereses' as const, label: 'CALCULO INTERÉS', icon: TrendingUp },
     { id: 'intereses-avanzado' as const, label: 'CÁLCULO INTERÉS AVANZADO', icon: TrendingUp },
     { id: 'history' as const, label: 'Historial', icon: FileText },
+    { id: 'help' as const, label: 'Ayuda', icon: FileText },
     { id: 'settings' as const, label: 'Configuración', icon: Settings },
   ]
 

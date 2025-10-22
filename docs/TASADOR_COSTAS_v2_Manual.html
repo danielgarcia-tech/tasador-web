@@ -1,0 +1,536 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>TASADOR COSTAS v2.0 — Manual de Uso</title>
+  <meta name="description" content="Manual de uso de TASADOR COSTAS v2.0: tasaciones, cálculo de intereses, historial y preguntas frecuentes." />
+  <style>
+    :root{
+      --bg:#0b0f17;
+      --panel:#121826;
+      --panel-2:#0f1523;
+      --text:#e8eefc;
+      --muted:#b7c3dc;
+      --brand:#6aa1ff;
+      --brand-2:#3dd9b6;
+      --accent:#ffd166;
+      --danger:#ff6b6b;
+      --ok:#2dd4bf;
+      --border: #22304a;
+      --table-stripe:#0f172a;
+    }
+    *{box-sizing:border-box}
+    html,body{height:100%}
+    body{
+      margin:0;
+      font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", "Apple Color Emoji", "Segoe UI Emoji";
+      color:var(--text);
+      background:linear-gradient(180deg, var(--bg), #0a0e16 40%, #090d14);
+      line-height:1.55;
+    }
+    .container{
+      display:grid;
+      grid-template-columns: 300px 1fr;
+      gap: 24px;
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 24px;
+    }
+    aside{
+      position: sticky;
+      top: 16px;
+      align-self: start;
+      background: linear-gradient(180deg, var(--panel), var(--panel-2));
+      border:1px solid var(--border);
+      border-radius: 16px;
+      padding: 16px;
+    }
+    nav h2{
+      font-size: 14px;
+      letter-spacing:.08em;
+      text-transform: uppercase;
+      margin: 0 0 8px 0;
+      color: var(--muted);
+    }
+    nav a{
+      display:block;
+      padding:10px 12px;
+      margin:6px 0;
+      text-decoration:none;
+      color:var(--text);
+      border:1px solid transparent;
+      border-radius:10px;
+      background:transparent;
+      transition:all .2s ease;
+    }
+    nav a:hover{
+      background:rgba(106,161,255,.08);
+      border-color: rgba(106,161,255,.35);
+      color:#ffffff;
+    }
+    main{
+      background:linear-gradient(180deg, var(--panel), var(--panel-2));
+      border:1px solid var(--border);
+      border-radius: 16px;
+      padding: 28px;
+      box-shadow: 0 10px 30px rgba(0,0,0,.25);
+    }
+    header h1{
+      margin:0 0 6px 0;
+      font-size: 28px;
+      font-weight: 800;
+      letter-spacing:.3px;
+    }
+    .badge{
+      display:inline-flex;align-items:center;gap:6px;
+      font-size:12px;color:#0b1220;background:var(--accent);
+      padding:4px 10px;border-radius:999px;font-weight:700;
+    }
+    .subtle{color:var(--muted)}
+    .kpis{
+      display:grid;grid-template-columns: repeat(4, minmax(0,1fr)); gap:12px; margin:16px 0 8px;
+    }
+    .kpi{
+      padding:14px;border-radius:12px;background:#0e1422;border:1px solid var(--border);
+    }
+    .kpi .label{font-size:12px;color:var(--muted);}
+    .kpi .value{font-size:18px;font-weight:800;margin-top:2px}
+    section{margin: 28px 0}
+    h2{font-size:22px;margin:0 0 10px}
+    h3{font-size:18px;margin:18px 0 8px}
+    .callout{
+      border-left:4px solid var(--brand);
+      background: rgba(106,161,255,.08);
+      padding:12px 14px;border-radius:8px;margin:12px 0;
+    }
+    .grid-2{display:grid;grid-template-columns: 1fr 1fr; gap:18px}
+    .grid-3{display:grid;grid-template-columns: repeat(3, 1fr); gap:18px}
+    .grid-2 > *, .grid-3 > *{background:#0e1422;border:1px solid var(--border);padding:14px;border-radius:12px}
+    code, pre{font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace}
+    pre{
+      background:#0e1422;border:1px solid var(--border);padding:12px;border-radius:10px; overflow:auto;
+    }
+    table{width:100%;border-collapse:collapse;border-spacing:0;margin:12px 0;border:1px solid var(--border);border-radius:10px;overflow:hidden}
+    th, td{padding:10px 12px;text-align:left;border-bottom:1px solid var(--border)}
+    thead th{background:#0f1627;font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+    tbody tr:nth-child(odd){background:var(--table-stripe)}
+    .actions{display:flex;gap:8px;flex-wrap:wrap}
+    .btn{
+      display:inline-flex;align-items:center;gap:8px;
+      padding:10px 12px;border-radius:10px;border:1px solid var(--border);
+      background:#0f1627;color:var(--text);text-decoration:none;font-weight:700;font-size:14px;
+      cursor:pointer;
+    }
+    .btn:hover{border-color:rgba(61,217,182,.4);box-shadow:0 0 0 2px rgba(61,217,182,.15) inset}
+    .btn.primary{background:linear-gradient(180deg, #1e293b, #0f1627);border-color:#26486b}
+    .btn.success{background:linear-gradient(180deg, #123e34, #0f2f29);border-color:#2b6e63}
+    .note{font-size:13px;color:var(--muted)}
+    details{
+      background:#0e1422;border:1px solid var(--border);border-radius:10px;margin:8px 0;
+      padding:10px 12px;
+    }
+    summary{cursor:pointer;font-weight:700}
+    .kbd{font-family: ui-monospace, SFMono-Regular, monospace; border:1px solid var(--border); background:#0f1627; padding:2px 6px;border-radius:6px}
+    .pill{display:inline-block;border:1px solid var(--border);background:#0f1627;border-radius:999px;padding:4px 10px;font-size:12px;margin-right:6px}
+    .legend{display:flex;gap:6px;flex-wrap:wrap}
+    .footer{
+      margin-top:28px;padding-top:16px;border-top:1px dashed var(--border);color:var(--muted);font-size:12px
+    }
+    @media (max-width: 980px){
+      .container{grid-template-columns: 1fr}
+      aside{position: static}
+      .grid-2{grid-template-columns:1fr}
+      .grid-3{grid-template-columns:1fr}
+      .kpis{grid-template-columns:1fr 1fr}
+    }
+    @media print{
+      body{background:#fff;color:#000}
+      aside{display:none}
+      main{box-shadow:none;border:none}
+      .btn{display:none}
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <aside>
+      <nav aria-label="Índice del manual">
+        <h2>Contenido</h2>
+        <a href="#introduccion">1. Introducción</a>
+        <a href="#acceso">2. Acceso a la aplicación</a>
+        <a href="#tasaciones">3. Tasaciones — Módulo principal</a>
+        <a href="#interes-simple">4. Cálculo de intereses simple</a>
+        <a href="#interes-complejo">5. Cálculo de intereses complejo (lotes)</a>
+        <a href="#historial">6. Historial de tasaciones</a>
+        <a href="#faq">7. Preguntas frecuentes</a>
+      </nav>
+    </aside>
+
+    <main>
+      <header>
+        <span class="badge">📖 Manual de Uso</span>
+        <h1>TASADOR COSTAS v2.0</h1>
+        <p class="subtle">Aplicación web profesional para tasaciones de costas judiciales, cálculo de intereses (legal, judicial y TAE) y generación de informes en PDF/Excel.</p>
+        <div class="actions" role="group" aria-label="Acciones rápidas">
+          <a class="btn primary" href="#tasaciones">Ir a Tasaciones</a>
+          <a class="btn" href="#interes-simple">Calcular Interés</a>
+          <a class="btn success" href="#interes-complejo">Procesar Lote</a>
+        </div>
+      </header>
+
+      <section id="introduccion">
+        <h2>1. Introducción</h2>
+        <p><strong>TASADOR COSTAS</strong> es una plataforma diseñada para profesionales del ámbito jurídico que necesitan emitir tasaciones ágiles y precisas. Permite:</p>
+        <ul>
+          <li>Cálculo automático de <strong>costas judiciales</strong> conforme a los <em>Baremos de Honorarios</em>.</li>
+          <li>Cálculo de <strong>intereses legales</strong>, <strong>judiciales</strong> y <strong>TAE</strong> — incluyendo variantes como <em>TAE + 5%</em>.</li>
+          <li>Generación de <strong>informes profesionales</strong> descargables en <span class="pill">PDF</span> y <span class="pill">Excel</span>.</li>
+        </ul>
+        <div class="callout">
+          💡 <strong>Consejo:</strong> El sistema aplica automáticamente los <strong>Baremos de Honorarios</strong> en función del municipio seleccionado, minimizando errores manuales.
+        </div>
+      </section>
+
+      <section id="acceso">
+        <h2>2. Acceso a la aplicación</h2>
+        <h3>2.1 Iniciar sesión</h3>
+        <ol>
+          <li>Abre la aplicación en tu navegador.</li>
+          <li>Introduce tu <span class="kbd">email</span> y <span class="kbd">contraseña</span>.</li>
+          <li>Haz clic en <strong>Iniciar sesión</strong>.</li>
+        </ol>
+        <p class="note">Si no dispones de una cuenta, contacta con el administrador.</p>
+
+        <h3>2.2 Interfaz principal</h3>
+        <pre aria-label="Esquema de navegación">
+┌──────────────────────────────────────────────────────┐
+│  📄 TASADOR COSTAS  │  💰 CÁLCULO INTERÉS           │
+│  ⏱️ Cálculo Simple  │  ⏱️ Cálculo Complejo          │
+└──────────────────────────────────────────────────────┘
+        </pre>
+      </section>
+
+      <section id="tasaciones">
+        <h2>3. Tasaciones — Módulo principal</h2>
+
+        <h3>3.1 ¿Qué es una tasación?</h3>
+        <p>Una tasación es el cálculo automático de las <strong>costas judiciales</strong> (gastos asociados al proceso), atendiendo a:</p>
+        <ul>
+          <li>Los <strong>Baremos de Honorarios</strong> del municipio.</li>
+          <li>La <strong>fase de terminación</strong> (p. ej., Audiencia Previa, Sentencia).</li>
+          <li>La <strong>instancia</strong> (Primera o Segunda).</li>
+        </ul>
+
+        <h3>3.2 Crear una nueva tasación</h3>
+        <h4>Paso 1 · Acceder al formulario</h4>
+        <ul>
+          <li>Haz clic en la pestaña <strong>TASADOR COSTAS</strong>.</li>
+          <li>Se mostrará un formulario con varios campos.</li>
+        </ul>
+
+        <h4>Paso 2 · Completar información del cliente</h4>
+        <table aria-label="Campos del cliente">
+          <thead><tr><th>Campo</th><th>Descripción</th><th>Ejemplo</th></tr></thead>
+          <tbody>
+            <tr><td><strong>Nombre cliente</strong></td><td>Parte solicitante de la tasación</td><td>Juan García López</td></tr>
+            <tr><td><strong>Nº procedimiento</strong></td><td>Identificador único del juicio</td><td>2024/12345</td></tr>
+            <tr><td><strong>Nombre juzgado</strong></td><td>(Opcional) Órgano judicial</td><td>Juzgado de lo Civil nº 3</td></tr>
+            <tr><td><strong>Entidad demandada</strong></td><td>Organización demandada (con <em>autocomplete</em>)</td><td>AEPD, Banco Santander</td></tr>
+          </tbody>
+        </table>
+
+        <h4>Paso 3 · Ubicación y proceso</h4>
+        <table aria-label="Campos de ubicación y proceso">
+          <thead><tr><th>Campo</th><th>Descripción</th><th>Ejemplo</th></tr></thead>
+          <tbody>
+            <tr><td><strong>Municipio</strong></td><td>Localidad del asunto</td><td>Madrid, Barcelona</td></tr>
+            <tr><td><strong>Tipo procedimiento</strong></td><td>Verbal u Ordinario</td><td>Juicio Verbal / Juicio Ordinario</td></tr>
+            <tr><td><strong>Fase de terminación</strong></td><td>Etapa final</td><td>Audiencia Previa, Sentencia</td></tr>
+            <tr><td><strong>Instancia</strong></td><td>Nivel judicial</td><td>Primera / Segunda Instancia</td></tr>
+          </tbody>
+        </table>
+        <p class="note">El sistema <strong>calcula automáticamente</strong> los Baremos de Honorarios según el municipio.</p>
+
+        <h4>Paso 4 · Generar la tasación</h4>
+        <ol>
+          <li>Revisa los datos introducidos.</li>
+          <li>Haz clic en <strong>Generar tasación</strong>.</li>
+          <li>El sistema calculará: <strong>Costas sin IVA</strong>, <strong>IVA 21%</strong> y <strong>Total</strong>.</li>
+        </ol>
+
+        <h3>3.3 Ver detalles de la tasación</h3>
+        <p>Tras generar la tasación, se mostrará un resumen con:</p>
+        <ul>
+          <li>Código único de referencia (Aranzadi).</li>
+          <li>Desglose de costas (sin IVA / IVA / total).</li>
+          <li>Fecha de generación.</li>
+          <li>Acciones: <span class="pill">👁️ Ver</span> <span class="pill">✏️ Editar</span> <span class="pill">🗑️ Eliminar</span> <span class="pill">📥 Minuta Word</span></li>
+        </ul>
+      </section>
+
+      <section id="interes-simple">
+        <h2>4. Cálculo de intereses simple</h2>
+        <h3>¿Cuándo usarlo?</h3>
+        <p>Para una <strong>única cuantía</strong> y un <strong>período específico</strong> (fecha inicio → fecha fin), sin procesar múltiples casos.</p>
+
+        <h3>Pasos</h3>
+        <ol>
+          <li>Accede a <strong>Cálculo interés</strong> en la navegación.</li>
+          <li>Completa los datos del formulario.</li>
+        </ol>
+
+        <table aria-label="Campos para cálculo simple">
+          <thead><tr><th>Campo</th><th>Descripción</th><th>Formato</th></tr></thead>
+          <tbody>
+            <tr><td><strong>Capital</strong></td><td>Importe sobre el que calcular</td><td>10.000,50</td></tr>
+            <tr><td><strong>Fecha inicio</strong></td><td>Inicio del periodo</td><td>DD/MM/YYYY</td></tr>
+            <tr><td><strong>Fecha fin</strong></td><td>Fin del periodo</td><td>DD/MM/YYYY</td></tr>
+            <tr><td><strong>Modalidad</strong></td><td>Tipo de interés</td><td>Ver tabla</td></tr>
+          </tbody>
+        </table>
+
+        <div class="grid-2">
+          <div>
+            <h3>Modalidades disponibles</h3>
+            <ul>
+              <li><strong>Legal (defecto)</strong> · Tasa anual fijada por ley. Uso: deudas ordinarias, mora.</li>
+              <li><strong>Judicial</strong> · Tasa incrementada en sentencia. Requiere: fecha de sentencia.</li>
+              <li><strong>TAE</strong> · Tasa anual equivalente del contrato. Requiere: valor TAE (%).</li>
+              <li><strong>TAE + 5%</strong> · TAE contractual + 5 puntos. Requiere: valor TAE (%).</li>
+            </ul>
+          </div>
+          <div>
+            <h3>Interpretación del resultado</h3>
+            <pre>Año 2024: 365 días × 3,00% = €300,00
+Año 2025: 185 días × 3,00% = €152,05
+─────────────────────────────
+TOTAL INTERESES: €452,05</pre>
+          </div>
+        </div>
+
+        <div class="actions">
+          <a class="btn primary" href="#interes-simple">Calcular intereses</a>
+          <a class="btn" href="#descargas">Exportar a Excel / PDF</a>
+        </div>
+      </section>
+
+      <section id="interes-complejo">
+        <h2>5. Cálculo de intereses complejo (lotes)</h2>
+        <h3>¿Cuándo usarlo?</h3>
+        <ul>
+          <li>Para calcular <strong>múltiples casos</strong> a la vez.</li>
+          <li>Procesamiento desde <strong>Excel/CSV</strong>.</li>
+          <li>Comparativa entre <strong>modalidades</strong>.</li>
+          <li>Generación de <strong>informes por expediente</strong>.</li>
+        </ul>
+
+        <h3>Pasos</h3>
+        <ol>
+          <li>En la navegación, abre <strong>Cálculo interés avanzado</strong>.</li>
+          <li>Prepara tu archivo Excel con las columnas mínimas.</li>
+        </ol>
+
+        <h4>Formato mínimo del archivo</h4>
+        <pre>
+┌─────────────┬──────────────┬──────────────┐
+│ Cuantía (€) │ Fecha Inicio │ Fecha Fin    │
+├─────────────┼──────────────┼──────────────┤
+│ 10000,00    │ 01/01/2023   │ 31/12/2024   │
+│ 5500,50     │ 15/03/2023   │ 30/06/2024   │
+│ 7250,75     │ 01/09/2023   │ 28/02/2024   │
+└─────────────┴──────────────┴──────────────┘
+        </pre>
+        <p class="note">Opcional: <strong>Concepto</strong> (etiqueta descriptiva para informes). Otras columnas serán ignoradas.</p>
+
+        <h4>Carga y mapeo de columnas</h4>
+        <ol>
+          <li>Haz clic en <strong>Seleccionar archivo</strong> y sube <span class="pill">.xlsx</span> <span class="pill">.xls</span> o <span class="pill">.csv</span>.</li>
+          <li>Si los nombres no coinciden, mapea las columnas (Capital, Fecha inicio, Fecha fin).</li>
+        </ol>
+
+        <h4>Parámetros globales</h4>
+        <div class="grid-2">
+          <div>
+            <table>
+              <thead><tr><th>Parámetro</th><th>Descripción</th></tr></thead>
+              <tbody>
+                <tr><td><strong>Fecha fin global</strong></td><td>Si todos los casos comparten la misma fecha de corte.</td></tr>
+                <tr><td><strong>Modalidades</strong></td><td>Selecciona Legal, Judicial, TAE, TAE + 5%.</td></tr>
+                <tr><td><strong>TAE del contrato</strong></td><td>Requerido en modalidades TAE.</td></tr>
+                <tr><td><strong>Fecha de sentencia</strong></td><td>Requerido en modalidad Judicial.</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <div>
+            <div class="callout">⚙️ <strong>Procesar lote</strong><br/>Haz clic en <em>Calcular todos</em>. Verás una barra de progreso mientras se procesan las filas.</div>
+          </div>
+        </div>
+
+        <h4>Revisión de resultados</h4>
+        <table aria-label="Resultados por modalidad">
+          <thead><tr><th>Capital</th><th>Fecha inicio</th><th>Fecha fin</th><th>Intereses</th></tr></thead>
+          <tbody>
+            <tr><td>€10.000,00</td><td>01/01/2023</td><td>31/12/2024</td><td>€600,00</td></tr>
+            <tr><td>€5.500,50</td><td>15/03/2023</td><td>30/06/2024</td><td>€275,00</td></tr>
+          </tbody>
+        </table>
+
+        <h4 id="descargas">Descargar informe</h4>
+        <ul>
+          <li><strong>📊 Exportar a Excel</strong> · Tabla con todos los resultados.</li>
+          <li><strong>📄 Descargar PDF</strong> · Informe profesional con portada, resumen, parámetros, resultados por modalidad, gráficos comparativos y tablas año a año.</li>
+        </ul>
+
+        <h4>Personalizar PDFs</h4>
+        <ol>
+          <li>Haz clic en <strong>Personalizar informe</strong>.</li>
+          <li>Edita: título, subtítulo, notas del expediente, información adicional y pie de página.</li>
+          <li>Guarda como <strong>plantilla</strong> para reutilizar.</li>
+        </ol>
+      </section>
+
+      <section id="historial">
+        <h2>6. Historial de tasaciones</h2>
+        <p>Registro completo de tasaciones, con búsqueda, filtros, exportación y estadísticas.</p>
+
+        <h3>6.1 Acceso</h3>
+        <p>Haz clic en <strong>Historial</strong> en la navegación.</p>
+
+        <h3>6.2 Vista general</h3>
+        <table aria-label="Vista de historial">
+          <thead>
+            <tr><th>Procedimiento</th><th>Cliente</th><th>Usuario</th><th>Ubicación</th><th>Procedimiento</th><th>Costas s/IVA</th><th>IVA 21%</th><th>Total</th><th>Fecha</th><th>Ref. Aranzadi</th><th>Acciones</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>2024/12345</td><td>García López</td><td>Admin</td><td>Madrid</td><td>Juicio Ordinario</td><td>€1.000,00</td><td>€210,00</td><td>€1.210,00</td><td>22/10/2025</td><td>REF123</td><td>👁️ ✏️ 🗑️ 📥</td></tr>
+          </tbody>
+        </table>
+
+        <h3>6.3 Búsqueda y filtros</h3>
+        <ul>
+          <li><strong>Buscador</strong> por cliente, procedimiento o ubicación.</li>
+          <li><strong>Filtros avanzados</strong>: fecha (desde/hasta), usuario, tipo de proceso e instancia.</li>
+        </ul>
+
+        <h3>6.4 Acciones</h3>
+        <table>
+          <thead><tr><th>Icono</th><th>Acción</th><th>Descripción</th></tr></thead>
+          <tbody>
+            <tr><td>👁️</td><td><strong>Ver detalles</strong></td><td>Abre un modal con la información completa.</td></tr>
+            <tr><td>✏️</td><td><strong>Editar</strong></td><td>Permite modificar datos y recalcular.</td></tr>
+            <tr><td>🗑️</td><td><strong>Eliminar</strong></td><td>Solicita confirmación y borra la tasación.</td></tr>
+            <tr><td>📥</td><td><strong>Descargar minuta</strong></td><td>Genera un documento Word profesional.</td></tr>
+          </tbody>
+        </table>
+
+        <h3>6.5 Exportar a Excel</h3>
+        <ol>
+          <li>Aplica los filtros deseados.</li>
+          <li>Haz clic en <strong>Descargar Excel</strong>.</li>
+          <li>Se descargará un archivo con las tasaciones visibles (respetando filtros).</li>
+        </ol>
+        <p class="note">Incluye: fecha, usuario, cliente, municipio, procedimiento, fase, instancia, costas sin IVA, IVA, total y referencia.</p>
+
+        <h3>6.6 Estadísticas</h3>
+        <div class="grid-3">
+          <div class="kpi"><div class="label">Total de tasaciones</div><div class="value">247</div></div>
+          <div class="kpi"><div class="label">Capital total</div><div class="value">€1.234.567,89</div></div>
+          <div class="kpi"><div class="label">Costas totales</div><div class="value">€154.321,43</div></div>
+          <div class="kpi"><div class="label">Promedio por tasación</div><div class="value">€625,00</div></div>
+        </div>
+      </section>
+
+      <section id="faq">
+        <h2>7. Preguntas frecuentes</h2>
+
+        <details>
+          <summary>¿Cómo sé qué “Fase de terminación” debo seleccionar?</summary>
+          <div class="grid-2" style="margin-top:8px">
+            <div>
+              <h3>Juicio Verbal</h3>
+              <ul>
+                <li>Audiencia Previa</li>
+                <li>Sentencia</li>
+                <li>Apelación</li>
+              </ul>
+            </div>
+            <div>
+              <h3>Juicio Ordinario</h3>
+              <ul>
+                <li>Audiencia Previa</li>
+                <li>Conclusiones</li>
+                <li>Sentencia</li>
+                <li>Apelación</li>
+              </ul>
+            </div>
+          </div>
+          <p class="note">Selecciona la fase en la que <strong>terminó</strong> el procedimiento.</p>
+        </details>
+
+        <details>
+          <summary>¿Diferencia entre “Interés legal” e “Interés judicial”?</summary>
+          <ul class="legend">
+            <li class="pill">Legal</li><li>Aplica la tasa anual fijada por ley (p. ej. 3%). Uso: deudas ordinarias, mora.</li>
+          </ul>
+          <ul class="legend">
+            <li class="pill">Judicial</li><li>Interés incrementado en sentencia (≈5–6%). Uso: condenas en sentencia.</li>
+          </ul>
+        </details>
+
+        <details>
+          <summary>¿Puedo modificar una tasación después de crearla?</summary>
+          <p>Sí. En el <strong>Historial</strong>, usa <strong>✏️ Editar</strong> para ajustar datos y recalcular.</p>
+        </details>
+
+        <details>
+          <summary>¿Cómo exporto múltiples tasaciones en un único PDF?</summary>
+          <ol>
+            <li>Usa <strong>Cálculo de intereses complejo</strong>.</li>
+            <li>Carga un Excel con múltiples casos.</li>
+            <li>Configura los parámetros.</li>
+            <li>Haz clic en <strong>Descargar PDF</strong>.</li>
+          </ol>
+        </details>
+
+        <details>
+          <summary>¿Qué formatos admite el cálculo complejo?</summary>
+          <ul>
+            <li>✅ Excel (.xlsx, .xls)</li>
+            <li>✅ CSV</li>
+            <li>❌ Google Sheets (exportar como Excel)</li>
+            <li>❌ ODS (exportar como Excel)</li>
+          </ul>
+        </details>
+
+        <details>
+          <summary>¿Se pierden mis tasaciones si cierro la aplicación?</summary>
+          <p>No. Las tasaciones se guardan en la base de datos y estarán disponibles al iniciar sesión.</p>
+        </details>
+
+        <details>
+          <summary>¿Qué hago si hay un error en una tasación?</summary>
+          <ol>
+            <li><strong>Editar</strong> para corregir datos.</li>
+            <li><strong>Eliminar</strong> si prefieres comenzar de nuevo.</li>
+            <li>Crear una <strong>nueva tasación</strong> con los datos correctos.</li>
+          </ol>
+        </details>
+
+        <details>
+          <summary>¿Cómo genero un informe en Word de una tasación?</summary>
+          <ol>
+            <li>En <strong>Historial</strong>, localiza la tasación.</li>
+            <li>Haz clic en <strong>📥 Descargar minuta</strong>.</li>
+            <li>Se descargará un documento Word con datos del cliente, desglose de costas, información legal y referencia Aranzadi.</li>
+          </ol>
+        </details>
+      </section>
+
+      <div class="footer">
+        <p>TASADOR COSTAS v2.0 — Manual de uso. Última actualización: 22/10/2025.</p>
+      </div>
+    </main>
+  </div>
+</body>
+</html>
