@@ -45,8 +45,11 @@ const BAREMOS_DATA: { [ccaa: string]: { [provincia: string]: string[] } } = {
     'TARRAGONA': ['Criterio Honorarios ICA Tarragona (Mayo 2011).pdf', 'Criterio Honorarios ICA Tarragona.pdf', 'MINUTA LETRADO TARRAGONA CI.pdf'],
     'TERRASSA': ['Criterio Honorarios ICA Terrassa.pdf']
   },
-  'CEUTA Y MELILLA': {
-    'CEUTA Y MELILLA': ['Criterio Honorarios ICA Cadiz.pdf']
+  'CEUTA': {
+    'CEUTA': ['Criterio Honorarios ICA Cadiz.pdf']
+  },
+  'MELILLA': {
+    'MELILLA': ['HONORARIOS-MELILLA.pdf']
   },
   'COMUNIDAD VALENCIANA': {
     'ALICANTE': ['Criterio Honorarios ICA Alicante.pdf'],
