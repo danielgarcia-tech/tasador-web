@@ -286,28 +286,59 @@ export class InterestCalculator {
 // Instancia global del calculador
 export const interestCalculator = new InterestCalculator();
 
-// Función para inicializar el calculador con datos del archivo JSON
+// Función para inicializar el calculador con datos de Supabase
 export async function initializeInterestCalculator(): Promise<void> {
   try {
-    const response = await fetch('/interest-rates.json');
-    if (!response.ok) {
-      throw new Error('No se pudo cargar el archivo de tasas de interés');
+    // Importar supabase de forma dinámica para evitar errores de inicialización
+    const { supabase } = await import('./supabase');
+    
+    // Cargar datos desde Supabase
+    const { data, error } = await supabase
+      .from('tae_interes_legal')
+      .select('año, interes_legal')
+      .order('año', { ascending: true });
+
+    if (error) {
+      throw new Error(`Error de Supabase: ${error.message}`);
     }
-    const data: InterestRate[] = await response.json();
-    interestCalculator.loadInterestRates(data);
-    console.log(`Cargadas ${data.length} tasas de interés`);
+
+    if (!data || data.length === 0) {
+      throw new Error('No hay datos de intereses legales en Supabase');
+    }
+
+    // Transformar datos de Supabase al formato esperado
+    const ratesFromDB: InterestRate[] = data.map((row: any) => ({
+      año: row.año,
+      'porcentaje anual': row.interes_legal
+    }));
+
+    interestCalculator.loadInterestRates(ratesFromDB);
+    console.log(`✓ Cargadas ${ratesFromDB.length} tasas de interés desde Supabase`);
   } catch (error) {
-    console.error('Error al cargar tasas de interés:', error);
-    // Usar datos por defecto si falla la carga
-    const defaultRates: InterestRate[] = [
-      { año: 2020, 'porcentaje anual': 3.0 },
-      { año: 2021, 'porcentaje anual': 3.0 },
-      { año: 2022, 'porcentaje anual': 3.0 },
-      { año: 2023, 'porcentaje anual': 3.0 },
-      { año: 2024, 'porcentaje anual': 3.25 },
-      { año: 2025, 'porcentaje anual': 3.25 }
-    ];
-    interestCalculator.loadInterestRates(defaultRates);
-    console.log('Usando tasas de interés por defecto');
+    console.warn('Advertencia al cargar tasas de Supabase:', error);
+    console.log('Intentando cargar desde archivo JSON fallback...');
+    
+    try {
+      const response = await fetch('/interest-rates.json');
+      if (!response.ok) {
+        throw new Error('No se pudo cargar el archivo JSON fallback');
+      }
+      const data: InterestRate[] = await response.json();
+      interestCalculator.loadInterestRates(data);
+      console.log(`✓ Cargadas ${data.length} tasas de interés desde JSON fallback`);
+    } catch (fallbackError) {
+      console.error('Error al cargar tasas de interés (ambas fuentes fallaron):', fallbackError);
+      // Usar datos por defecto mínimos si todo falla
+      const defaultRates: InterestRate[] = [
+        { año: 2020, 'porcentaje anual': 3.0 },
+        { año: 2021, 'porcentaje anual': 3.0 },
+        { año: 2022, 'porcentaje anual': 3.0 },
+        { año: 2023, 'porcentaje anual': 3.25 },
+        { año: 2024, 'porcentaje anual': 3.25 },
+        { año: 2025, 'porcentaje anual': 3.25 }
+      ];
+      interestCalculator.loadInterestRates(defaultRates);
+      console.log('⚠ Usando tasas de interés por defecto (datos no disponibles)');
+    }
   }
 }
