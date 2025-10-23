@@ -29,6 +29,7 @@ const BAREMOS_DATA: { [ccaa: string]: { [provincia: string]: string[] } } = {
     'CANTABRIA': ['Criterio Honorarios ICA CANTABRIA - ESCALA ICA CANTABRIA.xls', 'Criterio Honorarios ICA CANTABRIA 15-12-2014.pdf', 'Criterio Honorarios ICA Cantabria.pdf']
   },
   'CASTILLA LA MANCHA': {
+    'GENERAL': ['HONORARIOS-CASTILLA-LA-MANCHA.pdf'],
     'GUADALAJARA': ['Criterio Honorarios ICA Guadalajara.pdf']
   },
   'CASTILLA Y LEÓN': {

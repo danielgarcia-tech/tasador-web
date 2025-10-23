@@ -33,7 +33,7 @@ const MunicipioICATable: React.FC<MunicipioICATableProps> = ({ isAdmin }) => {
     try {
       setLoading(true);
       const { data, error } = await supabase
-        .from('municipio_ica')
+        .from('municipios_ica')
         .select('*')
         .order('pj', { ascending: true });
 
@@ -55,7 +55,7 @@ const MunicipioICATable: React.FC<MunicipioICATableProps> = ({ isAdmin }) => {
     if (editingId && editForm) {
       try {
         const { error } = await supabase
-          .from('municipio_ica')
+          .from('municipios_ica')
           .update({
             pj: editForm.pj,
             ica_aplicable: editForm.ica_aplicable,
@@ -81,7 +81,7 @@ const MunicipioICATable: React.FC<MunicipioICATableProps> = ({ isAdmin }) => {
     if (confirm('¿Estás seguro de que quieres eliminar este municipio?')) {
       try {
         const { error } = await supabase
-          .from('municipio_ica')
+          .from('municipios_ica')
           .delete()
           .eq('id', id);
 
@@ -96,7 +96,7 @@ const MunicipioICATable: React.FC<MunicipioICATableProps> = ({ isAdmin }) => {
   const handleCreate = async () => {
     try {
       const { error } = await supabase
-        .from('municipio_ica')
+        .from('municipios_ica')
         .insert([createForm]);
 
       if (error) throw error;
