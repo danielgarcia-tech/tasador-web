@@ -234,6 +234,7 @@ export default function ConsultarBaremos() {
                     key={idx}
                     onClick={() => handleDownload(file)}
                     className="w-full flex items-center gap-3 px-4 py-3 bg-gradient-to-r from-green-50 to-emerald-50 hover:from-green-100 hover:to-emerald-100 border border-green-300 rounded-lg transition-all text-left group"
+                    title={file} // Tooltip con el nombre completo
                   >
                     <File className="h-5 w-5 text-green-600 flex-shrink-0" />
                     <div className="flex-1 min-w-0">

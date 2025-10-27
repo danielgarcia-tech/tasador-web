@@ -121,6 +121,7 @@ const sections: Section[] = [
         <li><strong>Consulta organizada:</strong> Baremos clasificados por Comunidad Autónoma y municipio</li>
         <li><strong>Documentos oficiales:</strong> Acceso directo a PDFs y documentos oficiales</li>
         <li><strong>Búsqueda rápida:</strong> Localiza baremos específicos por nombre</li>
+        <li><strong>Chatbot inteligente:</strong> Asistente potenciado por ChatGPT de OpenAI para consultas sobre baremos</li>
         <li><strong>Actualizaciones automáticas:</strong> Documentación siempre actualizada</li>
       </ul>
 
@@ -183,6 +184,38 @@ const sections: Section[] = [
 
           <h4>Referencias cruzadas</h4>
           <p>Cada tasación incluye referencias a los baremos aplicados, facilitando la justificación y verificación de los cálculos realizados.</p>
+        `
+      },
+      {
+        id: 'chatbot-baremos',
+        title: 'Chatbot inteligente de baremos',
+        content: `
+          <h4>🤖 Asistente potenciado por ChatGPT</h4>
+          <p>La plataforma incluye un <strong>chatbot inteligente</strong> desarrollado con tecnología de <strong>OpenAI ChatGPT</strong>, específicamente entrenado para responder consultas sobre baremos de honorarios.</p>
+
+          <h4>Capacidades del chatbot</h4>
+          <ul>
+            <li><strong>Consultas específicas:</strong> Preguntas sobre cuantías, fases procesales y criterios aplicables</li>
+            <li><strong>Comparaciones territoriales:</strong> Diferencias entre comunidades autónomas y municipios</li>
+            <li><strong>Interpretación de baremos:</strong> Explicación de criterios y tablas de honorarios</li>
+            <li><strong>Actualizaciones normativas:</strong> Información sobre cambios y modificaciones recientes</li>
+            <li><strong>Casos prácticos:</strong> Ejemplos de aplicación en situaciones reales</li>
+          </ul>
+
+          <h4>Cómo usar el chatbot</h4>
+          <ol>
+            <li>Accede a la pestaña <strong>"CONSULTAR BAREMOS"</strong></li>
+            <li>Localiza el panel del <strong>chatbot</strong> en la interfaz</li>
+            <li>Formula tu pregunta de forma clara y específica</li>
+            <li>El asistente proporcionará respuestas basadas en la documentación oficial</li>
+          </ol>
+
+          <div class="callout">
+            💡 <strong>Consejo:</strong> Para mejores resultados, incluye detalles como comunidad autónoma, municipio, tipo de procedimiento y cuantía aproximada en tus consultas.
+          </div>
+
+          <h4>Tecnología y precisión</h4>
+          <p>El chatbot utiliza modelos avanzados de lenguaje natural de OpenAI, combinados con una base de conocimientos especializada en legislación española de honorarios profesionales, asegurando respuestas precisas y actualizadas.</p>
         `
       }
     ]
