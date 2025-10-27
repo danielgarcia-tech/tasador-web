@@ -29,6 +29,7 @@ export interface Tasacion {
   total: number
   nombre_usuario: string
   ref_aranzadi?: string
+  fecha_demanda?: string
   usuarios_personalizados?: {
     nombre: string
   }

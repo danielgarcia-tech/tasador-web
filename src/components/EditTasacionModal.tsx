@@ -18,6 +18,7 @@ const editTasacionSchema = z.object({
   fase_terminacion: z.string().min(1, 'La fase de terminación es requerida'),
   instancia: z.enum(['PRIMERA INSTANCIA', 'SEGUNDA INSTANCIA']),
   nombre_usuario: z.string().optional(),
+  fecha_demanda: z.string().optional(),
 })
 
 type EditTasacionFormData = z.infer<typeof editTasacionSchema>
@@ -51,6 +52,7 @@ export default function EditTasacionModal({ tasacion, isOpen, onClose }: EditTas
       fase_terminacion: tasacion.fase_terminacion,
       instancia: tasacion.instancia,
       nombre_usuario: tasacion.nombre_usuario || '',
+      fecha_demanda: tasacion.fecha_demanda || '',
     }
   })
 
@@ -68,7 +70,8 @@ export default function EditTasacionModal({ tasacion, isOpen, onClose }: EditTas
             criterioICA: criterioIca,
             tipoJuicio: tipoJuicio as 'Juicio Verbal' | 'Juicio Ordinario',
             faseTerminacion,
-            instancia
+            instancia,
+            fechaDemanda: tasacion.fecha_demanda
           })
           setCostas(resultado)
         } catch (error) {
@@ -260,6 +263,19 @@ export default function EditTasacionModal({ tasacion, isOpen, onClose }: EditTas
               className="input"
               placeholder="Nombre del usuario que realiza la tasación"
             />
+          </div>
+
+          {/* Fecha de Demanda */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Fecha de Demanda
+            </label>
+            <input
+              {...register('fecha_demanda')}
+              type="date"
+              className="input"
+            />
+            <p className="text-gray-600 text-sm mt-1">Se usa para seleccionar los valores de costas aplicables (pre-2025 o 2025+)</p>
           </div>
 
           {/* Resultado del Cálculo */}

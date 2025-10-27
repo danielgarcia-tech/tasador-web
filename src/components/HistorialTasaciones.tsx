@@ -41,12 +41,23 @@ const tasacionSchema = z.object({
   fase_terminacion: z.string().min(1, 'La fase de terminación es requerida'),
   instancia: z.enum(['PRIMERA INSTANCIA', 'SEGUNDA INSTANCIA']),
   ref_aranzadi: z.string().optional(),
+  fecha_demanda: z.string().optional(),
 })
 
 type TasacionForm = z.infer<typeof tasacionSchema>
 
 export default function HistorialTasaciones() {
   const { tasaciones, loading, error, isOffline, refresh, update: updateTasacion, delete: deleteTasacion } = useTasaciones()
+
+  // Función helper para determinar el tipo de costas basado en fecha de demanda
+  const getTipoCostas = (fechaDemanda: string | null | undefined): string => {
+    if (!fechaDemanda) return '18k (Sin fecha)'
+    
+    const fecha = new Date(fechaDemanda)
+    const fechaLimite = new Date('2025-04-03')
+    
+    return fecha >= fechaLimite ? '24k (2025+)' : '18k (Pre-2025)'
+  }
   
   const [searchTerm, setSearchTerm] = useState('')
   const [filterTipoProceso, setFilterTipoProceso] = useState('')
@@ -208,6 +219,8 @@ export default function HistorialTasaciones() {
         costas_sin_iva: r.costas_sin_iva,
         iva_21: r.iva_21,
         total: r.total,
+        fecha_demanda: r.fecha_demanda ? new Date(r.fecha_demanda).toLocaleDateString('es-ES') : '',
+        tipo_costas: getTipoCostas(r.fecha_demanda),
         ref_aranzadi: r.ref_aranzadi || ''
       }))
 
@@ -297,6 +310,7 @@ export default function HistorialTasaciones() {
           fase_terminacion: editingTasacion.fase_terminacion,
           instancia: editingTasacion.instancia,
           ref_aranzadi: editingTasacion.ref_aranzadi || '',
+          fecha_demanda: editingTasacion.fecha_demanda || '',
         })
         setMunicipioSeleccionado({
           municipio: editingTasacion.municipio,
@@ -521,6 +535,19 @@ export default function HistorialTasaciones() {
             className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
           />
           <p className="mt-1 text-sm text-gray-500">Identificador único para el expediente</p>
+        </div>
+
+        {/* Campo FECHA DEMANDA */}
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            Fecha Demanda
+          </label>
+          <input
+            {...register('fecha_demanda')}
+            type="date"
+            className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+          />
+          <p className="mt-1 text-sm text-gray-500">Fecha de la demanda. Se usa para seleccionar los valores de costas aplicables (pre-2025 o 2025+)</p>
         </div>
 
         {/* Botones */}
@@ -923,7 +950,13 @@ export default function HistorialTasaciones() {
                     📅 Fecha
                   </th>
                   <th className="px-6 py-4 text-left text-xs font-bold text-gray-600 uppercase tracking-wider">
-                    🔖 REF ARANZADI
+                    � Fecha Demanda
+                  </th>
+                  <th className="px-6 py-4 text-left text-xs font-bold text-gray-600 uppercase tracking-wider">
+                    💰 Tipo Costas
+                  </th>
+                  <th className="px-6 py-4 text-left text-xs font-bold text-gray-600 uppercase tracking-wider">
+                    �🔖 REF ARANZADI
                   </th>
                   <th className="px-6 py-4 text-left text-xs font-bold text-gray-600 uppercase tracking-wider">
                     ⚡ Acciones
@@ -1092,6 +1125,40 @@ export default function HistorialTasaciones() {
                               hour: '2-digit',
                               minute: '2-digit'
                             })}
+                          </div>
+                        </div>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4">
+                      <div className="flex items-center">
+                        <div className="bg-indigo-100 rounded-full p-2 mr-4">
+                          <Calendar className="h-4 w-4 text-indigo-600" />
+                        </div>
+                        <div>
+                          <div className="text-sm font-bold text-gray-900">
+                            {tasacion.fecha_demanda ? new Date(tasacion.fecha_demanda).toLocaleDateString('es-ES', {
+                              day: '2-digit',
+                              month: '2-digit',
+                              year: 'numeric'
+                            }) : 'Sin fecha'}
+                          </div>
+                          <div className="text-xs text-gray-500 mt-1">
+                            📅 Fecha demanda
+                          </div>
+                        </div>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4">
+                      <div className="flex items-center">
+                        <div className={`rounded-full p-2 mr-4 ${getTipoCostas(tasacion.fecha_demanda).includes('24k') ? 'bg-purple-100' : 'bg-orange-100'}`}>
+                          <DollarSign className={`h-4 w-4 ${getTipoCostas(tasacion.fecha_demanda).includes('24k') ? 'text-purple-600' : 'text-orange-600'}`} />
+                        </div>
+                        <div>
+                          <div className="text-sm font-bold text-gray-900">
+                            {getTipoCostas(tasacion.fecha_demanda)}
+                          </div>
+                          <div className="text-xs text-gray-500 mt-1">
+                            💰 Valores aplicables
                           </div>
                         </div>
                       </div>

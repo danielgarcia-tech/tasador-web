@@ -5,13 +5,14 @@ import { supabase } from '../lib/supabase'
 import EntidadesTable from './EntidadesTable'
 import MunicipioICATable from './MunicipioICATable'
 import CostasXICATable from './CostasXICATable'
+import Costas24kTable from './Costas24kTable'
 import WordTemplateSettings from './WordTemplateSettings.tsx'
 import UsersManagement from './UsersManagement'
 import InteresesLegalesTable from './InteresesLegalesTable.tsx'
 import FormulasCalculoTable from './FormulasCalculoTable'
 import BaremosHonorarios from './BaremosHonorarios'
 
-type AdminSection = 'dashboard' | 'entidades' | 'municipio_ica' | 'costasxica' | 'word_templates' | 'users' | 'intereses_legales' | 'formulas_calculo' | 'baremos_honorarios'
+type AdminSection = 'dashboard' | 'entidades' | 'municipio_ica' | 'costasxica' | 'costas24k' | 'word_templates' | 'users' | 'intereses_legales' | 'formulas_calculo' | 'baremos_honorarios'
 
 export default function AdminPanel() {
   const { user, refreshUser } = useAuth()
@@ -121,6 +122,10 @@ export default function AdminPanel() {
 
   const renderCostasXICA = () => (
     <CostasXICATable isAdmin={true} />
+  )
+
+  const renderCostas24k = () => (
+    <Costas24kTable isAdmin={true} />
   )
 
   const renderWordTemplates = () => (
@@ -298,6 +303,17 @@ export default function AdminPanel() {
             </button>
 
             <button
+              onClick={() => setActiveSection('costas24k')}
+              className="flex items-center p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
+            >
+              <Calculator className="h-8 w-8 text-blue-500 mr-3" />
+              <div className="text-left">
+                <div className="font-medium text-gray-900">Costas 2025+</div>
+                <div className="text-sm text-gray-500">Gestionar valores 2025 en adelante</div>
+              </div>
+            </button>
+
+            <button
               onClick={() => setActiveSection('formulas_calculo')}
               className="flex items-center p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
             >
@@ -367,6 +383,8 @@ export default function AdminPanel() {
         return renderMunicipioICA()
       case 'costasxica':
         return renderCostasXICA()
+      case 'costas24k':
+        return renderCostas24k()
       case 'word_templates':
         return renderWordTemplates()
       case 'users':
@@ -447,6 +465,18 @@ export default function AdminPanel() {
           >
             <Calculator className="h-5 w-5" />
             <span>Costas por ICA</span>
+          </button>
+          
+          <button
+            onClick={() => setActiveSection('costas24k')}
+            className={`w-full flex items-center space-x-3 px-4 py-3 rounded-lg text-left transition-colors ${
+              activeSection === 'costas24k'
+                ? 'bg-blue-100 text-blue-700 border-blue-200 border'
+                : 'text-gray-700 hover:bg-gray-100'
+            }`}
+          >
+            <Calculator className="h-5 w-5" />
+            <span>Costas 2025+</span>
           </button>
           
           <button

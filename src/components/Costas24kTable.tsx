@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { supabase } from '../lib/supabase';
 
-interface CostaXICA {
+interface CostaXICA24K {
   id?: string;
   ccaa: string;
   ica: string;
@@ -13,55 +13,18 @@ interface CostaXICA {
   verbal_vista: number;
 }
 
-interface CostasXICATableProps {
+interface Costas24kTableProps {
   isAdmin: boolean;
 }
 
-const CostasXICATable: React.FC<CostasXICATableProps> = ({ isAdmin }) => {
-  const [costas, setCostas] = useState<CostaXICA[]>([]);
-  const IVA = 0.21;
-  // Exportar a Excel
-  const exportToExcel = () => {
-    const headers = [
-      'CCAA', 'ICA',
-      'Allanamiento (sin IVA)', 'Allanamiento (con IVA)',
-      'Audiencia Previa (sin IVA)', 'Audiencia Previa (con IVA)',
-      'Juicio (sin IVA)', 'Juicio (con IVA)',
-      'Factor Apelación', 'Verbal Alegaciones', 'Verbal Vista'
-    ];
-    const rows = filteredCostas.map(costa => [
-      costa.ccaa,
-      costa.ica,
-      costa.allanamiento.toFixed(2),
-      (costa.allanamiento * (1 + IVA)).toFixed(2),
-      costa.audiencia_previa.toFixed(2),
-      (costa.audiencia_previa * (1 + IVA)).toFixed(2),
-      costa.juicio.toFixed(2),
-      (costa.juicio * (1 + IVA)).toFixed(2),
-      costa.factor_apelacion.toFixed(2),
-      costa.verbal_alegaciones.toFixed(2),
-      costa.verbal_vista.toFixed(2)
-    ]);
-    let csvContent = '';
-    csvContent += headers.join(',') + '\n';
-    rows.forEach(row => {
-      csvContent += row.join(',') + '\n';
-    });
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.setAttribute('download', 'costas_por_ica.csv');
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-  };
+const Costas24kTable: React.FC<Costas24kTableProps> = ({ isAdmin }) => {
+  const [costas, setCostas] = useState<CostaXICA24K[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [editForm, setEditForm] = useState<Partial<CostaXICA>>({});
+  const [editForm, setEditForm] = useState<Partial<CostaXICA24K>>({});
   const [showCreateForm, setShowCreateForm] = useState(false);
-  const [createForm, setCreateForm] = useState<Omit<CostaXICA, 'id'>>({
+  const [createForm, setCreateForm] = useState<Omit<CostaXICA24K, 'id'>>({
     ccaa: '',
     ica: '',
     allanamiento: 0,
@@ -82,7 +45,7 @@ const CostasXICATable: React.FC<CostasXICATableProps> = ({ isAdmin }) => {
     try {
       setLoading(true);
       const { data, error } = await supabase
-        .from('costasxica')
+        .from('costasxica24k')
         .select('*')
         .order('ccaa', { ascending: true })
         .order('ica', { ascending: true });
@@ -96,7 +59,7 @@ const CostasXICATable: React.FC<CostasXICATableProps> = ({ isAdmin }) => {
     }
   };
 
-  const handleEdit = (costa: CostaXICA) => {
+  const handleEdit = (costa: CostaXICA24K) => {
     setEditingId(costa.id!);
     setEditForm(costa);
   };
@@ -105,7 +68,7 @@ const CostasXICATable: React.FC<CostasXICATableProps> = ({ isAdmin }) => {
     if (editingId && editForm) {
       try {
         const { error } = await supabase
-          .from('costasxica')
+          .from('costasxica24k')
           .update({
             ccaa: editForm.ccaa,
             ica: editForm.ica,
@@ -134,10 +97,10 @@ const CostasXICATable: React.FC<CostasXICATableProps> = ({ isAdmin }) => {
   };
 
   const handleDelete = async (id: string) => {
-    if (confirm('¿Estás seguro de que quieres eliminar este registro de costas?')) {
+    if (confirm('¿Estás seguro de que quieres eliminar este registro?')) {
       try {
         const { error } = await supabase
-          .from('costasxica')
+          .from('costasxica24k')
           .delete()
           .eq('id', id);
 
@@ -152,7 +115,7 @@ const CostasXICATable: React.FC<CostasXICATableProps> = ({ isAdmin }) => {
   const handleCreate = async () => {
     try {
       const { error } = await supabase
-        .from('costasxica')
+        .from('costasxica24k')
         .insert([createForm]);
 
       if (error) throw error;
@@ -183,7 +146,7 @@ const CostasXICATable: React.FC<CostasXICATableProps> = ({ isAdmin }) => {
   if (loading) {
     return (
       <div className="flex justify-center items-center p-8">
-        <div className="text-lg">Cargando costas por ICA...</div>
+        <div className="text-lg">Cargando costas 24K...</div>
       </div>
     );
   }
@@ -199,23 +162,15 @@ const CostasXICATable: React.FC<CostasXICATableProps> = ({ isAdmin }) => {
   return (
     <div className="space-y-4">
       <div className="flex justify-between items-center">
-        <h3 className="text-lg font-semibold">Gestión de Costas por ICA</h3>
-        <div className="flex gap-2">
+        <h3 className="text-lg font-semibold">Gestión de Costas por ICA - 24K (2025+)</h3>
+        {isAdmin && (
           <button
-            onClick={exportToExcel}
-            className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg"
+            onClick={() => setShowCreateForm(true)}
+            className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg"
           >
-            Exportar a Excel (IVA y sin IVA)
+            Agregar Costa 24K
           </button>
-          {isAdmin && (
-            <button
-              onClick={() => setShowCreateForm(true)}
-              className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg"
-            >
-              Agregar Costa ICA
-            </button>
-          )}
-        </div>
+        )}
       </div>
 
       {/* Filtros */}
@@ -255,7 +210,7 @@ const CostasXICATable: React.FC<CostasXICATableProps> = ({ isAdmin }) => {
 
       {/* Información de resultados */}
       <div className="text-sm text-gray-600">
-        Mostrando {filteredCostas.length} de {costas.length} registros de costas
+        Mostrando {filteredCostas.length} de {costas.length} registros
         {(filterCCAA || filterICA) && (
           <span className="ml-2 text-blue-600">
             (filtrado por {filterCCAA && `CCAA: "${filterCCAA}"`}{filterCCAA && filterICA && ', '}{filterICA && `ICA: "${filterICA}"`})
@@ -265,7 +220,7 @@ const CostasXICATable: React.FC<CostasXICATableProps> = ({ isAdmin }) => {
 
       {showCreateForm && (
         <div className="bg-gray-50 border rounded-lg p-4">
-          <h4 className="font-semibold mb-3">Crear Nueva Costa por ICA</h4>
+          <h4 className="font-semibold mb-3">Crear Nueva Costa 24K</h4>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
             <div>
               <label className="block text-sm font-medium mb-1">CCAA</label>
@@ -540,11 +495,11 @@ const CostasXICATable: React.FC<CostasXICATableProps> = ({ isAdmin }) => {
 
       {filteredCostas.length === 0 && (
         <div className="text-center py-8 text-gray-500">
-          {costas.length === 0 ? 'No hay costas registradas' : 'No se encontraron costas con los filtros aplicados'}
+          {costas.length === 0 ? 'No hay costas 24K registradas' : 'No se encontraron costas con los filtros aplicados'}
         </div>
       )}
     </div>
   );
 };
 
-export default CostasXICATable;
+export default Costas24kTable;

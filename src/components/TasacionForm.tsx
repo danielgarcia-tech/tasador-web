@@ -40,6 +40,7 @@ const tasacionSchema = z.object({
   fase_terminacion: z.string().min(1, 'La fase de terminación es requerida'),
   instancia: z.enum(['PRIMERA INSTANCIA', 'SEGUNDA INSTANCIA']),
   ref_aranzadi: z.string().optional(),
+  fecha_demanda: z.string().optional(),
 })
 
 type TasacionFormData = z.infer<typeof tasacionSchema>
@@ -149,7 +150,8 @@ export default function TasacionForm() {
         criterioICA: municipioSeleccionado.criterio_ica,
         tipoJuicio: data.tipo_proceso,
         faseTerminacion: data.fase_terminacion,
-        instancia: data.instancia
+        instancia: data.instancia,
+        fechaDemanda: data.fecha_demanda
       })
 
       setResultado(resultadoCalculo)
@@ -179,6 +181,8 @@ export default function TasacionForm() {
         tipo_proceso: formData.tipo_proceso,
         fase_terminacion: formData.fase_terminacion,
         instancia: formData.instancia,
+        ref_aranzadi: formData.ref_aranzadi || '',
+        fecha_demanda: formData.fecha_demanda || '',
         costas_sin_iva: resultado.costas,
         iva_21: resultado.iva,
         total: resultado.total,
@@ -247,6 +251,7 @@ export default function TasacionForm() {
           fase_terminacion: formData.fase_terminacion,
           instancia: formData.instancia,
           ref_aranzadi: formData.ref_aranzadi || '',
+          fecha_demanda: formData.fecha_demanda || '',
           costas_sin_iva: resultado.costas,
           iva_21: resultado.iva,
           total: resultado.total,
@@ -546,6 +551,19 @@ export default function TasacionForm() {
               />
               <p className="text-sm text-gray-500 mt-1">Identificador único para el expediente</p>
             </div>
+
+            {/* FECHA DEMANDA */}
+            <div>
+              <label className="label">
+                Fecha de Demanda
+              </label>
+              <input
+                {...register('fecha_demanda')}
+                type="date"
+                className="input"
+              />
+              <p className="text-sm text-gray-500 mt-1">Se usa para seleccionar los valores de costas aplicables (pre-2025 o 2025+)</p>
+            </div>
           </div>
 
           <div className="flex justify-end">
@@ -629,6 +647,12 @@ export default function TasacionForm() {
                     const faseTerminacion = formData.fase_terminacion;
                     const instancia = formData.instancia;
                     const criterioICA = municipioSeleccionado?.criterio_ica;
+                    const fechaDemanda = formData.fecha_demanda;
+
+                    // Determinar si usar 18k o 24k
+                    const fechaCorte = new Date('2025-04-03');
+                    const usar24k = fechaDemanda ? new Date(fechaDemanda) >= fechaCorte : false;
+                    const tipoCostas = usar24k ? '24k (2025+)' : '18k (pre-2025)';
 
                     let explicacion = [];
 
@@ -636,6 +660,8 @@ export default function TasacionForm() {
                     explicacion.push(`⚖️ Tipo de proceso: ${tipoJuicio}`);
                     explicacion.push(`📋 Fase de terminación: ${faseTerminacion || 'No seleccionada'}`);
                     explicacion.push(`🏛️ Instancia: ${instancia || 'PRIMERA INSTANCIA'}`);
+                    explicacion.push(`📅 Fecha de demanda: ${fechaDemanda || 'No especificada'}`);
+                    explicacion.push(`💼 Tipo de costas aplicadas: ${tipoCostas}`);
                     explicacion.push('');
                     explicacion.push('🔍 El cálculo se realiza consultando los baremos actualizados desde la base de datos.');
                     explicacion.push('� Los valores se obtienen dinámicamente según el criterio ICA del municipio seleccionado.');

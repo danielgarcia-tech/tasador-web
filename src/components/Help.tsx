@@ -121,6 +121,62 @@ const sections: Section[] = [
         `
       },
       {
+        id: 'tablas-costas-fecha',
+        title: 'Tablas de costas por fecha de demanda',
+        content: `
+          <h4>¿Por qué existen diferentes tablas de costas?</h4>
+          <p>Debido a la <strong>Ley 10/2023, de 6 de diciembre</strong>, que modifica la cuantía indeterminada incrementándola de <strong>18.000€ a 24.000€</strong>, el sistema utiliza <strong>dos tablas diferentes</strong> de costas judiciales según la fecha de presentación de la demanda.</p>
+
+          <div class="callout">
+            📅 <strong>Fecha de corte: 3 de abril de 2025</strong>
+          </div>
+
+          <h4>Selección automática de tabla</h4>
+          <table>
+            <thead><tr><th>Fecha de Demanda</th><th>Tabla Aplicada</th><th>Cuantía Indeterminada</th></tr></thead>
+            <tbody>
+              <tr><td><strong>📅 Anterior al 3 de abril de 2025</strong></td><td><strong>18k (pre-2025)</strong></td><td>18.000€</td></tr>
+              <tr><td><strong>📅 Posterior al 3 de abril de 2025</strong></td><td><strong>24k (2025+)</strong></td><td>24.000€</td></tr>
+            </tbody>
+          </table>
+
+          <h4>¿Cómo funciona?</h4>
+          <ol>
+            <li><strong>Campo obligatorio:</strong> Introduce la fecha exacta de presentación de la demanda en el campo "Fecha de Demanda"</li>
+            <li><strong>Selección automática:</strong> El sistema compara la fecha con el 3 de abril de 2025</li>
+            <li><strong>Tabla aplicada:</strong> Se utiliza automáticamente la tabla correspondiente (18k o 24k)</li>
+            <li><strong>Indicador visual:</strong> En el resumen de cálculo verás claramente qué tabla se aplicó</li>
+          </ol>
+
+          <h4>Ejemplos prácticos</h4>
+          <div class="example">
+            <strong>📅 Demanda del 15 de marzo de 2025:</strong><br>
+            → Se aplica tabla <strong>18k</strong> (fecha anterior al 3 de abril)<br>
+            → Cuantía indeterminada: <strong>18.000€</strong>
+          </div>
+          
+          <div class="example">
+            <strong>📅 Demanda del 10 de abril de 2025:</strong><br>
+            → Se aplica tabla <strong>24k</strong> (fecha posterior al 3 de abril)<br>
+            → Cuantía indeterminada: <strong>24.000€</strong>
+          </div>
+
+          <h4>¿Dónde veo qué tabla se aplicó?</h4>
+          <ul>
+            <li><strong>En el resumen de tasación:</strong> Aparece "💼 Tipo de costas aplicadas: 18k (pre-2025)" o "24k (2025+)"</li>
+            <li><strong>En el historial:</strong> Columna "Tipo Costas" muestra la tabla utilizada</li>
+          </ul>
+
+          <div class="callout warning">
+            ⚠️ <strong>Importante:</strong> Es fundamental introducir la fecha exacta de la demanda, ya que las cuantías pueden variar significativamente entre tablas y afecta directamente al resultado final de la tasación.
+          </div>
+
+          <div class="callout">
+            💡 <strong>Si no introduces fecha:</strong> El sistema asume tabla 18k por defecto y se mostrará como "18k (Sin fecha)" en el historial. Recomendamos siempre especificar la fecha para máxima precisión.
+          </div>
+        `
+      },
+      {
         id: 'exportar-tasacion',
         title: 'Exportar y compartir tasaciones',
         content: `

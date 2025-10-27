@@ -18,6 +18,7 @@ const tasacionSchema = z.object({
   fase_terminacion: z.string().min(1, 'La fase de terminación es requerida'),
   instancia: z.enum(['PRIMERA INSTANCIA', 'SEGUNDA INSTANCIA']),
   ref_aranzadi: z.string().optional(),
+  fecha_demanda: z.string().optional(),
 })
 
 type TasacionForm = z.infer<typeof tasacionSchema>
@@ -87,6 +88,7 @@ export function EditTasacionForm({
         fase_terminacion: editingTasacion.fase_terminacion,
         instancia: editingTasacion.instancia,
         ref_aranzadi: editingTasacion.ref_aranzadi || '',
+        fecha_demanda: editingTasacion.fecha_demanda || '',
       })
       setMunicipioSeleccionado({
         municipio: editingTasacion.municipio,
@@ -314,6 +316,19 @@ export function EditTasacionForm({
           className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
         />
         <p className="mt-1 text-sm text-gray-500">Identificador único para el expediente</p>
+      </div>
+
+      {/* Campo FECHA DEMANDA */}
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-2">
+          Fecha Demanda
+        </label>
+        <input
+          {...register('fecha_demanda')}
+          type="date"
+          className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+        />
+        <p className="mt-1 text-sm text-gray-500">Fecha de la demanda. Se usa para seleccionar los valores de costas aplicables (pre-2025 o 2025+)</p>
       </div>
 
       {/* Botones */}

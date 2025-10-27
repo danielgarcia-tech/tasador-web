@@ -4,10 +4,11 @@
 1. [Introducción](#introducción)
 2. [Acceso a la Aplicación](#acceso-a-la-aplicación)
 3. [Tasaciones - Módulo Principal](#tasaciones---módulo-principal)
-4. [Cálculo de Intereses Simple](#cálculo-de-intereses-simple)
-5. [Cálculo de Intereses Complejo (Lotes)](#cálculo-de-intereses-complejo-lotes)
-6. [Historial de Tasaciones](#historial-de-tasaciones)
-7. [Preguntas Frecuentes](#preguntas-frecuentes)
+4. [Tablas de Costas por Fecha de Demanda](#tablas-de-costas-por-fecha-de-demanda)
+5. [Cálculo de Intereses Simple](#cálculo-de-intereses-simple)
+6. [Cálculo de Intereses Complejo (Lotes)](#cálculo-de-intereses-complejo-lotes)
+7. [Historial de Tasaciones](#historial-de-tasaciones)
+8. [Preguntas Frecuentes](#preguntas-frecuentes)
 
 ---
 
@@ -100,6 +101,77 @@ Tras generar la tasación, verás un **resumen visual** con:
   - ✏️ Editar tasación
   - 🗑️ Eliminar tasación
   - 📥 Descargar minuta en Word
+
+---
+
+## TABLAS DE COSTAS POR FECHA DE DEMANDA
+
+### ¿Por qué existen diferentes tablas de costas?
+
+Debido a la **Ley 10/2023, de 6 de diciembre**, que modifica la cuantía indeterminada incrementándola de **18.000€ a 24.000€**, el sistema utiliza **dos tablas diferentes** de costas judiciales según la fecha de presentación de la demanda:
+
+### Fecha de Corte: 3 de Abril de 2025
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                    FECHA DE DEMANDA                          │
+├─────────────────────────────────────────────────────────────┤
+│        📅 ANTERIOR al 3 de abril de 2025                     │
+│        💰 TABLA: 18k (Cuantía indeterminada: 18.000€)       │
+│                                                             │
+│        📅 POSTERIOR al 3 de abril de 2025                    │
+│        💰 TABLA: 24k (Cuantía indeterminada: 24.000€)       │
+└─────────────────────────────────────────────────────────────┘
+```
+
+### ¿Cómo funciona la selección automática?
+
+1. **Campo "Fecha de Demanda"**: En el formulario de tasación, introduce la fecha exacta de presentación de la demanda
+2. **Selección automática**: El sistema compara la fecha con el 3 de abril de 2025
+3. **Tabla aplicada**: Se utiliza la tabla correspondiente (18k o 24k)
+4. **Indicador visual**: En el resumen de cálculo verás "18k (pre-2025)" o "24k (2025+)"
+
+### Ejemplos de aplicación
+
+#### 📅 Demanda presentada el **15 de marzo de 2025**
+- **Resultado**: Se aplica tabla **18k**
+- **Motivo**: Fecha anterior al 3 de abril de 2025
+- **Cuantía indeterminada**: 18.000€
+
+#### 📅 Demanda presentada el **10 de abril de 2025**
+- **Resultado**: Se aplica tabla **24k**
+- **Motivo**: Fecha posterior al 3 de abril de 2025
+- **Cuantía indeterminada**: 24.000€
+
+### ¿Dónde veo qué tabla se aplicó?
+
+#### En el Resumen de Tasación
+Después de calcular, verás en el detalle:
+```
+💼 Tipo de costas aplicadas: 18k (pre-2025)
+   o
+💼 Tipo de costas aplicadas: 24k (2025+)
+```
+
+#### En el Historial de Tasaciones
+La columna **"Tipo Costas"** muestra:
+- **18k (Sin fecha)**: No se especificó fecha de demanda
+- **18k (Pre-2025)**: Fecha anterior al 3 de abril de 2025
+- **24k (2025+)**: Fecha posterior al 3 de abril de 2025
+
+### Importancia de la fecha correcta
+
+⚠️ **Es fundamental introducir la fecha exacta de la demanda** porque:
+- Las cuantías pueden variar significativamente entre tablas
+- Afecta directamente al cálculo de costas judiciales
+- Puede cambiar el resultado final de la tasación
+
+### ¿Qué pasa si no introduzco fecha?
+
+Si dejas vacío el campo **"Fecha de Demanda"**:
+- El sistema asume tabla **18k** por defecto
+- Se mostrará como **"18k (Sin fecha)"** en el historial
+- Recomendamos siempre especificar la fecha para precisión
 
 ---
 

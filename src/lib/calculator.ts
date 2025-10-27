@@ -7,6 +7,7 @@ export interface CalculoCostasParams {
   tipoJuicio: 'Juicio Verbal' | 'Juicio Ordinario';
   faseTerminacion: string;
   instancia: 'PRIMERA INSTANCIA' | 'SEGUNDA INSTANCIA';
+  fechaDemanda?: string; // Fecha de demanda para determinar si usar 18k o 24k
 }
 
 export interface ResultadoCalculo {
@@ -16,17 +17,23 @@ export interface ResultadoCalculo {
 }
 
 export async function calcularCostas(params: CalculoCostasParams): Promise<ResultadoCalculo> {
-  const { criterioICA, tipoJuicio, faseTerminacion, instancia } = params;
+  const { criterioICA, tipoJuicio, faseTerminacion, instancia, fechaDemanda } = params;
+  
+  // Determinar qué tabla usar basado en la fecha de demanda
+  // Fecha de corte: 3 de abril de 2025
+  const fechaCorte = new Date('2025-04-03');
+  const usar24k = fechaDemanda ? new Date(fechaDemanda) >= fechaCorte : false;
+  const tablaCostas = usar24k ? 'costasxica24k' : 'costasxica';
   
   // Consultar los valores ICA desde la base de datos
   const { data: valoresCriterio, error } = await supabase
-    .from('costasxica')
+    .from(tablaCostas)
     .select('allanamiento, audiencia_previa, juicio, factor_apelacion, verbal_alegaciones, verbal_vista')
     .eq('ica', criterioICA)
     .single();
 
   if (error || !valoresCriterio) {
-    throw new Error(`Criterio ICA no encontrado en la base de datos: ${criterioICA}`);
+    throw new Error(`Criterio ICA no encontrado en la base de datos: ${criterioICA} (Tabla: ${tablaCostas})`);
   }
 
   let costas = 0;
