@@ -108,6 +108,86 @@ const sections: Section[] = [
     ]
   },
   {
+    id: 'consultar-baremos',
+    title: 'Consultar Baremos de Honorarios',
+    icon: <BookOpen className="h-5 w-5" />,
+    description: 'Accede a la documentación oficial de baremos por comunidad autónoma y municipio',
+    content: `
+      <h3>¿Qué son los Baremos de Honorarios?</h3>
+      <p>Los <strong>Baremos de Honorarios</strong> son las tablas oficiales que regulan los honorarios de abogados, procuradores y graduados sociales en cada territorio español. Contienen las cuantías mínimas y máximas aplicables según la materia, cuantía y fase procesal.</p>
+
+      <h3>Funcionalidades disponibles</h3>
+      <ul>
+        <li><strong>Consulta organizada:</strong> Baremos clasificados por Comunidad Autónoma y municipio</li>
+        <li><strong>Documentos oficiales:</strong> Acceso directo a PDFs y documentos oficiales</li>
+        <li><strong>Búsqueda rápida:</strong> Localiza baremos específicos por nombre</li>
+        <li><strong>Actualizaciones automáticas:</strong> Documentación siempre actualizada</li>
+      </ul>
+
+      <div class="callout">
+        📋 <strong>Novedades recientes:</strong> Se han incorporado mejoras importantes en la organización de baremos para una mejor accesibilidad y precisión en las consultas.
+      </div>
+    `,
+    subsections: [
+      {
+        id: 'navegacion-baremos',
+        title: 'Cómo navegar por los baremos',
+        content: `
+          <h4>Paso 1 · Seleccionar Comunidad Autónoma</h4>
+          <p>Elige la comunidad autónoma correspondiente al territorio donde se desarrolla el procedimiento judicial.</p>
+
+          <h4>Paso 2 · Elegir municipio o demarcación</h4>
+          <p>Selecciona el municipio específico o la demarcación territorial aplicable.</p>
+
+          <h4>Paso 3 · Consultar documentos</h4>
+          <p>Accede a los documentos oficiales disponibles para esa jurisdicción.</p>
+        `
+      },
+      {
+        id: 'actualizaciones-baremos',
+        title: 'Últimas actualizaciones y mejoras',
+        content: `
+          <h4>🆕 Separación de Ceuta y Melilla</h4>
+          <p>Se han separado las ciudades autónomas de <strong>Ceuta</strong> y <strong>Melilla</strong> en entradas independientes, permitiendo una consulta más precisa y específica para cada territorio.</p>
+          <ul>
+            <li><strong>Ceuta:</strong> Acceso directo a baremos específicos de Ceuta</li>
+            <li><strong>Melilla:</strong> Documentación propia de Melilla con criterios actualizados</li>
+          </ul>
+
+          <h4>🆕 Incorporación de Castilla-La Mancha GENERAL</h4>
+          <p>Se ha añadido una nueva categoría <strong>GENERAL</strong> para Castilla-La Mancha, complementando la información específica de Guadalajara con criterios aplicables a toda la comunidad autónoma.</p>
+          <ul>
+            <li><strong>Guadalajara:</strong> Baremos específicos del partido judicial</li>
+            <li><strong>GENERAL:</strong> Criterios aplicables a toda Castilla-La Mancha</li>
+          </ul>
+
+          <h4>🔧 Mejoras técnicas</h4>
+          <ul>
+            <li>Mejor organización de la estructura de archivos</li>
+            <li>Optimización de la navegación entre comunidades</li>
+            <li>Actualización de enlaces y referencias documentales</li>
+          </ul>
+        `
+      },
+      {
+        id: 'uso-baremos-tasaciones',
+        title: 'Uso en tasaciones de costas',
+        content: `
+          <h4>Integración automática</h4>
+          <p>Los baremos consultados se aplican automáticamente en el cálculo de tasaciones, asegurando:</p>
+          <ul>
+            <li><strong>Precisión legal:</strong> Aplicación correcta de cuantías según normativa</li>
+            <li><strong>Actualización constante:</strong> Baremos siempre vigentes</li>
+            <li><strong>Consistencia:</strong> Misma fuente documental para consulta y cálculo</li>
+          </ul>
+
+          <h4>Referencias cruzadas</h4>
+          <p>Cada tasación incluye referencias a los baremos aplicados, facilitando la justificación y verificación de los cálculos realizados.</p>
+        `
+      }
+    ]
+  },
+  {
     id: 'interes-simple',
     title: 'Cálculo de Interés Simple',
     icon: <Zap className="h-5 w-5" />,

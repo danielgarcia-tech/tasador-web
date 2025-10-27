@@ -24,6 +24,7 @@ const MunicipioICATable: React.FC<MunicipioICATableProps> = ({ isAdmin }) => {
   });
   const [filterPJ, setFilterPJ] = useState<string>('');
   const [filterICA, setFilterICA] = useState<string>('');
+  const [icaOptions, setIcaOptions] = useState<string[]>([]);
 
   React.useEffect(() => {
     loadMunicipios();
@@ -39,6 +40,17 @@ const MunicipioICATable: React.FC<MunicipioICATableProps> = ({ isAdmin }) => {
 
       if (error) throw error;
       setMunicipios(data || []);
+
+      // Obtener opciones únicas de ICA aplicable
+      const { data: icaData, error: icaError } = await supabase
+        .from('municipios_ica')
+        .select('ica_aplicable')
+        .order('ica_aplicable');
+
+      if (!icaError && icaData) {
+        const uniqueICA = [...new Set(icaData.map(item => item.ica_aplicable))].sort();
+        setIcaOptions(uniqueICA);
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error desconocido');
     } finally {
@@ -54,20 +66,54 @@ const MunicipioICATable: React.FC<MunicipioICATableProps> = ({ isAdmin }) => {
   const handleSaveEdit = async () => {
     if (editingId && editForm) {
       try {
+        // Validar campos obligatorios
+        if (!editForm.pj?.trim() || !editForm.ica_aplicable?.trim()) {
+          alert('Por favor, complete todos los campos (PJ e ICA Aplicable)');
+          return;
+        }
+
+        // Verificar si el nuevo nombre de municipio ya existe (excluyendo el registro actual)
+        const { data: existingMunicipio, error: checkError } = await supabase
+          .from('municipios_ica')
+          .select('pj')
+          .eq('pj', editForm.pj.trim())
+          .neq('id', editingId)
+          .single();
+
+        if (checkError && checkError.code !== 'PGRST116') {
+          throw checkError;
+        }
+
+        if (existingMunicipio) {
+          alert(`Ya existe otro municipio con el nombre "${editForm.pj.trim()}".`);
+          return;
+        }
+
         const { error } = await supabase
           .from('municipios_ica')
           .update({
-            pj: editForm.pj,
-            ica_aplicable: editForm.ica_aplicable,
+            pj: editForm.pj.trim(),
+            ica_aplicable: editForm.ica_aplicable.trim(),
           })
           .eq('id', editingId);
 
         if (error) throw error;
+
         setEditingId(null);
         setEditForm({});
         await loadMunicipios();
+        alert('Municipio actualizado exitosamente');
       } catch (err) {
-        alert(`Error al actualizar: ${err instanceof Error ? err.message : 'Error desconocido'}`);
+        console.error('Error al actualizar municipio:', err);
+        if (err instanceof Error) {
+          if (err.message.includes('duplicate key') || err.message.includes('unique constraint')) {
+            alert('Error: Ya existe un municipio con ese nombre.');
+          } else {
+            alert(`Error al actualizar: ${err.message}`);
+          }
+        } else {
+          alert('Error desconocido al actualizar el municipio');
+        }
       }
     }
   };
@@ -95,19 +141,55 @@ const MunicipioICATable: React.FC<MunicipioICATableProps> = ({ isAdmin }) => {
 
   const handleCreate = async () => {
     try {
+      // Validar campos obligatorios
+      if (!createForm.pj.trim() || !createForm.ica_aplicable.trim()) {
+        alert('Por favor, complete todos los campos (PJ e ICA Aplicable)');
+        return;
+      }
+
+      // Verificar si el municipio ya existe
+      const { data: existingMunicipio, error: checkError } = await supabase
+        .from('municipios_ica')
+        .select('pj')
+        .eq('pj', createForm.pj.trim())
+        .single();
+
+      if (checkError && checkError.code !== 'PGRST116') {
+        throw checkError;
+      }
+
+      if (existingMunicipio) {
+        alert(`El municipio "${createForm.pj.trim()}" ya existe en la base de datos.`);
+        return;
+      }
+
       const { error } = await supabase
         .from('municipios_ica')
-        .insert([createForm]);
+        .insert([{
+          pj: createForm.pj.trim(),
+          ica_aplicable: createForm.ica_aplicable.trim()
+        }]);
 
       if (error) throw error;
+
       setShowCreateForm(false);
       setCreateForm({
         pj: '',
         ica_aplicable: '',
       });
       await loadMunicipios();
+      alert('Municipio creado exitosamente');
     } catch (err) {
-      alert(`Error al crear: ${err instanceof Error ? err.message : 'Error desconocido'}`);
+      console.error('Error al crear municipio:', err);
+      if (err instanceof Error) {
+        if (err.message.includes('duplicate key') || err.message.includes('unique constraint')) {
+          alert('Error: El municipio ya existe en la base de datos.');
+        } else {
+          alert(`Error al crear: ${err.message}`);
+        }
+      } else {
+        alert('Error desconocido al crear el municipio');
+      }
     }
   };
 
@@ -209,13 +291,18 @@ const MunicipioICATable: React.FC<MunicipioICATableProps> = ({ isAdmin }) => {
             </div>
             <div>
               <label className="block text-sm font-medium mb-1">ICA Aplicable</label>
-              <input
-                type="text"
+              <select
                 value={createForm.ica_aplicable}
                 onChange={(e) => setCreateForm(prev => ({ ...prev, ica_aplicable: e.target.value }))}
                 className="w-full border rounded px-3 py-2"
-                placeholder="Ej: Madrid"
-              />
+              >
+                <option value="">Seleccionar ICA...</option>
+                {icaOptions.map((ica) => (
+                  <option key={ica} value={ica}>
+                    {ica}
+                  </option>
+                ))}
+              </select>
             </div>
           </div>
           <div className="flex gap-2 mt-4">
@@ -261,12 +348,18 @@ const MunicipioICATable: React.FC<MunicipioICATableProps> = ({ isAdmin }) => {
                 </td>
                 <td className="px-4 py-3 text-sm">
                   {editingId === municipio.id ? (
-                    <input
-                      type="text"
+                    <select
                       value={editForm.ica_aplicable || ''}
                       onChange={(e) => setEditForm(prev => ({ ...prev, ica_aplicable: e.target.value }))}
                       className="w-full border rounded px-2 py-1"
-                    />
+                    >
+                      <option value="">Seleccionar ICA...</option>
+                      {icaOptions.map((ica) => (
+                        <option key={ica} value={ica}>
+                          {ica}
+                        </option>
+                      ))}
+                    </select>
                   ) : (
                     municipio.ica_aplicable
                   )}

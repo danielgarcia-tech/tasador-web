@@ -22,7 +22,7 @@ OPENAI_API_KEY=sk_your_api_key_here
 OPENAI_ORG_ID=org_your_org_id_here
 
 # Vector Store (ya existe)
-VECTOR_STORE_ID=vs_68f8db9ce9808191ad733dd979c6af14
+VECTOR_STORE_ID=
 
 # Assistant creado en el paso anterior
 OPENAI_ASSISTANT_ID=asst_your_assistant_id_here

@@ -467,16 +467,3 @@ Selecciona la fase en que **finalmente terminó** el procedimiento.
    - Referencia Aranzadi
 
 ---
-
-## CONTACTO Y SOPORTE
-
-Si tienes dudas o encuentras problemas:
-
-📧 **Email de Soporte**: [contacto@tasadorweb.es]
-📞 **Teléfono**: [+34 XXX XXX XXX]
-🌐 **Portal Ayuda**: [https://ayuda.tasadorweb.es]
-
----
-
-**Última actualización:** 22 de octubre de 2025  
-**Versión:** 2.0
