@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react'
-import { BookOpen, Download, ExternalLink, Search, ChevronDown, ChevronRight, Calculator, History, HelpCircle, Zap } from 'lucide-react'
+import { BookOpen, Download, ExternalLink, Search, Calculator, History, HelpCircle, Zap } from 'lucide-react'
 
 interface Section {
   id: string
@@ -21,87 +21,126 @@ const sections: Section[] = [
     id: 'intro',
     title: 'Introducción',
     icon: <BookOpen className="h-5 w-5" />,
-    description: 'Conoce TASADOR COSTAS y sus funcionalidades principales',
+    description: 'Bienvenido al sistema de tasación del Departamento de Ejecuciones y Tasaciones',
     content: `
-      <h3>¿Qué es TASADOR COSTAS?</h3>
-      <p><strong>TASADOR COSTAS</strong> es una plataforma diseñada para profesionales del ámbito jurídico que necesitan emitir tasaciones ágiles y precisas. Permite:</p>
+      <h3>Bienvenido a TASADOR COSTAS</h3>
+      <p><strong>TASADOR COSTAS</strong> es la herramienta oficial del <strong>Departamento de Ejecuciones y Tasaciones de RUA Abogados</strong> para la gestión profesional de tasaciones de costas judiciales.</p>
+      
+      <h3>Funcionalidades principales</h3>
       <ul>
-        <li>Cálculo automático de <strong>costas judiciales</strong> conforme a los <em>Baremos de Honorarios</em>.</li>
-        <li>Cálculo de <strong>intereses legales</strong>, <strong>judiciales</strong> y <strong>TAE</strong> — incluyendo variantes como <em>TAE + 5%</em>.</li>
-        <li>Generación de <strong>informes profesionales</strong> descargables en <span class="pill">PDF</span> y <span class="pill">Excel</span>.</li>
+        <li>Cálculo automático de <strong>costas judiciales</strong> conforme a los <em>Baremos de Honorarios</em> oficiales por comunidad autónoma y municipio</li>
+        <li>Cálculo preciso de <strong>intereses legales</strong> y <strong>judiciales</strong> con tipos vigentes actualizados</li>
+        <li>Generación de <strong>informes profesionales</strong> descargables en <span class="pill">PDF</span> y <span class="pill">Excel</span> listos para presentación judicial</li>
+        <li>Historial completo de tasaciones con búsqueda avanzada y estadísticas</li>
+        <li>Consulta de baremos oficiales con chatbot inteligente potenciado por ChatGPT</li>
       </ul>
+      
       <div class="callout">
-        💡 <strong>Consejo:</strong> El sistema aplica automáticamente los <strong>Baremos de Honorarios</strong> en función del municipio seleccionado, minimizando errores manuales.
+        💡 <strong>Importante:</strong> El sistema aplica automáticamente los <strong>Baremos de Honorarios</strong> vigentes en función del municipio seleccionado, garantizando precisión y conformidad legal en cada tasación.
       </div>
+      
+      <h3>Soporte técnico</h3>
+      <p>Para reportar problemas técnicos, errores o sugerencias de mejora, utiliza nuestro formulario oficial:</p>
+      <p>
+        <a href="https://justiflow.com/form/reportetasador" target="_blank" rel="noopener noreferrer" class="inline-flex items-center text-blue-600 hover:text-blue-800 font-medium">
+          🔗 Formulario de Reporte de Problemas
+        </a>
+      </p>
     `
   },
   {
     id: 'tasaciones',
-    title: 'Tasaciones',
+    title: 'Tasaciones de Costas',
     icon: <Calculator className="h-5 w-5" />,
-    description: 'Aprende a crear y gestionar tasaciones de costas judiciales',
+    description: 'Cómo crear y gestionar tasaciones de costas judiciales profesionales',
     content: `
-      <h3>¿Qué es una tasación?</h3>
-      <p>Una tasación es el cálculo automático de las <strong>costas judiciales</strong> (gastos asociados al proceso), atendiendo a:</p>
+      <h3>¿Qué es una tasación de costas?</h3>
+      <p>Una tasación de costas es el cálculo detallado y fundamentado de los <strong>gastos procesales</strong> generados en un procedimiento judicial, incluyendo:</p>
       <ul>
-        <li>Los <strong>Baremos de Honorarios</strong> del municipio.</li>
-        <li>La <strong>fase de terminación</strong> (p. ej., Audiencia Previa, Sentencia).</li>
-        <li>La <strong>instancia</strong> (Primera o Segunda).</li>
+        <li><strong>Honorarios de abogado</strong> según los Baremos oficiales del colegio correspondiente</li>
+        <li><strong>Derechos de procurador</strong> conforme a la normativa vigente</li>
+        <li><strong>Gastos y suplidos</strong> del procedimiento (tasas, notificaciones, etc.)</li>
+        <li><strong>Fase procesal</strong> en la que finaliza el procedimiento (Audiencia Previa, Sentencia, etc.)</li>
+        <li><strong>Instancia</strong> judicial (Primera o Segunda)</li>
       </ul>
+      
+      <div class="callout">
+        ⚖️ <strong>Importante para RUA Abogados:</strong> Todas las tasaciones se calculan automáticamente aplicando los baremos oficiales vigentes, asegurando conformidad legal y precisión en cada cálculo.
+      </div>
     `,
     subsections: [
       {
         id: 'crear-tasacion',
         title: 'Crear una nueva tasación',
         content: `
-          <h4>Paso 1 · Acceder al formulario</h4>
+          <h4>Paso 1 · Acceder al módulo de tasaciones</h4>
           <ul>
-            <li>Haz clic en la pestaña <strong>TASADOR COSTAS</strong>.</li>
-            <li>Se mostrará un formulario con varios campos.</li>
+            <li>Haz clic en la pestaña <strong>TASADOR COSTAS</strong> del menú principal</li>
+            <li>Se mostrará el formulario de nueva tasación con todos los campos necesarios</li>
           </ul>
 
-          <h4>Paso 2 · Completar información del cliente</h4>
+          <h4>Paso 2 · Datos del expediente y cliente</h4>
           <table>
             <thead><tr><th>Campo</th><th>Descripción</th><th>Ejemplo</th></tr></thead>
             <tbody>
-              <tr><td><strong>Nombre cliente</strong></td><td>Parte solicitante de la tasación</td><td>Juan García López</td></tr>
-              <tr><td><strong>Nº procedimiento</strong></td><td>Identificador único del juicio</td><td>2024/12345</td></tr>
-              <tr><td><strong>Nombre juzgado</strong></td><td>(Opcional) Órgano judicial</td><td>Juzgado de lo Civil nº 3</td></tr>
-              <tr><td><strong>Entidad demandada</strong></td><td>Organización demandada (con <em>autocomplete</em>)</td><td>AEPD, Banco Santander</td></tr>
+              <tr><td><strong>Nombre cliente</strong></td><td>Nombre completo de la parte solicitante</td><td>Juan García López</td></tr>
+              <tr><td><strong>Nº procedimiento</strong></td><td>Número de expediente judicial</td><td>PO 234/2024</td></tr>
+              <tr><td><strong>Nombre juzgado</strong></td><td>Órgano judicial competente (opcional)</td><td>Juzgado de lo Civil nº 3 de Madrid</td></tr>
+              <tr><td><strong>Entidad demandada</strong></td><td>Parte contraria (con autocompletado)</td><td>Banco Santander, AEPD, etc.</td></tr>
             </tbody>
           </table>
 
-          <h4>Paso 3 · Ubicación y proceso</h4>
+          <h4>Paso 3 · Configuración del procedimiento</h4>
           <table>
             <thead><tr><th>Campo</th><th>Descripción</th><th>Ejemplo</th></tr></thead>
             <tbody>
-              <tr><td><strong>Municipio</strong></td><td>Localidad del asunto</td><td>Madrid, Barcelona</td></tr>
-              <tr><td><strong>Tipo procedimiento</strong></td><td>Verbal u Ordinario</td><td>Juicio Verbal / Juicio Ordinario</td></tr>
-              <tr><td><strong>Fase de terminación</strong></td><td>Etapa final</td><td>Audiencia Previa, Sentencia</td></tr>
-              <tr><td><strong>Instancia</strong></td><td>Nivel judicial</td><td>Primera / Segunda Instancia</td></tr>
+              <tr><td><strong>Municipio</strong></td><td>Localidad del juzgado (determina el baremo aplicable)</td><td>Madrid, Barcelona, Valencia</td></tr>
+              <tr><td><strong>Tipo procedimiento</strong></td><td>Clase de juicio</td><td>Juicio Verbal / Juicio Ordinario</td></tr>
+              <tr><td><strong>Fase de terminación</strong></td><td>Momento procesal en que finaliza</td><td>Audiencia Previa, Sentencia, Recurso</td></tr>
+              <tr><td><strong>Instancia</strong></td><td>Nivel de la jurisdicción</td><td>Primera Instancia / Segunda Instancia</td></tr>
             </tbody>
           </table>
-          <p class="note">El sistema <strong>calcula automáticamente</strong> los Baremos de Honorarios según el municipio.</p>
+          
+          <div class="callout">
+            ⚠️ <strong>Importante:</strong> La selección del <strong>municipio</strong> es crítica, ya que determina qué baremo oficial de honorarios se aplicará en el cálculo. Verifica siempre que coincida con el juzgado competente.
+          </div>
 
           <h4>Paso 4 · Generar la tasación</h4>
           <ol>
-            <li>Revisa los datos introducidos.</li>
-            <li>Haz clic en <strong>Generar tasación</strong>.</li>
-            <li>El sistema calculará: <strong>Costas sin IVA</strong>, <strong>IVA 21%</strong> y <strong>Total</strong>.</li>
+            <li>Revisa cuidadosamente todos los datos introducidos</li>
+            <li>Haz clic en el botón <strong>Generar tasación</strong></li>
+            <li>El sistema calculará automáticamente:
+              <ul>
+                <li><strong>Honorarios sin IVA</strong> según baremo oficial</li>
+                <li><strong>IVA (21%)</strong> sobre los honorarios</li>
+                <li><strong>Total de la tasación</strong></li>
+              </ul>
+            </li>
+            <li>La tasación se guardará automáticamente en el historial para futuras consultas</li>
           </ol>
         `
       },
       {
         id: 'exportar-tasacion',
-        title: 'Exportar y compartir',
+        title: 'Exportar y compartir tasaciones',
         content: `
-          <h4>Formatos disponibles</h4>
+          <h4>Formatos de exportación disponibles</h4>
           <ul>
-            <li><strong>PDF Profesional:</strong> Informe completo con formato legal</li>
-            <li><strong>Excel Detallado:</strong> Datos tabulares para análisis adicional</li>
+            <li><strong>PDF Profesional:</strong> Informe completo con formato oficial, membrete y todos los cálculos detallados, listo para presentación judicial</li>
+            <li><strong>Excel Detallado:</strong> Datos tabulares con todas las partidas desglosadas, ideal para análisis interno y auditoría</li>
           </ul>
+          
+          <h4>Uso en el departamento</h4>
+          <p>Los informes generados están listos para:</p>
+          <ul>
+            <li>Presentación ante tribunales y juzgados</li>
+            <li>Envío a clientes como justificante de costas</li>
+            <li>Archivo en el expediente del cliente</li>
+            <li>Auditoría interna del departamento</li>
+          </ul>
+          
           <div class="callout">
-            📊 <strong>Pro tip:</strong> Los informes incluyen automáticamente todos los cálculos y referencias legales.
+            📊 <strong>Recomendación:</strong> Genera siempre ambos formatos (PDF + Excel) para cada tasación: el PDF para presentación oficial y el Excel para revisión interna y trazabilidad.
           </div>
         `
       }
@@ -111,22 +150,30 @@ const sections: Section[] = [
     id: 'consultar-baremos',
     title: 'Consultar Baremos de Honorarios',
     icon: <BookOpen className="h-5 w-5" />,
-    description: 'Accede a la documentación oficial de baremos por comunidad autónoma y municipio',
+    description: 'Acceso a baremos oficiales por comunidad autónoma y municipio',
     content: `
-      <h3>¿Qué son los Baremos de Honorarios?</h3>
-      <p>Los <strong>Baremos de Honorarios</strong> son las tablas oficiales que regulan los honorarios de abogados, procuradores y graduados sociales en cada territorio español. Contienen las cuantías mínimas y máximas aplicables según la materia, cuantía y fase procesal.</p>
+      <h3>Baremos de Honorarios Oficiales</h3>
+      <p>Los <strong>Baremos de Honorarios</strong> son las tablas oficiales aprobadas por los colegios profesionales que regulan los honorarios mínimos y orientativos de abogados, procuradores y graduados sociales en cada demarcación territorial.</p>
 
-      <h3>Funcionalidades disponibles</h3>
+      <h3>¿Por qué son importantes?</h3>
       <ul>
-        <li><strong>Consulta organizada:</strong> Baremos clasificados por Comunidad Autónoma y municipio</li>
-        <li><strong>Documentos oficiales:</strong> Acceso directo a PDFs y documentos oficiales</li>
-        <li><strong>Búsqueda rápida:</strong> Localiza baremos específicos por nombre</li>
-        <li><strong>Chatbot inteligente:</strong> Asistente potenciado por ChatGPT de OpenAI para consultas sobre baremos</li>
-        <li><strong>Actualizaciones automáticas:</strong> Documentación siempre actualizada</li>
+        <li><strong>Fundamentación legal:</strong> Toda tasación de costas debe basarse en los baremos oficiales vigentes</li>
+        <li><strong>Precisión territorial:</strong> Cada colegio profesional puede tener baremos diferentes</li>
+        <li><strong>Actualización normativa:</strong> Los baremos se actualizan periódicamente y deben consultarse en su versión vigente</li>
+        <li><strong>Defensa ante tribunales:</strong> Las tasaciones deben poder justificarse con los documentos oficiales</li>
+      </ul>
+
+      <h3>Funcionalidades del módulo</h3>
+      <ul>
+        <li><strong>Consulta organizada:</strong> Baremos clasificados por Comunidad Autónoma y municipio/demarcación</li>
+        <li><strong>Documentos oficiales:</strong> Acceso directo a PDFs y documentación oficial de cada colegio</li>
+        <li><strong>Búsqueda rápida:</strong> Localiza baremos específicos mediante el buscador integrado</li>
+        <li><strong>Chatbot inteligente:</strong> Asistente con IA (ChatGPT) especializado en interpretación de baremos</li>
+        <li><strong>Integración automática:</strong> Los baremos consultados se aplican automáticamente en las tasaciones</li>
       </ul>
 
       <div class="callout">
-        📋 <strong>Novedades recientes:</strong> Se han incorporado mejoras importantes en la organización de baremos para una mejor accesibilidad y precisión en las consultas.
+        📋 <strong>Para el equipo de RUA Abogados:</strong> Es fundamental verificar que el baremo consultado corresponda exactamente al municipio del juzgado competente. En caso de duda, consulta con el chatbot o contacta con soporte técnico.
       </div>
     `,
     subsections: [
@@ -190,64 +237,173 @@ const sections: Section[] = [
         id: 'chatbot-baremos',
         title: 'Chatbot inteligente de baremos',
         content: `
-          <h4>🤖 Asistente potenciado por ChatGPT</h4>
-          <p>La plataforma incluye un <strong>chatbot inteligente</strong> desarrollado con tecnología de <strong>OpenAI ChatGPT</strong>, específicamente entrenado para responder consultas sobre baremos de honorarios.</p>
+          <h4>🤖 Asistente especializado con ChatGPT</h4>
+          <p>El módulo de consulta de baremos integra un <strong>chatbot inteligente</strong> potenciado por <strong>ChatGPT de OpenAI</strong>, específicamente entrenado para interpretar y consultar baremos de honorarios de toda España.</p>
 
-          <h4>Capacidades del chatbot</h4>
+          <h4>¿Qué puede hacer el chatbot?</h4>
           <ul>
-            <li><strong>Consultas específicas:</strong> Preguntas sobre cuantías, fases procesales y criterios aplicables</li>
-            <li><strong>Comparaciones territoriales:</strong> Diferencias entre comunidades autónomas y municipios</li>
-            <li><strong>Interpretación de baremos:</strong> Explicación de criterios y tablas de honorarios</li>
-            <li><strong>Actualizaciones normativas:</strong> Información sobre cambios y modificaciones recientes</li>
-            <li><strong>Casos prácticos:</strong> Ejemplos de aplicación en situaciones reales</li>
+            <li><strong>Consultas específicas:</strong> Pregunta sobre honorarios concretos por cuantía, fase procesal o municipio</li>
+            <li><strong>Comparaciones territoriales:</strong> Analiza diferencias entre baremos de distintas comunidades autónomas</li>
+            <li><strong>Interpretación de criterios:</strong> Explica cómo aplicar las tablas de honorarios en casos complejos</li>
+            <li><strong>Actualización normativa:</strong> Información sobre cambios recientes en los baremos</li>
+            <li><strong>Casos prácticos:</strong> Ejemplos de aplicación en situaciones reales del departamento</li>
           </ul>
 
-          <h4>Cómo usar el chatbot</h4>
+          <h4>Cómo utilizar el chatbot eficazmente</h4>
           <ol>
-            <li>Accede a la pestaña <strong>"CONSULTAR BAREMOS"</strong></li>
-            <li>Localiza el panel del <strong>chatbot</strong> en la interfaz</li>
-            <li>Formula tu pregunta de forma clara y específica</li>
-            <li>El asistente proporcionará respuestas basadas en la documentación oficial</li>
+            <li>Accede al módulo <strong>"CONSULTAR BAREMOS"</strong></li>
+            <li>Localiza el panel del chatbot en la interfaz principal</li>
+            <li>Formula tu pregunta de manera clara y específica, incluyendo:
+              <ul>
+                <li>Comunidad autónoma y/o municipio</li>
+                <li>Tipo de procedimiento (verbal/ordinario)</li>
+                <li>Cuantía aproximada (si aplica)</li>
+                <li>Fase procesal de interés</li>
+              </ul>
+            </li>
+            <li>El asistente responderá basándose en los documentos oficiales cargados en el sistema</li>
           </ol>
 
           <div class="callout">
-            💡 <strong>Consejo:</strong> Para mejores resultados, incluye detalles como comunidad autónoma, municipio, tipo de procedimiento y cuantía aproximada en tus consultas.
+            💡 <strong>Ejemplo de consulta efectiva:</strong> "¿Cuál es el honorario de abogado para un juicio ordinario de 15.000€ que termina en sentencia en primera instancia en Madrid?"
           </div>
 
           <h4>Tecnología y precisión</h4>
-          <p>El chatbot utiliza modelos avanzados de lenguaje natural de OpenAI, combinados con una base de conocimientos especializada en legislación española de honorarios profesionales, asegurando respuestas precisas y actualizadas.</p>
+          <p>El chatbot utiliza modelos avanzados de lenguaje natural (GPT-4) de OpenAI, combinados con una base de conocimientos especializada que contiene todos los baremos oficiales actualizados de los colegios de abogados de España. Esto garantiza respuestas precisas, contextualizadas y alineadas con la normativa vigente.</p>
+          
+          <h4>Limitaciones y recomendaciones</h4>
+          <ul>
+            <li>El chatbot es una herramienta de <strong>consulta orientativa</strong></li>
+            <li>Para tasaciones oficiales, siempre revisa el documento oficial del baremo correspondiente</li>
+            <li>En caso de discrepancia, prevalece el documento oficial del colegio profesional</li>
+            <li>Para consultas muy específicas o complejas, contacta con el soporte técnico del departamento</li>
+          </ul>
         `
       }
     ]
   },
   {
     id: 'interes-simple',
-    title: 'Cálculo de Interés Simple',
+    title: 'Cálculo de Interés Legal',
     icon: <Zap className="h-5 w-5" />,
-    description: 'Calcula intereses legales, judiciales y TAE para un período específico',
+    description: 'Calcula intereses legales y judiciales para un período específico',
     content: `
-      <h3>¿Para qué sirve?</h3>
-      <p>Para una <strong>única cuantía</strong> y un <strong>período específico</strong> (fecha inicio → fecha fin), sin procesar múltiples casos.</p>
+      <h3>¿Para qué sirve este módulo?</h3>
+      <p>El módulo de <strong>Cálculo de Interés Legal</strong> permite calcular de forma precisa los intereses aplicables a una deuda o cantidad principal durante un período determinado, aplicando los tipos de interés legal vigentes en cada año.</p>
 
-      <h3>Tipos de interés disponibles</h3>
+      <h3>Tipos de interés calculables</h3>
       <ul>
-        <li><strong>Interés Legal:</strong> Según el artículo 576 de la LEC</li>
-        <li><strong>Interés Judicial:</strong> Aplicado por los tribunales</li>
-        <li><strong>TAE:</strong> Tasa Anual Equivalente</li>
-        <li><strong>TAE + 5%:</strong> Variante especial</li>
+        <li><strong>Interés Legal del Dinero:</strong> Establecido anualmente por la Ley de Presupuestos Generales del Estado (art. 576 LEC)</li>
+        <li><strong>Interés de Demora Tributario:</strong> Aplicable a deudas con la Administración Pública</li>
+        <li><strong>Interés Judicial:</strong> Tipo aplicado por los tribunales en ejecución de sentencias (normalmente interés legal + 2 puntos)</li>
+        <li><strong>TAE (Tasa Anual Equivalente):</strong> Para cálculos financieros específicos</li>
+        <li><strong>TAE + 5%:</strong> Variante especial aplicable en algunos contratos</li>
       </ul>
+      
+      <h3>Características del sistema</h3>
+      <ul>
+        <li><strong>Cálculo automático por tramos:</strong> El sistema divide automáticamente el período en años y aplica el tipo vigente en cada año</li>
+        <li><strong>Actualización de tipos:</strong> Los tipos de interés legal se actualizan automáticamente cada ejercicio fiscal</li>
+        <li><strong>Precisión legal:</strong> Cálculos conformes a la normativa procesal civil española</li>
+        <li><strong>Informe detallado:</strong> Desglose completo por años y conceptos</li>
+      </ul>
+
+      <div class="callout">
+        ⚖️ <strong>Importante:</strong> Este módulo es ideal para cálculos individuales. Para procesar múltiples cálculos simultáneamente, utiliza el módulo de <strong>Cálculo de Interés Avanzado</strong> (importación Excel).
+      </div>
     `,
     subsections: [
       {
         id: 'configurar-interes-simple',
-        title: 'Configurar cálculo',
+        title: 'Configurar el cálculo',
         content: `
-          <h4>Campos requeridos</h4>
+          <h4>Datos necesarios</h4>
+          <table>
+            <thead><tr><th>Campo</th><th>Descripción</th><th>Ejemplo</th></tr></thead>
+            <tbody>
+              <tr><td><strong>Cuantía principal</strong></td><td>Importe sobre el que se calcularán los intereses</td><td>10.000,00 €</td></tr>
+              <tr><td><strong>Fecha de inicio</strong></td><td>Fecha desde la que se devengan intereses</td><td>05/08/2021</td></tr>
+              <tr><td><strong>Fecha de fin</strong></td><td>Fecha hasta la que se calculan intereses (puede ser hoy)</td><td>27/10/2025</td></tr>
+              <tr><td><strong>Tipo de interés</strong></td><td>Modalidad aplicable (Legal, Judicial, TAE, etc.)</td><td>Interés Legal del Dinero</td></tr>
+            </tbody>
+          </table>
+          
+          <h4>Proceso de cálculo</h4>
+          <ol>
+            <li>Introduce todos los datos requeridos en el formulario</li>
+            <li>Haz clic en <strong>Calcular Interés</strong></li>
+            <li>El sistema:
+              <ul>
+                <li>Divide el período en tramos anuales automáticamente</li>
+                <li>Aplica el tipo de interés vigente en cada año</li>
+                <li>Suma todos los intereses devengados</li>
+                <li>Presenta un desglose detallado por años</li>
+              </ul>
+            </li>
+            <li>Revisa el resultado y descarga el informe en PDF o Excel</li>
+          </ol>
+          
+          <div class="callout">
+            💡 <strong>Consejo para el departamento:</strong> Siempre especifica la fecha de fin como "hoy" si el cálculo es para una ejecución en curso, así obtendrás el importe actualizado a fecha actual.
+          </div>
+        `
+      },
+      {
+        id: 'ejemplos-interes',
+        title: 'Ejemplos y fórmulas de cálculo de interés',
+        content: `
+          <h4>Ejemplo de Cálculo de Interés Legal</h4>
+          <p><strong>Supuesto:</strong> Cuantía de 10.000€, período del 01/01/2023 al 01/01/2024, interés legal del 3,25%.</p>
+          <pre>
+Interés = Cuantía × (Interés legal anual / 100) × (Días / 365)
+Interés = 10.000 × (3,25 / 100) × (366 / 365) = 325,34€
+          </pre>
+
+          <h4>Ejemplo de Cálculo de Interés Legal en varios años</h4>
+          <p><strong>Supuesto:</strong> Cuantía de 10.000€, período del 05/08/2021 al 27/10/2025. El interés legal puede variar cada año:</p>
+          <pre>
+Cálculo por tramos anuales:
+- 2021 (05/08/2021 a 31/12/2021): Interés legal 3,00%
+- 2022 (01/01/2022 a 31/12/2022): Interés legal 3,00%
+- 2023 (01/01/2023 a 31/12/2023): Interés legal 3,25%
+- 2024 (01/01/2024 a 31/12/2024): Interés legal 3,25%
+- 2025 (01/01/2025 a 27/10/2025): Interés legal 3,25%
+
+Para cada tramo:
+Interés = Cuantía × (Interés legal anual / 100) × (Días del tramo / 365)
+
+Ejemplo de cálculo:
+- 2021: 10.000 × (3,00 / 100) × (149 / 365) = 122,05€
+- 2022: 10.000 × (3,00 / 100) × (365 / 365) = 300,00€
+- 2023: 10.000 × (3,25 / 100) × (365 / 365) = 325,00€
+- 2024: 10.000 × (3,25 / 100) × (366 / 365) = 326,58€
+- 2025: 10.000 × (3,25 / 100) × (299 / 365) = 266,16€
+
+Total interés: 1.339,79€
+          </pre>
+
+          <h4>Interés Judicial</h4>
+          <p>Si la sentencia se dicta el 01/04/2025 y la deuda no se paga, se aplica el <strong>interés judicial</strong> desde esa fecha hasta el pago efectivo. El interés judicial es normalmente el <strong>interés legal del dinero incrementado en 2 puntos porcentuales</strong> (por ejemplo, si el interés legal es 3,25%, el judicial sería 5,25%).</p>
+          <pre>
+Supuesto: Sentencia dictada el 01/04/2025, cuantía de 10.000€
+Interés judicial aplicable: 5,25% (3,25% legal + 2 puntos)
+
+Interés judicial desde 01/04/2025 hasta 27/10/2025 (210 días):
+Interés = 10.000 × (5,25 / 100) × (210 / 365) = 302,74€
+          </pre>
+
+          <h4>Aplicación práctica en RUA Abogados</h4>
           <ul>
-            <li><strong>Cuantía:</strong> Importe base para el cálculo</li>
-            <li><strong>Fecha inicio:</strong> Comienzo del período</li>
-            <li><strong>Fecha fin:</strong> Finalización del período</li>
-            <li><strong>Tipo de interés:</strong> Legal, Judicial, TAE, etc.</li>
+            <li><strong>Ejecuciones de sentencia:</strong> Calcula el interés judicial desde la fecha de la sentencia hasta el cobro efectivo</li>
+            <li><strong>Reclamaciones previas:</strong> Aplica el interés legal desde la fecha del hecho causante hasta la presentación de la demanda</li>
+            <li><strong>Actualización periódica:</strong> Recalcula los intereses periódicamente para mantener actualizado el saldo deudor</li>
+          </ul>
+
+          <h4>Notas técnicas</h4>
+          <ul>
+            <li>El sistema calcula automáticamente los tramos anuales y aplica el tipo de interés legal vigente en cada año.</li>
+            <li>El interés judicial se aplica desde la fecha de la sentencia si la deuda no se paga, con el tipo correspondiente.</li>
+            <li>Todos los cálculos se basan en la normativa vigente y los valores oficiales de interés legal y judicial.</li>
           </ul>
         `
       }
@@ -255,49 +411,122 @@ const sections: Section[] = [
   },
   {
     id: 'interes-avanzado',
-    title: 'Cálculo de Interés Avanzado',
+    title: 'Cálculo de Interés Avanzado (Lotes)',
     icon: <Calculator className="h-5 w-5" />,
-    description: 'Procesa múltiples cálculos de interés desde archivos Excel',
+    description: 'Procesa múltiples cálculos de interés simultáneamente desde archivos Excel',
     content: `
-      <h3>Procesamiento por lotes</h3>
-      <p>Ideal para procesar <strong>múltiples casos</strong> de forma simultánea mediante importación de datos desde Excel.</p>
+      <h3>Procesamiento masivo de cálculos</h3>
+      <p>El módulo de <strong>Cálculo de Interés Avanzado</strong> permite al Departamento de Ejecuciones y Tasaciones procesar <strong>múltiples casos simultáneamente</strong> mediante importación de datos estructurados desde archivos Excel.</p>
 
-      <h3>Características principales</h3>
+      <h3>¿Cuándo utilizar este módulo?</h3>
       <ul>
-        <li>Importación masiva desde Excel</li>
-        <li>Reportes personalizables</li>
-        <li>Plantillas de informes</li>
-        <li>Exportación a PDF/Excel</li>
+        <li>Cuando necesitas calcular intereses para <strong>varios expedientes a la vez</strong></li>
+        <li>Para <strong>liquidaciones masivas</strong> de procedimientos de ejecución</li>
+        <li>Cuando los cálculos requieren <strong>diferentes cuantías, fechas y tipos de interés</strong> para cada caso</li>
+        <li>Para generar <strong>informes consolidados</strong> de múltiples expedientes</li>
       </ul>
+
+      <h3>Características del procesamiento por lotes</h3>
+      <ul>
+        <li><strong>Importación desde Excel:</strong> Carga masiva de datos estructurados en formato tabla</li>
+        <li><strong>Cálculo automático:</strong> Procesa todos los casos de forma simultánea y precisa</li>
+        <li><strong>Informes personalizables:</strong> Genera documentos con el formato y membrete de RUA Abogados</li>
+        <li><strong>Exportación múltiple:</strong> Descarga resultados en PDF profesional y Excel detallado</li>
+        <li><strong>Trazabilidad completa:</strong> Cada cálculo incluye el desglose por años y tipos aplicados</li>
+      </ul>
+
+      <div class="callout">
+        🚀 <strong>Ventaja para el departamento:</strong> Este módulo reduce drásticamente el tiempo de procesamiento de liquidaciones masivas, permitiendo gestionar decenas de expedientes en minutos en lugar de horas.
+      </div>
     `,
     subsections: [
       {
         id: 'formato-excel',
         title: 'Formato del archivo Excel',
         content: `
-          <h4>Columnas requeridas</h4>
+          <h4>Estructura requerida del archivo</h4>
+          <p>El archivo Excel debe contener una tabla con las siguientes columnas (respetando los nombres exactos):</p>
+          
           <table>
-            <thead><tr><th>Columna</th><th>Descripción</th><th>Obligatorio</th></tr></thead>
+            <thead><tr><th>Columna</th><th>Descripción</th><th>Formato</th><th>Obligatorio</th></tr></thead>
             <tbody>
-              <tr><td>CUANTIA</td><td>Importe base</td><td>Sí</td></tr>
-              <tr><td>FECHA_INICIO</td><td>Fecha de inicio</td><td>Sí</td></tr>
-              <tr><td>FECHA_FIN</td><td>Fecha de fin</td><td>Sí</td></tr>
-              <tr><td>TIPO_INTERES</td><td>Tipo de interés</td><td>Sí</td></tr>
+              <tr><td><strong>CUANTIA</strong></td><td>Importe principal</td><td>Numérico (ej: 10000.50)</td><td>Sí</td></tr>
+              <tr><td><strong>FECHA_INICIO</strong></td><td>Fecha de inicio del devengo</td><td>DD/MM/AAAA</td><td>Sí</td></tr>
+              <tr><td><strong>FECHA_FIN</strong></td><td>Fecha de finalización del cálculo</td><td>DD/MM/AAAA</td><td>Sí</td></tr>
+              <tr><td><strong>TIPO_INTERES</strong></td><td>Tipo de interés aplicable</td><td>Texto (Legal/Judicial/TAE)</td><td>Sí</td></tr>
+              <tr><td><strong>EXPEDIENTE</strong></td><td>Nº de expediente (opcional)</td><td>Texto</td><td>No</td></tr>
+              <tr><td><strong>CLIENTE</strong></td><td>Nombre del cliente (opcional)</td><td>Texto</td><td>No</td></tr>
             </tbody>
           </table>
+
+          <h4>Ejemplo de estructura correcta</h4>
+          <pre>
+| CUANTIA  | FECHA_INICIO | FECHA_FIN  | TIPO_INTERES | EXPEDIENTE | CLIENTE          |
+|----------|--------------|------------|--------------|------------|------------------|
+| 10000.00 | 05/08/2021   | 27/10/2025 | Legal        | EJ-123/24  | Juan García      |
+| 5500.50  | 01/01/2023   | 31/12/2024 | Judicial     | EJ-456/24  | María López      |
+| 7200.00  | 15/03/2022   | 15/10/2025 | Legal        | EJ-789/24  | Pedro Martínez   |
+          </pre>
+
+          <h4>Validaciones automáticas</h4>
+          <p>El sistema verifica automáticamente:</p>
+          <ul>
+            <li>✅ Formato correcto de fechas (DD/MM/AAAA)</li>
+            <li>✅ Cuantías numéricas válidas (sin símbolos de moneda)</li>
+            <li>✅ Tipos de interés reconocidos por el sistema</li>
+            <li>✅ Fechas de inicio anteriores a fechas de fin</li>
+            <li>✅ Presencia de todas las columnas obligatorias</li>
+          </ul>
+
+          <div class="callout">
+            ⚠️ <strong>Importante:</strong> No incluyas símbolos de moneda (€) ni separadores de miles en las cuantías. Usa el punto (.) como separador decimal. Las fechas deben seguir estrictamente el formato DD/MM/AAAA.
+          </div>
         `
       },
       {
         id: 'personalizar-reporte',
-        title: 'Personalizar informes',
+        title: 'Personalizar informes de lotes',
         content: `
-          <h4>Opciones de personalización</h4>
+          <h4>Opciones de personalización disponibles</h4>
+          <p>Antes de generar el informe consolidado, puedes personalizar los siguientes elementos:</p>
+          
+          <table>
+            <thead><tr><th>Elemento</th><th>Descripción</th><th>Uso recomendado</th></tr></thead>
+            <tbody>
+              <tr>
+                <td><strong>Título del informe</strong></td>
+                <td>Encabezado principal del documento</td>
+                <td>"Liquidación de Intereses - Expedientes Octubre 2025"</td>
+              </tr>
+              <tr>
+                <td><strong>Subtítulo</strong></td>
+                <td>Texto complementario bajo el título</td>
+                <td>"Departamento de Ejecuciones - RUA Abogados"</td>
+              </tr>
+              <tr>
+                <td><strong>Notas adicionales</strong></td>
+                <td>Observaciones o aclaraciones</td>
+                <td>"Cálculo conforme al art. 576 LEC y tipos vigentes BOE"</td>
+              </tr>
+              <tr>
+                <td><strong>Pie de página</strong></td>
+                <td>Texto al final de cada página</td>
+                <td>"RUA Abogados | Departamento de Ejecuciones y Tasaciones"</td>
+              </tr>
+            </tbody>
+          </table>
+
+          <h4>Formato del informe generado</h4>
           <ul>
-            <li>Título del informe</li>
-            <li>Subtítulo personalizado</li>
-            <li>Notas adicionales</li>
-            <li>Pie de página</li>
+            <li><strong>Portada:</strong> Con membrete, título, subtítulo y fecha de generación</li>
+            <li><strong>Resumen ejecutivo:</strong> Total de casos procesados, suma de intereses calculados</li>
+            <li><strong>Detalle por expediente:</strong> Desglose completo de cada cálculo con tramos anuales</li>
+            <li><strong>Anexos:</strong> Tabla consolidada con todos los resultados</li>
           </ul>
+
+          <div class="callout">
+            📄 <strong>Recomendación:</strong> Personaliza siempre el título y subtítulo para identificar claramente el lote de expedientes procesados. Esto facilita el archivo y la trazabilidad interna del departamento.
+          </div>
         `
       }
     ]
@@ -306,35 +535,80 @@ const sections: Section[] = [
     id: 'historial',
     title: 'Historial de Tasaciones',
     icon: <History className="h-5 w-5" />,
-    description: 'Gestiona y consulta todas tus tasaciones realizadas',
+    description: 'Gestiona, consulta y exporta todas las tasaciones realizadas por el departamento',
     content: `
-      <h3>Registro completo</h3>
-      <p>Registro completo de tasaciones, con búsqueda, filtros, exportación y estadísticas.</p>
+      <h3>Registro completo del departamento</h3>
+      <p>El módulo de <strong>Historial</strong> almacena todas las tasaciones generadas por el Departamento de Ejecuciones y Tasaciones de RUA Abogados, permitiendo consulta, búsqueda, edición y exportación de datos históricos.</p>
 
-      <h3>Funcionalidades disponibles</h3>
+      <h3>Funcionalidades principales</h3>
       <ul>
-        <li><strong>Buscador</strong> por cliente, procedimiento o ubicación.</li>
-        <li><strong>Filtros avanzados</strong> por fecha, tipo, estado.</li>
-        <li><strong>Estadísticas</strong> de uso y rendimiento.</li>
-        <li><strong>Exportación</strong> masiva de datos.</li>
+        <li><strong>Búsqueda avanzada:</strong> Localiza tasaciones por nombre de cliente, número de procedimiento, juzgado o entidad demandada</li>
+        <li><strong>Filtros inteligentes:</strong> Filtra por fecha de creación, municipio, tipo de procedimiento o estado</li>
+        <li><strong>Ordenación flexible:</strong> Ordena por fecha, cuantía, cliente o cualquier campo</li>
+        <li><strong>Estadísticas del departamento:</strong> Visualiza totales, promedios y tendencias de tasaciones</li>
+        <li><strong>Exportación masiva:</strong> Descarga datos consolidados en Excel para análisis externo</li>
+        <li><strong>Auditoría completa:</strong> Registro de fecha de creación, modificaciones y usuario responsable</li>
       </ul>
+
+      <div class="callout">
+        📊 <strong>Para el equipo:</strong> El historial es tu archivo digital de todas las tasaciones. Úsalo regularmente para consultar expedientes previos, reutilizar datos y generar estadísticas para la dirección del despacho.
+      </div>
     `,
     subsections: [
       {
         id: 'acciones-disponibles',
-        title: 'Acciones disponibles',
+        title: 'Acciones disponibles para cada tasación',
         content: `
-          <h4>Operaciones por tasación</h4>
+          <h4>Operaciones sobre tasaciones guardadas</h4>
+          <p>Para cada tasación del historial, puedes realizar las siguientes acciones:</p>
+          
           <table>
-            <thead><tr><th>Acción</th><th>Descripción</th></tr></thead>
+            <thead><tr><th>Acción</th><th>Descripción</th><th>Uso típico</th></tr></thead>
             <tbody>
-              <tr><td>✏️ <strong>Editar</strong></td><td>Permite modificar datos y recalcular.</td></tr>
-              <tr><td>👁️ <strong>Ver detalles</strong></td><td>Muestra información completa.</td></tr>
-              <tr><td>📄 <strong>Generar PDF</strong></td><td>Crea informe profesional.</td></tr>
-              <tr><td>📊 <strong>Exportar Excel</strong></td><td>Datos en formato tabular.</td></tr>
-              <tr><td>🗑️ <strong>Eliminar</strong></td><td>Remover tasación (con confirmación).</td></tr>
+              <tr>
+                <td>✏️ <strong>Editar</strong></td>
+                <td>Modifica datos de la tasación y recalcula automáticamente</td>
+                <td>Corrección de errores, actualización de datos del expediente</td>
+              </tr>
+              <tr>
+                <td>👁️ <strong>Ver detalles</strong></td>
+                <td>Muestra toda la información completa de la tasación</td>
+                <td>Revisión rápida sin necesidad de descargar PDF</td>
+              </tr>
+              <tr>
+                <td>📄 <strong>Generar PDF</strong></td>
+                <td>Crea informe profesional listo para presentación judicial</td>
+                <td>Presentación ante tribunales, envío a clientes</td>
+              </tr>
+              <tr>
+                <td>📊 <strong>Exportar Excel</strong></td>
+                <td>Descarga datos en formato tabular editable</td>
+                <td>Análisis interno, integración con otros sistemas</td>
+              </tr>
+              <tr>
+                <td>🗑️ <strong>Eliminar</strong></td>
+                <td>Borra permanentemente la tasación (requiere confirmación)</td>
+                <td>Limpieza de tasaciones de prueba o erróneas</td>
+              </tr>
+              <tr>
+                <td>📋 <strong>Duplicar</strong></td>
+                <td>Crea una copia de la tasación para reutilizar datos</td>
+                <td>Expedientes similares, mismo cliente o juzgado</td>
+              </tr>
             </tbody>
           </table>
+
+          <h4>Buenas prácticas del departamento</h4>
+          <ul>
+            <li><strong>Verifica antes de eliminar:</strong> La eliminación es permanente, asegúrate de que no necesitas la tasación</li>
+            <li><strong>Usa la función duplicar:</strong> Para expedientes similares, duplica y modifica en lugar de crear desde cero</li>
+            <li><strong>Exporta periódicamente:</strong> Genera copias de seguridad en Excel de las tasaciones importantes</li>
+            <li><strong>Revisa los detalles:</strong> Antes de presentar una tasación oficial, revisa siempre los detalles completos</li>
+          </ul>
+
+          <div class="callout">
+            ⚠️ <strong>Importante:</strong> Las acciones de edición y eliminación quedan registradas en el sistema para auditoría y trazabilidad. Mantén siempre la integridad de los datos del departamento.
+          </div>
         `
       }
     ]
@@ -344,33 +618,92 @@ const sections: Section[] = [
     id: 'faq',
     title: 'Preguntas Frecuentes',
     icon: <HelpCircle className="h-5 w-5" />,
-    description: 'Respuestas a las preguntas más comunes',
+    description: 'Respuestas a las preguntas más comunes del departamento',
     content: `
-      <h3>Preguntas frecuentes</h3>
-      <p>Encuentra respuestas rápidas a las dudas más comunes sobre TASADOR COSTAS.</p>
+      <h3>Preguntas frecuentes del equipo</h3>
+      <p>Encuentra respuestas rápidas a las dudas más habituales del Departamento de Ejecuciones y Tasaciones de RUA Abogados sobre el uso de TASADOR COSTAS.</p>
     `,
     subsections: [
       {
         id: 'problemas-comunes',
-        title: 'Problemas comunes',
+        title: 'Problemas comunes y soluciones',
         content: `
-          <h4>¿Qué hacer si no encuentro un municipio?</h4>
-          <p>Verifica que el nombre esté escrito correctamente. Si persiste el problema, contacta con soporte.</p>
+          <h4>¿Qué hacer si no encuentro un municipio en el selector?</h4>
+          <p><strong>Solución:</strong></p>
+          <ul>
+            <li>Verifica que el nombre esté escrito correctamente (sin tildes innecesarias)</li>
+            <li>Busca por la provincia si el municipio es pequeño</li>
+            <li>Comprueba si el municipio tiene baremo propio o usa el baremo provincial/autonómico</li>
+            <li>Si el problema persiste, reporta la incidencia mediante el formulario de soporte</li>
+          </ul>
 
-          <h4>¿Cómo recalcular una tasación?</h4>
-          <p>Accede al historial, selecciona la tasación y haz clic en "Editar" para modificar los datos.</p>
+          <h4>¿Cómo recalcular una tasación ya generada?</h4>
+          <p><strong>Solución:</strong></p>
+          <ol>
+            <li>Accede al módulo <strong>Historial de Tasaciones</strong></li>
+            <li>Localiza la tasación mediante el buscador o filtros</li>
+            <li>Haz clic en el botón <strong>✏️ Editar</strong></li>
+            <li>Modifica los datos necesarios (cuantía, fase, fechas, etc.)</li>
+            <li>Haz clic en <strong>Guardar cambios</strong> para recalcular automáticamente</li>
+          </ol>
+
+          <h4>¿Por qué el PDF generado no incluye el membrete de RUA Abogados?</h4>
+          <p><strong>Solución:</strong> El membrete se configura en el panel de administración. Contacta con el responsable técnico del departamento para verificar la configuración de plantillas corporativas.</p>
+
+          <h4>¿Cómo importo un archivo Excel con errores de formato?</h4>
+          <p><strong>Solución:</strong></p>
+          <ul>
+            <li>Revisa que las columnas tengan exactamente los nombres requeridos (CUANTIA, FECHA_INICIO, FECHA_FIN, TIPO_INTERES)</li>
+            <li>Verifica que las fechas sigan el formato DD/MM/AAAA</li>
+            <li>Elimina símbolos de moneda (€) y separadores de miles en las cuantías</li>
+            <li>Usa el punto (.) como separador decimal, no la coma (,)</li>
+            <li>Descarga la plantilla de ejemplo desde el módulo de Interés Avanzado</li>
+          </ul>
+
+          <h4>¿Puedo exportar todas las tasaciones del mes en un solo archivo?</h4>
+          <p><strong>Solución:</strong> Sí, en el módulo de Historial, aplica el filtro de fechas para seleccionar el mes deseado y luego usa el botón de <strong>Exportación masiva a Excel</strong>. Obtendrás un archivo consolidado con todas las tasaciones del período.</p>
         `
       },
       {
         id: 'soporte',
-        title: '¿Necesitas ayuda adicional?',
+        title: 'Soporte técnico y ayuda adicional',
         content: `
-          <p>Si no encuentras respuesta a tu pregunta, puedes:</p>
+          <h3>¿Necesitas ayuda técnica?</h3>
+          <p>Si no encuentras respuesta a tu pregunta en esta documentación, el Departamento de Ejecuciones y Tasaciones de RUA Abogados dispone de los siguientes canales de soporte:</p>
+
+          <h4>🔧 Formulario oficial de reporte de problemas</h4>
+          <p>Para reportar incidencias técnicas, errores del sistema o sugerencias de mejora:</p>
+          <p>
+            <a href="https://justiflow.com/form/reportetasador" target="_blank" rel="noopener noreferrer" style="display: inline-flex; align-items: center; padding: 12px 24px; background-color: #2563eb; color: white; text-decoration: none; border-radius: 8px; font-weight: 600; margin: 12px 0;">
+              📝 Formulario de Reporte de Problemas
+            </a>
+          </p>
+          <p><strong>Incluye siempre:</strong></p>
           <ul>
-            <li>Contactar con nuestro equipo de soporte</li>
-            <li>Revisar la documentación técnica</li>
-            <li>Unirte a la comunidad de usuarios</li>
+            <li>Descripción detallada del problema o error</li>
+            <li>Pasos para reproducir la incidencia</li>
+            <li>Capturas de pantalla si aplica</li>
+            <li>Módulo afectado (Tasaciones, Interés Legal, Baremos, etc.)</li>
+            <li>Tu nombre y contacto para seguimiento</li>
           </ul>
+
+          <h4>📚 Recursos adicionales</h4>
+          <ul>
+            <li><strong>Manual técnico completo:</strong> Descarga el PDF del manual desde el botón superior de esta sección</li>
+            <li><strong>Chatbot de baremos:</strong> Consulta dudas específicas sobre honorarios y baremos oficiales</li>
+            <li><strong>Tutoriales en vídeo:</strong> (Próximamente) Guías visuales paso a paso</li>
+          </ul>
+
+          <h4>⏱️ Tiempos de respuesta</h4>
+          <ul>
+            <li><strong>Incidencias críticas:</strong> Respuesta en 24 horas laborables</li>
+            <li><strong>Consultas generales:</strong> Respuesta en 48-72 horas laborables</li>
+            <li><strong>Mejoras y sugerencias:</strong> Evaluación mensual del equipo técnico</li>
+          </ul>
+
+          <div class="callout">
+            💡 <strong>Consejo:</strong> Antes de reportar un problema, consulta esta sección de Preguntas Frecuentes. La mayoría de incidencias comunes tienen solución inmediata aquí.
+          </div>
         `
       }
     ]
@@ -429,7 +762,7 @@ export default function Help() {
               <div>
                 <h1 className="text-3xl font-bold text-gray-900">Centro de Ayuda</h1>
                 <p className="text-gray-600 mt-1">
-                  Guía interactiva completa de TASADOR COSTAS v2.0
+                  Documentación completa para el Departamento de Ejecuciones y Tasaciones · RUA Abogados
                 </p>
               </div>
             </div>
@@ -546,11 +879,9 @@ export default function Help() {
                         </div>
                       </div>
                       <div className="text-gray-400">
-                        {expandedSections.has(section.id) ? (
-                          <ChevronDown className="h-5 w-5" />
-                        ) : (
-                          <ChevronRight className="h-5 w-5" />
-                        )}
+                        <span className="text-2xl font-bold">
+                          {expandedSections.has(section.id) ? '−' : '+'}
+                        </span>
                       </div>
                     </div>
                   </button>
