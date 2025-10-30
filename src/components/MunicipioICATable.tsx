@@ -41,16 +41,22 @@ const MunicipioICATable: React.FC<MunicipioICATableProps> = ({ isAdmin }) => {
       if (error) throw error;
       setMunicipios(data || []);
 
-      // Obtener opciones únicas de ICA aplicable
-      const { data: icaData, error: icaError } = await supabase
-        .from('municipios_ica')
-        .select('ica_aplicable')
-        .order('ica_aplicable');
+      // Obtener opciones de ICA aplicable desde ambas tablas: municipios existentes y criterios de costas
+      const [municipiosIcaResult, costasIcaResult] = await Promise.all([
+        supabase.from('municipios_ica').select('ica_aplicable'),
+        supabase.from('costasxica').select('ica')
+      ]);
 
-      if (!icaError && icaData) {
-        const uniqueICA = [...new Set(icaData.map(item => item.ica_aplicable))].sort();
-        setIcaOptions(uniqueICA);
-      }
+      if (municipiosIcaResult.error) throw municipiosIcaResult.error;
+      if (costasIcaResult.error) throw costasIcaResult.error;
+
+      // Combinar y deduplicar las opciones de ICA
+      const municipiosICA = municipiosIcaResult.data?.map(item => item.ica_aplicable) || [];
+      const costasICA = costasIcaResult.data?.map(item => item.ica) || [];
+      const allICA = [...municipiosICA, ...costasICA];
+      const uniqueICA = [...new Set(allICA)].sort();
+
+      setIcaOptions(uniqueICA);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error desconocido');
     } finally {
