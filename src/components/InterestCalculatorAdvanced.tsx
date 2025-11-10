@@ -1,5 +1,5 @@
-import { useState, useEffect, useRef } from 'react'
-import { Calculator, TrendingUp, Upload, AlertCircle, Trash2, BarChart3, Download, X } from 'lucide-react'
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react'
+import { Calculator, TrendingUp, Upload, AlertCircle, Trash2, BarChart3, Download, X, RefreshCw } from 'lucide-react'
 import { interestCalculator, initializeInterestCalculator } from '../lib/interestCalculator'
 import type { InterestCalculationInput, InterestCalculationResult } from '../lib/interestCalculator'
 import * as XLSX from 'xlsx'
@@ -15,6 +15,13 @@ declare module 'jspdf' {
     lastAutoTable: {
       finalY: number
     }
+  }
+}
+
+// Extender Window para incluir gc (Garbage Collector)
+declare global {
+  interface Window {
+    gc?: () => void
   }
 }
 import html2canvas from 'html2canvas'
@@ -67,6 +74,60 @@ export default function InterestCalculatorAdvanced() {
   const [showReportCustomization, setShowReportCustomization] = useState<boolean>(false)
   const [reportTemplates, setReportTemplates] = useState<Array<{name: string, config: any}>>([])
   const [templateName, setTemplateName] = useState<string>('')
+  const [isResetting, setIsResetting] = useState<boolean>(false)
+  const [calculationProgress, setCalculationProgress] = useState<number>(0)
+  const [calculationStatus, setCalculationStatus] = useState<string>('')
+
+  // Función para reset completo de la calculadora
+  const resetCalculator = useCallback(() => {
+    setIsResetting(true)
+    
+    // Limpiar todos los estados
+    setExcelData([])
+    setResults([])
+    setError(null)
+    setAvailableColumns([])
+    setColumnMapping({ cuantía: '', fecha_inicio: '', concepto: '' })
+    setGlobalModalidades(['legal'])
+    setGlobalFechaFin('')
+    setGlobalTaeContrato('')
+    setGlobalFechaSentencia('')
+    setExpandedModalities(new Set())
+    setCalculating(false)
+    
+    // Limpiar input de archivo
+    if (fileInputRef.current) {
+      fileInputRef.current.value = ''
+    }
+    
+    // Resetear configuración de informes
+    setReportTitle('INFORME DE CÁLCULOS DE INTERESES')
+    setReportSubtitle('DE INTERESES')
+    setReportNotes('')
+    setReportAdditionalInfo('')
+    setReportFooter('Sistema de Cálculo de Intereses Legales - Tasador Web v2.0')
+    setShowReportCustomization(false)
+    setTemplateName('')
+    
+    // Forzar garbage collection si está disponible
+    if (window.gc) {
+      setTimeout(() => window.gc!(), 100)
+    }
+    
+    setTimeout(() => {
+      setIsResetting(false)
+    }, 300)
+  }, [])
+
+  // Función optimizada para limpiar solo datos (mantener configuración)
+  const clearData = useCallback(() => {
+    setExcelData([])
+    setResults([])
+    setError(null)
+    if (fileInputRef.current) {
+      fileInputRef.current.value = ''
+    }
+  }, [])
 
   // Funciones para guardar/cargar plantillas
   const saveReportTemplate = () => {
@@ -116,24 +177,49 @@ export default function InterestCalculatorAdvanced() {
     setReportTemplates(savedTemplates)
   }, [])
 
-  // Initialize calculator
+  // Initialize calculator con cleanup
   useEffect(() => {
+    let mounted = true
+    
     const initCalculator = async () => {
       try {
         await initializeInterestCalculator()
-        setInitialized(true)
-        setLoading(false)
+        if (mounted) {
+          setInitialized(true)
+          setLoading(false)
+        }
       } catch (err) {
-        setError('Error al inicializar el calculador de intereses')
-        setLoading(false)
+        if (mounted) {
+          setError('Error al inicializar el calculador de intereses')
+          setLoading(false)
+        }
         console.error('Error initializing interest calculator:', err)
       }
     }
 
     initCalculator()
+    
+    return () => {
+      mounted = false
+    }
   }, [])
 
-  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+  // Cleanup cuando el componente se desmonte
+  useEffect(() => {
+    return () => {
+      // Limpiar timers y referencias
+      if (fileInputRef.current) {
+        fileInputRef.current.value = ''
+      }
+      
+      // Forzar garbage collection si está disponible
+      if (window.gc) {
+        setTimeout(() => window.gc!(), 100)
+      }
+    }
+  }, [])
+
+  const handleFileUpload = useCallback(async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0]
     if (!file) return
 
@@ -195,9 +281,10 @@ export default function InterestCalculatorAdvanced() {
       setError(err instanceof Error ? err.message : 'Error al procesar el archivo')
       console.error('Error processing file:', err)
     }
-  }
+  }, [])
 
-  const calculateAllInterests = async () => {
+  // Optimización del cálculo de intereses con progress tracking
+  const calculateAllInterests = useCallback(async () => {
     if (!initialized || excelData.length === 0 || !columnMapping.cuantía || !columnMapping.fecha_inicio) {
       setError('Debe seleccionar las columnas de mapeo y subir un archivo')
       return
@@ -223,10 +310,14 @@ export default function InterestCalculatorAdvanced() {
     try {
       setCalculating(true)
       setError(null)
+      setCalculationProgress(0)
+      setCalculationStatus('Iniciando cálculos...')
 
       const calculatedResults: CalculationResult[] = []
+      const totalRows = excelData.length
+      const totalCalculations = totalRows * globalModalidades.length
 
-      for (const row of excelData) {
+      for (const [rowIndex, row] of excelData.entries()) {
         try {
           // Get values using column mapping
           const cuantiaValue = row[columnMapping.cuantía]
@@ -253,7 +344,17 @@ export default function InterestCalculatorAdvanced() {
           }
 
           // Calculate for each selected modality
-          for (const modalidad of globalModalidades) {
+          for (const [modalityIndex, modalidad] of globalModalidades.entries()) {
+            const currentCalculation = (rowIndex * globalModalidades.length) + modalityIndex + 1
+            const progress = Math.round((currentCalculation / totalCalculations) * 100)
+            
+            setCalculationProgress(progress)
+            setCalculationStatus(`Calculando ${modalidad} para registro ${rowIndex + 1}/${totalRows}...`)
+            
+            // Add a small delay for progress visualization (only for large datasets)
+            if (totalRows > 100 && currentCalculation % 10 === 0) {
+              await new Promise(resolve => setTimeout(resolve, 10))
+            }
             // Skip TAE modalities if no TAE contract rate is provided
             if ((modalidad === 'tae' || modalidad === 'tae_plus5') && !globalTaeContrato) {
               continue
@@ -317,24 +418,25 @@ export default function InterestCalculatorAdvanced() {
         }
       }
 
+      setCalculationProgress(100)
+      setCalculationStatus('Finalizando cálculos...')
       setResults(calculatedResults)
+      
+      // Clear progress after a short delay
+      setTimeout(() => {
+        setCalculationProgress(0)
+        setCalculationStatus('')
+      }, 1500)
+      
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error al calcular intereses')
       console.error('Error calculating interests:', err)
     } finally {
       setCalculating(false)
     }
-  }
+  }, [initialized, excelData, columnMapping, globalFechaFin, globalModalidades, globalTaeContrato, globalFechaSentencia])
 
-  const clearData = () => {
-    setExcelData([])
-    setResults([])
-    setError(null)
-    if (fileInputRef.current) {
-      fileInputRef.current.value = ''
-    }
-  }
-
+  // Función auxiliar para parsear fechas
   const parseDate = (dateValue: any): Date | null => {
     if (!dateValue) return null
 
@@ -408,6 +510,54 @@ export default function InterestCalculatorAdvanced() {
     return null
   }
 
+  // Memoización del procesamiento de datos de evolución de intereses
+  const chartData = useMemo(() => {
+    if (results.length === 0) return []
+    
+    const yearlyData: { [key: string]: { [modality: string]: number } } = {}
+
+    results.forEach(result => {
+      if (!result.resultado) return
+
+      const startDate = parseDate(result.fecha_inicio)
+      const endDate = parseDate(result.fecha_fin)
+
+      if (!startDate || !endDate) return
+
+      // Calculate interest for each year in the period
+      let currentDate = new Date(startDate)
+      const endYear = endDate.getFullYear()
+
+      while (currentDate.getFullYear() <= endYear) {
+        const year = currentDate.getFullYear().toString()
+
+        if (!yearlyData[year]) {
+          yearlyData[year] = { legal: 0, judicial: 0, tae: 0, tae_plus5: 0 }
+        }
+
+        // For simplicity, we'll distribute the total interest evenly across years
+        const yearsDiff = endDate.getFullYear() - startDate.getFullYear() + 1
+        const yearlyInterest = result.resultado!.totalInteres / yearsDiff
+
+        yearlyData[year][result.modalidad] += yearlyInterest
+
+        currentDate.setFullYear(currentDate.getFullYear() + 1)
+      }
+    })
+
+    // Convert to array format for charts
+    return Object.keys(yearlyData)
+      .sort()
+      .map(year => ({
+        year,
+        Legal: Math.round(yearlyData[year].legal * 100) / 100,
+        Judicial: Math.round(yearlyData[year].judicial * 100) / 100,
+        TAE: Math.round(yearlyData[year].tae * 100) / 100,
+        'TAE+5%': Math.round(yearlyData[year].tae_plus5 * 100) / 100,
+        Total: Math.round((yearlyData[year].legal + yearlyData[year].judicial + yearlyData[year].tae + yearlyData[year].tae_plus5) * 100) / 100
+      }))
+  }, [results])
+
   const formatCurrency = (amount: number) => {
     // Redondear a 2 decimales antes de formatear
     const roundedAmount = Math.round(amount * 100) / 100
@@ -445,55 +595,7 @@ export default function InterestCalculatorAdvanced() {
     )
   }
 
-  const processInterestEvolutionData = () => {
-    const yearlyData: { [key: string]: { [modality: string]: number } } = {}
-
-    results.forEach(result => {
-      if (!result.resultado) return
-
-      const startDate = parseDate(result.fecha_inicio)
-      const endDate = parseDate(result.fecha_fin)
-
-      if (!startDate || !endDate) return
-
-      // Calculate interest for each year in the period
-      let currentDate = new Date(startDate)
-      const endYear = endDate.getFullYear()
-
-      while (currentDate.getFullYear() <= endYear) {
-        const year = currentDate.getFullYear().toString()
-
-        if (!yearlyData[year]) {
-          yearlyData[year] = { legal: 0, judicial: 0, tae: 0, tae_plus5: 0 }
-        }
-
-        // For simplicity, we'll distribute the total interest evenly across years
-        // In a real scenario, you'd want to calculate year-by-year interest
-        const yearsDiff = endDate.getFullYear() - startDate.getFullYear() + 1
-        const yearlyInterest = result.resultado!.totalInteres / yearsDiff
-
-        yearlyData[year][result.modalidad] += yearlyInterest
-
-        currentDate.setFullYear(currentDate.getFullYear() + 1)
-      }
-    })
-
-    // Convert to array format for charts
-    const chartData = Object.keys(yearlyData)
-      .sort()
-      .map(year => ({
-        year,
-        Legal: Math.round(yearlyData[year].legal * 100) / 100,
-        Judicial: Math.round(yearlyData[year].judicial * 100) / 100,
-        TAE: Math.round(yearlyData[year].tae * 100) / 100,
-        'TAE+5%': Math.round(yearlyData[year].tae_plus5 * 100) / 100,
-        Total: Math.round((yearlyData[year].legal + yearlyData[year].judicial + yearlyData[year].tae + yearlyData[year].tae_plus5) * 100) / 100
-      }))
-
-    return chartData
-  }
-
-  const exportToExcel = () => {
+  const exportToExcel = useCallback(() => {
     // Preguntar al usuario por el número de expediente
     const numeroExpediente = prompt('Introduce el número de expediente:')
 
@@ -654,9 +756,9 @@ export default function InterestCalculatorAdvanced() {
     })
 
     XLSX.writeFile(workbook, `RESUMEN INTERESES Nº EXPT ${numeroExpediente}.xlsx`)
-  }
+  }, [results, globalModalidades])
 
-  const exportToPDF = async () => {
+  const exportToPDF = useCallback(async () => {
     if (results.length === 0) {
       setError('No hay resultados para exportar')
       return
@@ -1102,7 +1204,7 @@ export default function InterestCalculatorAdvanced() {
       console.error('Error generando PDF:', error)
       setError('Error al generar el PDF')
     }
-  }
+  }, [results, globalModalidades, globalFechaFin, globalTaeContrato, globalFechaSentencia, reportTitle, reportSubtitle, reportNotes, reportAdditionalInfo, reportFooter])
 
   if (loading) {
     return (
@@ -1130,9 +1232,25 @@ export default function InterestCalculatorAdvanced() {
     <div className="space-y-6">
       {/* Header */}
       <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-        <div className="flex items-center space-x-2 mb-4">
-          <TrendingUp className="h-6 w-6 text-primary-600" />
-          <h1 className="text-2xl font-bold text-gray-900">CALCULADOR DE INTERESES</h1>
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center space-x-2">
+            <TrendingUp className="h-6 w-6 text-primary-600" />
+            <h1 className="text-2xl font-bold text-gray-900">CALCULADOR DE INTERESES</h1>
+          </div>
+          {/* Botón Nuevo Cálculo */}
+          <button
+            onClick={resetCalculator}
+            disabled={isResetting}
+            className={`inline-flex items-center px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+              isResetting 
+                ? 'bg-gray-100 text-gray-400 cursor-not-allowed' 
+                : 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white hover:from-blue-700 hover:to-indigo-700 shadow-md hover:shadow-lg'
+            }`}
+            title="Resetea completamente la calculadora y libera memoria"
+          >
+            <RefreshCw className={`h-4 w-4 mr-2 ${isResetting ? 'animate-spin' : ''}`} />
+            {isResetting ? 'Reseteando...' : 'Nuevo Cálculo'}
+          </button>
         </div>
         <p className="text-gray-600 mb-6">
           Carga un archivo Excel/CSV con múltiples cuantías y calcula intereses legales, judiciales y TAE según la legislación española.
@@ -1346,13 +1464,38 @@ export default function InterestCalculatorAdvanced() {
                 </button>
                 <button
                   onClick={clearData}
-                  className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50"
+                  disabled={calculating}
+                  className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   <Trash2 className="h-4 w-4 mr-2" />
                   Limpiar
                 </button>
               </div>
             </div>
+
+            {/* Progress Indicator */}
+            {calculating && (
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
+                <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center space-x-2">
+                    <Calculator className="h-5 w-5 text-blue-600 animate-pulse" />
+                    <span className="text-sm font-medium text-blue-900">Calculando intereses...</span>
+                  </div>
+                  <span className="text-sm text-blue-700 font-medium">{calculationProgress}%</span>
+                </div>
+                
+                <div className="w-full bg-blue-200 rounded-full h-2 mb-2">
+                  <div 
+                    className="bg-blue-600 h-2 rounded-full transition-all duration-300 ease-out"
+                    style={{ width: `${calculationProgress}%` }}
+                  ></div>
+                </div>
+                
+                {calculationStatus && (
+                  <p className="text-sm text-blue-700 mt-1">{calculationStatus}</p>
+                )}
+              </div>
+            )}
 
             <div className="overflow-x-auto">
               <table className="min-w-full divide-y divide-gray-200">
@@ -1386,6 +1529,24 @@ export default function InterestCalculatorAdvanced() {
                 </p>
               )}
             </div>
+
+            {/* Performance Warning for Large Datasets */}
+            {excelData.length > 200 && (
+              <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mt-4">
+                <div className="flex items-center">
+                  <AlertCircle className="h-5 w-5 text-yellow-500 mr-2" />
+                  <div className="flex-1">
+                    <h4 className="text-sm font-medium text-yellow-800">
+                      Dataset Grande Detectado ({excelData.length} filas)
+                    </h4>
+                    <p className="text-sm text-yellow-700 mt-1">
+                      El cálculo de {excelData.length} registros con {globalModalidades.length} modalidad(es) 
+                      puede tomar varios minutos. Se recomienda procesar en lotes más pequeños para mejor rendimiento.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         )}
 
@@ -1535,16 +1696,14 @@ export default function InterestCalculatorAdvanced() {
         )}
 
         {/* Interest Evolution Charts */}
-        {results.length > 0 && (() => {
-          const chartData = processInterestEvolutionData()
-          return chartData.length > 0 ? (
-            <div className="mt-8">
-              <div className="flex items-center space-x-2 mb-4">
-                <BarChart3 className="h-6 w-6 text-primary-600" />
-                <h3 className="text-lg font-semibold text-gray-900">
-                  Evolución de Intereses por Año
-                </h3>
-              </div>
+        {results.length > 0 && chartData.length > 0 && (
+          <div className="mt-8">
+            <div className="flex items-center space-x-2 mb-4">
+              <BarChart3 className="h-6 w-6 text-primary-600" />
+              <h3 className="text-lg font-semibold text-gray-900">
+                Evolución de Intereses por Año
+              </h3>
+            </div>
 
               <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
                 <div className="mb-6">
@@ -1617,8 +1776,7 @@ export default function InterestCalculatorAdvanced() {
                 </div>
               </div>
             </div>
-          ) : null
-        })()}
+        )}
       </div>
 
       {/* Sección de Personalización del Informe */}
