@@ -70,13 +70,25 @@ export default function InterestCalculatorAdvanced() {
   const [reportSubtitle, setReportSubtitle] = useState<string>('DE INTERESES')
   const [reportNotes, setReportNotes] = useState<string>('')
   const [reportAdditionalInfo, setReportAdditionalInfo] = useState<string>('')
-  const [reportFooter, setReportFooter] = useState<string>('Sistema de Cálculo de Intereses Legales - Tasador Web v2.0')
+  const [reportFooter, setReportFooter] = useState<string>('Departamento de Ejecuciones y Tasaciones - RUA ABOGADOS')
   const [showReportCustomization, setShowReportCustomization] = useState<boolean>(false)
   const [reportTemplates, setReportTemplates] = useState<Array<{name: string, config: any}>>([])
   const [templateName, setTemplateName] = useState<string>('')
   const [isResetting, setIsResetting] = useState<boolean>(false)
   const [calculationProgress, setCalculationProgress] = useState<number>(0)
   const [calculationStatus, setCalculationStatus] = useState<string>('')
+  
+  // Estados para controlar secciones del informe
+  const [includeResultadoPorModalidad, setIncludeResultadoPorModalidad] = useState<boolean>(true)
+  const [includeTablaResumen, setIncludeTablaResumen] = useState<boolean>(true)
+  const [includeDetalleCalculo, setIncludeDetalleCalculo] = useState<boolean>(true)
+  const [includeResumenVisual, setIncludeResumenVisual] = useState<boolean>(true)
+  const [includeMetodologia, setIncludeMetodologia] = useState<boolean>(true)
+  
+  // Estados para modal de configuración del PDF
+  const [showPdfConfigModal, setShowPdfConfigModal] = useState<boolean>(false)
+  const [numeroProcedimiento, setNumeroProcedimiento] = useState<string>('')
+  const [nombreExpedienteTemp, setNombreExpedienteTemp] = useState<string>('')
 
   // Función para reset completo de la calculadora
   const resetCalculator = useCallback(() => {
@@ -107,6 +119,14 @@ export default function InterestCalculatorAdvanced() {
     setReportAdditionalInfo('')
     setReportFooter('Sistema de Cálculo de Intereses Legales - Tasador Web v2.0')
     setShowReportCustomization(false)
+    setIncludeResultadoPorModalidad(true)
+    setIncludeTablaResumen(true)
+    setIncludeDetalleCalculo(true)
+    setIncludeResumenVisual(true)
+    setIncludeMetodologia(true)
+    setShowPdfConfigModal(false)
+    setNumeroProcedimiento('')
+    setNombreExpedienteTemp('')
     setTemplateName('')
     
     // Forzar garbage collection si está disponible
@@ -764,12 +784,21 @@ export default function InterestCalculatorAdvanced() {
       return
     }
 
-    // Preguntar por el nombre del expediente
-    const nombreExpediente = prompt('Introduce el nombre del expediente:')
-    if (!nombreExpediente || nombreExpediente.trim() === '') {
+    // Validar que se haya ingresado nombre de expediente y número de procedimiento
+    if (!nombreExpedienteTemp || nombreExpedienteTemp.trim() === '') {
       alert('Debes introducir un nombre de expediente válido.')
       return
     }
+    
+    if (!numeroProcedimiento || numeroProcedimiento.trim() === '') {
+      alert('Debes introducir un número de procedimiento válido.')
+      return
+    }
+    
+    // Cerrar el modal
+    setShowPdfConfigModal(false)
+    
+    const nombreExpediente = nombreExpedienteTemp.trim()
 
     try {
       const pdf = new jsPDF()
@@ -785,7 +814,8 @@ export default function InterestCalculatorAdvanced() {
         pdf.setFont('helvetica', 'italic')
         pdf.text(`Página ${pageNum}`, margin, pageHeight - 10)
         pdf.text(`Expediente: ${nombreExpediente}`, pageWidth - margin - 60, pageHeight - 10)
-        pdf.text('Generado por Tasador Web', pageWidth - margin - 60, pageHeight - 5)
+        pdf.text(`Nº Procedimiento: ${numeroProcedimiento}`, margin, pageHeight - 5)
+        pdf.text('RUA ABOGADOS', pageWidth - margin - 40, pageHeight - 5)
       }
 
       // Función auxiliar para añadir nueva página
@@ -834,11 +864,15 @@ export default function InterestCalculatorAdvanced() {
       pdf.setFontSize(18)
       pdf.setFont('helvetica', 'bold')
       pdf.text(nombreExpediente.toUpperCase(), pageWidth / 2, 195, { align: 'center' })
+      
+      pdf.setFontSize(14)
+      pdf.setFont('helvetica', 'normal')
+      pdf.text(`Nº Procedimiento: ${numeroProcedimiento}`, pageWidth / 2, 210, { align: 'center' })
 
       pdf.setFontSize(12)
       pdf.setFont('helvetica', 'normal')
-      pdf.text(`Fecha de generación: ${new Date().toLocaleDateString('es-ES')}`, pageWidth / 2, 220, { align: 'center' })
-      pdf.text(`Hora: ${new Date().toLocaleTimeString('es-ES')}`, pageWidth / 2, 230, { align: 'center' })
+      pdf.text(`Fecha de generación: ${new Date().toLocaleDateString('es-ES')}`, pageWidth / 2, 230, { align: 'center' })
+      pdf.text(`Hora: ${new Date().toLocaleTimeString('es-ES')}`, pageWidth / 2, 240, { align: 'center' })
 
       pdf.setFontSize(10)
       pdf.text(reportFooter, pageWidth / 2, 250, { align: 'center' })
@@ -857,25 +891,50 @@ export default function InterestCalculatorAdvanced() {
 
       const indexItems = [
         { title: '1. RESUMEN EJECUTIVO', page: 3 },
-        { title: '2. PARÁMETROS DE CÁLCULO', page: 4 },
-        { title: '3. RESULTADOS POR MODALIDAD', page: 5 }
+        { title: '2. PARÁMETROS DE CÁLCULO', page: 4 }
       ]
 
-      // Añadir resultados por modalidad al índice
-      let currentPage = 6
-      globalModalidades.forEach(modalidad => {
-        const modalityResults = results.filter(r => r.modalidad === modalidad)
-        if (modalityResults.length > 0) {
-          const title = `3.${globalModalidades.indexOf(modalidad) + 1}. ${modalidad === 'legal' ? 'INTERESES LEGALES' :
-                     modalidad === 'judicial' ? 'INTERESES JUDICIALES' :
-                     modalidad === 'tae' ? 'INTERESES TAE' : 'INTERESES TAE + 5%'}`
-          indexItems.push({ title, page: currentPage })
-          currentPage += Math.ceil(modalityResults.length / 15) + 1 // Estimación de páginas
-        }
-      })
-
-      indexItems.push({ title: '4. ANÁLISIS GRÁFICO', page: currentPage })
-      indexItems.push({ title: '5. DETALLE DE CÁLCULOS', page: currentPage + 2 })
+      let currentPage = 5
+      let sectionNumber = 3
+      
+      // Añadir metodología si está seleccionada
+      if (includeMetodologia) {
+        indexItems.push({ title: `${sectionNumber}. METODOLOGÍA DE CÁLCULO`, page: currentPage })
+        currentPage += 2
+        sectionNumber++
+      }
+      
+      // Añadir secciones opcionales al índice
+      if (includeResultadoPorModalidad) {
+        indexItems.push({ title: `${sectionNumber}. RESULTADOS POR MODALIDAD`, page: currentPage })
+        globalModalidades.forEach(modalidad => {
+          const modalityResults = results.filter(r => r.modalidad === modalidad)
+          if (modalityResults.length > 0) {
+            const title = `${sectionNumber}.${globalModalidades.indexOf(modalidad) + 1}. ${modalidad === 'legal' ? 'INTERESES LEGALES' :
+                       modalidad === 'judicial' ? 'INTERESES JUDICIALES' :
+                       modalidad === 'tae' ? 'INTERESES TAE' : 'INTERESES TAE + 5%'}`
+            indexItems.push({ title, page: currentPage })
+            currentPage += Math.ceil(modalityResults.length / 15) + 1
+          }
+        })
+        sectionNumber++
+      }
+      
+      if (includeTablaResumen) {
+        indexItems.push({ title: `${sectionNumber}. TABLA RESUMEN POR CONCEPTO`, page: currentPage })
+        currentPage += 2
+        sectionNumber++
+      }
+      
+      if (includeResumenVisual) {
+        indexItems.push({ title: `${sectionNumber}. ANÁLISIS GRÁFICO`, page: currentPage })
+        currentPage += 2
+        sectionNumber++
+      }
+      
+      if (includeDetalleCalculo) {
+        indexItems.push({ title: `${sectionNumber}. DETALLE DE CÁLCULOS`, page: currentPage })
+      }
 
       indexItems.forEach(item => {
         if (yPosition > pageHeight - 40) {
@@ -903,15 +962,18 @@ export default function InterestCalculatorAdvanced() {
 
       // Estadísticas generales
       const totalCalculos = results.length
-      const totalIntereses = results.reduce((sum, r) => sum + (r.resultado?.totalInteres || 0), 0)
-      const totalCapital = results.reduce((sum, r) => sum + r.cuantía, 0)
+      
+      // Calcular capital total como la suma única de cuantías (sin duplicar por modalidades)
+      const uniqueCuantias = new Map<string, number>()
+      excelData.forEach((row, index) => {
+        const cuantia = Number(row[columnMapping.cuantía])
+        if (!isNaN(cuantia)) {
+          uniqueCuantias.set(`${index}`, cuantia)
+        }
+      })
 
       pdf.setFont('helvetica', 'normal')
       pdf.text(`• Total de cálculos realizados: ${totalCalculos}`, margin, yPosition)
-      yPosition += 8
-      pdf.text(`• Capital total analizado: ${totalCapital.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}`, margin, yPosition)
-      yPosition += 8
-      pdf.text(`• Intereses totales generados: ${totalIntereses.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}`, margin, yPosition)
       yPosition += 8
       pdf.text(`• Período de cálculo: Hasta ${new Date(globalFechaFin).toLocaleDateString('es-ES')}`, margin, yPosition)
       yPosition += 8
@@ -980,219 +1042,491 @@ export default function InterestCalculatorAdvanced() {
       ).join(', ')}`, margin + 10, yPosition)
       yPosition += 15
 
-      // RESULTADOS POR MODALIDAD
-      yPosition = addNewPage()
-      pdf.setFontSize(18)
-      pdf.setFont('helvetica', 'bold')
-      pdf.text('3. RESULTADOS POR MODALIDAD', margin, yPosition)
-      yPosition += 15
+      // METODOLOGÍA DE CÁLCULO (condicional)
+      if (includeMetodologia) {
+        yPosition = addNewPage()
+        let sectionNum = 3
+        
+        pdf.setFontSize(18)
+        pdf.setFont('helvetica', 'bold')
+        pdf.text(`${sectionNum}. METODOLOGÍA DE CÁLCULO`, margin, yPosition)
+        yPosition += 15
 
-      globalModalidades.forEach((modalidad, index) => {
-        const modalityResults = results.filter(r => r.modalidad === modalidad)
-        if (modalityResults.length === 0) return
+        pdf.setFontSize(12)
+        pdf.setFont('helvetica', 'normal')
+        pdf.text('Los cálculos de intereses han sido realizados utilizando herramientas internas desarrolladas', margin, yPosition)
+        yPosition += 6
+        pdf.text('por el Departamento de Ejecuciones y Tasaciones de RUA ABOGADOS, aplicando', margin, yPosition)
+        yPosition += 6
+        pdf.text('estrictamente la normativa vigente para cada período.', margin, yPosition)
+        yPosition += 15
 
-        if (yPosition > pageHeight - 60) {
-          yPosition = addNewPage()
-        }
-
-        const title = `${index + 1}. ${modalidad === 'legal' ? 'INTERESES LEGALES' :
-                   modalidad === 'judicial' ? 'INTERESES JUDICIALES' :
-                   modalidad === 'tae' ? 'INTERESES TAE' : 'INTERESES TAE + 5%'}`
+        // Fórmulas por modalidad
         pdf.setFontSize(14)
         pdf.setFont('helvetica', 'bold')
-        pdf.text(title, margin, yPosition)
-        yPosition += 10
-
-        const totalInteresesModalidad = modalityResults.reduce((sum, r) => sum + (r.resultado?.totalInteres || 0), 0)
-        const capitalModalidad = modalityResults.reduce((sum, r) => sum + r.cuantía, 0)
+        pdf.text('Fórmulas Matemáticas Aplicadas:', margin, yPosition)
+        yPosition += 12
 
         pdf.setFontSize(11)
         pdf.setFont('helvetica', 'normal')
-        pdf.text(`• Número de cálculos: ${modalityResults.length}`, margin + 10, yPosition)
-        yPosition += 7
-        pdf.text(`• Capital total: ${capitalModalidad.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}`, margin + 10, yPosition)
-        yPosition += 7
-        pdf.text(`• Intereses totales: ${totalInteresesModalidad.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}`, margin + 10, yPosition)
+
+        // Fórmula general
+        pdf.setFont('helvetica', 'bold')
+        pdf.text('Fórmula General:', margin, yPosition)
+        yPosition += 8
+        pdf.setFont('helvetica', 'normal')
+        pdf.text('Interés = Capital × (Tasa / 100) × (Días / 365)', margin + 10, yPosition)
         yPosition += 12
 
-        // Tabla de resultados
-        if (yPosition > pageHeight - 80) {
-          yPosition = addNewPage()
-        }
-
-        const tableData = modalityResults.map(r => {
-          const row = [
-            r.cuantía.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
-            new Date(r.fecha_inicio).toLocaleDateString('es-ES'),
-            new Date(r.fecha_fin).toLocaleDateString('es-ES'),
-            (r.resultado?.totalInteres || 0).toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
-          ]
-          
-          // Agregar concepto al inicio si está disponible
-          if (r.concepto) {
-            row.unshift(r.concepto)
-          }
-          
-          return row
-        })
-
-        const tableHeaders = [['Capital (€)', 'Fecha Inicio', 'Fecha Fin', 'Intereses (€)']]
-        if (modalityResults.some(r => r.concepto)) {
-          tableHeaders[0].unshift('Concepto')
-        }
-
-        autoTable(pdf, {
-          startY: yPosition,
-          head: tableHeaders,
-          body: tableData,
-          theme: 'grid',
-          styles: { fontSize: 8, cellPadding: 3 },
-          headStyles: { fillColor: [41, 128, 185], textColor: 255 },
-          margin: { left: margin, right: margin },
-          columnStyles: {
-            0: { halign: 'right' },
-            3: { halign: 'right' }
-          },
-          didDrawPage: (data) => {
-            yPosition = (data.cursor?.y || yPosition) + 15
-          }
-        })
-
-        yPosition += 15
-      })
-
-      // ANÁLISIS GRÁFICO
-      yPosition = addNewPage()
-      pdf.setFontSize(18)
-      pdf.setFont('helvetica', 'bold')
-      pdf.text('4. ANÁLISIS GRÁFICO', margin, yPosition)
-      yPosition += 15
-
-      pdf.setFontSize(12)
-      pdf.setFont('helvetica', 'normal')
-      pdf.text('Evolución temporal de los intereses calculados:', margin, yPosition)
-      yPosition += 15
-
-      // Intentar capturar gráficos
-      const chartElements = document.querySelectorAll('.recharts-wrapper')
-      if (chartElements.length > 0) {
-        try {
-          for (let i = 0; i < Math.min(chartElements.length, 2); i++) {
-            if (yPosition > pageHeight - 120) {
-              yPosition = addNewPage()
-            }
-
-            const canvas = await html2canvas(chartElements[i] as HTMLElement, {
-              useCORS: true,
-              allowTaint: true
-            })
-
-            const imgData = canvas.toDataURL('image/png')
-            const imgWidth = contentWidth
-            const imgHeight = (canvas.height * imgWidth) / canvas.width
-
-            if (imgHeight > pageHeight - yPosition - 40) {
-              // Si la imagen es demasiado grande, reducirla
-              const scale = (pageHeight - yPosition - 40) / imgHeight
-              const scaledWidth = imgWidth * scale
-              const scaledHeight = imgHeight * scale
-              pdf.addImage(imgData, 'PNG', margin, yPosition, scaledWidth, scaledHeight)
-              yPosition += scaledHeight + 10
-            } else {
-              pdf.addImage(imgData, 'PNG', margin, yPosition, imgWidth, imgHeight)
-              yPosition += imgHeight + 10
-            }
-
-            // Añadir título al gráfico
-            pdf.setFontSize(10)
-            pdf.setFont('helvetica', 'italic')
-            pdf.text(`Gráfico ${i + 1}: Evolución de intereses por modalidad`, margin, yPosition - 5)
-            yPosition += 10
-          }
-        } catch (error) {
-          console.warn('No se pudieron capturar los gráficos:', error)
-          pdf.setFontSize(10)
+        // Intereses Legales
+        if (globalModalidades.includes('legal')) {
+          pdf.setFont('helvetica', 'bold')
+          pdf.text('Intereses Legales:', margin, yPosition)
+          yPosition += 8
           pdf.setFont('helvetica', 'normal')
-          pdf.text('Nota: Los gráficos no pudieron ser incluidos en el PDF.', margin, yPosition)
-          pdf.text('Para ver los gráficos completos, consulte la aplicación web.', margin, yPosition + 8)
-          yPosition += 20
+          pdf.text('Se aplica el tipo de interés legal del dinero establecido anualmente por la Ley de', margin + 10, yPosition)
+          yPosition += 6
+          pdf.text('Presupuestos Generales del Estado para cada ejercicio.', margin + 10, yPosition)
+          yPosition += 10
         }
-      } else {
-        pdf.setFontSize(10)
-        pdf.setFont('helvetica', 'normal')
-        pdf.text('No hay gráficos disponibles para incluir en el informe.', margin, yPosition)
-        yPosition += 15
-      }
 
-      // DETALLE DE CÁLCULOS
-      yPosition = addNewPage()
-      pdf.setFontSize(18)
-      pdf.setFont('helvetica', 'bold')
-      pdf.text('5. DETALLE DE CÁLCULOS', margin, yPosition)
-      yPosition += 15
+        // Intereses Judiciales
+        if (globalModalidades.includes('judicial')) {
+          pdf.setFont('helvetica', 'bold')
+          pdf.text('Intereses Judiciales:', margin, yPosition)
+          yPosition += 8
+          pdf.setFont('helvetica', 'normal')
+          pdf.text('• Antes de sentencia: Se aplica el interés legal vigente cada año.', margin + 10, yPosition)
+          yPosition += 6
+          pdf.text('• Después de sentencia: Se aplica el interés de demora procesal (legal + 2 puntos).', margin + 10, yPosition)
+          yPosition += 10
+        }
 
-      pdf.setFontSize(12)
-      pdf.setFont('helvetica', 'normal')
-      pdf.text('Detalle año a año de todos los cálculos realizados:', margin, yPosition)
-      yPosition += 15
+        // Intereses TAE
+        if (globalModalidades.includes('tae') || globalModalidades.includes('tae_plus5')) {
+          pdf.setFont('helvetica', 'bold')
+          pdf.text('Intereses Contractuales (TAE):', margin, yPosition)
+          yPosition += 8
+          pdf.setFont('helvetica', 'normal')
+          pdf.text('• TAE: Se aplica la Tasa Anual Equivalente pactada en el contrato.', margin + 10, yPosition)
+          yPosition += 6
+          if (globalModalidades.includes('tae_plus5')) {
+            pdf.text('• TAE + 5%: Se aplica la TAE contractual incrementada en 5 puntos porcentuales.', margin + 10, yPosition)
+            yPosition += 6
+          }
+          yPosition += 8
+        }
 
-      globalModalidades.forEach(modalidad => {
-        const modalityResults = results.filter(r => r.modalidad === modalidad && r.resultado?.detallePorAño)
-        if (modalityResults.length === 0) return
-
-        if (yPosition > pageHeight - 60) {
+        // Tabla de intereses históricos
+        if (yPosition > pageHeight - 100) {
           yPosition = addNewPage()
         }
 
         pdf.setFontSize(14)
         pdf.setFont('helvetica', 'bold')
-        pdf.text(`${modalidad === 'legal' ? 'Intereses Legales' :
-                  modalidad === 'judicial' ? 'Intereses Judiciales' :
-                  modalidad === 'tae' ? 'Intereses TAE' : 'Intereses TAE + 5%'}`, margin, yPosition)
+        pdf.text('Tabla de Intereses Aplicables por Año:', margin, yPosition)
         yPosition += 12
 
-        modalityResults.forEach(result => {
-          if (!result.resultado?.detallePorAño) return
+        // Obtener rango de años de los resultados
+        const allYears = new Set<number>()
+        results.forEach(r => {
+          if (r.resultado?.detallePorAño) {
+            r.resultado.detallePorAño.forEach(d => allYears.add(d.año))
+          }
+        })
+        const yearsArray = Array.from(allYears).sort((a, b) => a - b)
 
+        if (yearsArray.length > 0) {
+          // Construir datos de la tabla
+          const interestTableData: any[] = []
+          
+          yearsArray.forEach(year => {
+            const row: any[] = [year.toString()]
+            
+            // Buscar las tasas de este año en los resultados
+            const yearData = results.find(r => 
+              r.resultado?.detallePorAño?.some(d => d.año === year)
+            )?.resultado?.detallePorAño?.find(d => d.año === year)
+            
+            if (yearData) {
+              const tasaLegal = yearData.tasa * 100
+              row.push(tasaLegal.toFixed(2) + '%')
+              row.push((tasaLegal + 2).toFixed(2) + '%')
+            } else {
+              row.push('-')
+              row.push('-')
+            }
+            
+            if (globalModalidades.includes('tae')) {
+              row.push(globalTaeContrato + '%')
+            }
+            if (globalModalidades.includes('tae_plus5')) {
+              row.push((parseFloat(globalTaeContrato) + 5).toFixed(2) + '%')
+            }
+            
+            interestTableData.push(row)
+          })
+
+          // Construir encabezados
+          const headers = ['Año', 'Legal', 'Judicial']
+          if (globalModalidades.includes('tae')) headers.push('TAE')
+          if (globalModalidades.includes('tae_plus5')) headers.push('TAE+5%')
+
+          // Dividir en múltiples tablas si hay muchos años
+          const rowsPerTable = 20
+          for (let i = 0; i < interestTableData.length; i += rowsPerTable) {
+            if (i > 0 && yPosition > pageHeight - 100) {
+              yPosition = addNewPage()
+            }
+            
+            const chunk = interestTableData.slice(i, i + rowsPerTable)
+            
+            autoTable(pdf, {
+              startY: yPosition,
+              head: [headers],
+              body: chunk,
+              theme: 'grid',
+              styles: { fontSize: 9, cellPadding: 2 },
+              headStyles: { fillColor: [41, 128, 185], textColor: 255 },
+              margin: { left: margin, right: margin },
+              columnStyles: {
+                0: { halign: 'center', fontStyle: 'bold' },
+                1: { halign: 'center' },
+                2: { halign: 'center' },
+                3: { halign: 'center' },
+                4: { halign: 'center' }
+              },
+              didDrawPage: (data) => {
+                yPosition = (data.cursor?.y || yPosition) + 15
+              }
+            })
+          }
+        }
+        
+        yPosition += 10
+      }
+
+      // RESULTADOS POR MODALIDAD (condicional)
+      if (includeResultadoPorModalidad) {
+        yPosition = addNewPage()
+        let sectionNum = 3
+        if (includeMetodologia) sectionNum++
+        
+        pdf.setFontSize(18)
+        pdf.setFont('helvetica', 'bold')
+        pdf.text(`${sectionNum}. RESULTADOS POR MODALIDAD`, margin, yPosition)
+        yPosition += 15
+
+        globalModalidades.forEach((modalidad, index) => {
+          const modalityResults = results.filter(r => r.modalidad === modalidad)
+          if (modalityResults.length === 0) return
+
+          if (yPosition > pageHeight - 60) {
+            yPosition = addNewPage()
+          }
+
+          const title = `${index + 1}. ${modalidad === 'legal' ? 'INTERESES LEGALES' :
+                     modalidad === 'judicial' ? 'INTERESES JUDICIALES' :
+                     modalidad === 'tae' ? 'INTERESES TAE' : 'INTERESES TAE + 5%'}`
+          pdf.setFontSize(14)
+          pdf.setFont('helvetica', 'bold')
+          pdf.text(title, margin, yPosition)
+          yPosition += 10
+
+          const totalInteresesModalidad = modalityResults.reduce((sum, r) => sum + (r.resultado?.totalInteres || 0), 0)
+          
+          // Calcular capital de esta modalidad sin duplicar cuantías
+          const modalityUniqueCuantias = new Set<number>()
+          modalityResults.forEach(r => {
+            modalityUniqueCuantias.add(r.cuantía)
+          })
+          const capitalModalidad = Array.from(modalityUniqueCuantias).reduce((sum, val) => sum + val, 0)
+
+          pdf.setFontSize(11)
+          pdf.setFont('helvetica', 'normal')
+          pdf.text(`• Número de cálculos: ${modalityResults.length}`, margin + 10, yPosition)
+          yPosition += 7
+          pdf.text(`• Capital total: ${capitalModalidad.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}`, margin + 10, yPosition)
+          yPosition += 7
+          pdf.text(`• Intereses totales: ${totalInteresesModalidad.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}`, margin + 10, yPosition)
+          yPosition += 12
+
+          // Tabla de resultados
           if (yPosition > pageHeight - 80) {
             yPosition = addNewPage()
           }
 
-          pdf.setFontSize(10)
-          pdf.setFont('helvetica', 'bold')
-          pdf.text(`Capital: ${result.cuantía.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}`, margin + 10, yPosition)
-          yPosition += 8
-          pdf.text(`Período: ${new Date(result.fecha_inicio).toLocaleDateString('es-ES')} - ${new Date(result.fecha_fin).toLocaleDateString('es-ES')}`, margin + 10, yPosition)
-          yPosition += 10
+          const tableData = modalityResults.map(r => {
+            const row = [
+              r.cuantía.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
+              new Date(r.fecha_inicio).toLocaleDateString('es-ES'),
+              new Date(r.fecha_fin).toLocaleDateString('es-ES'),
+              (r.resultado?.totalInteres || 0).toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+            ]
+            
+            // Agregar concepto al inicio si está disponible
+            if (r.concepto) {
+              row.unshift(r.concepto)
+            }
+            
+            return row
+          })
 
-          const detailData = result.resultado.detallePorAño.map(year => [
-            year.año.toString(),
-            year.dias.toString(),
-            (year.tasa * 100).toFixed(4) + '%',
-            year.interes.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
-          ])
+          const tableHeaders = [['Capital (€)', 'Fecha Inicio', 'Fecha Fin', 'Intereses (€)']]
+          if (modalityResults.some(r => r.concepto)) {
+            tableHeaders[0].unshift('Concepto')
+          }
 
           autoTable(pdf, {
             startY: yPosition,
-            head: [['Año', 'Días', 'Tasa', 'Interés (€)']],
-            body: detailData,
+            head: tableHeaders,
+            body: tableData,
             theme: 'grid',
-            styles: { fontSize: 7, cellPadding: 2 },
-            headStyles: { fillColor: [52, 152, 219], textColor: 255 },
-            margin: { left: margin + 10, right: margin },
+            styles: { fontSize: 8, cellPadding: 3 },
+            headStyles: { fillColor: [41, 128, 185], textColor: 255 },
+            margin: { left: margin, right: margin },
             columnStyles: {
-              1: { halign: 'center' },
-              2: { halign: 'right' },
+              0: { halign: 'right' },
               3: { halign: 'right' }
             },
             didDrawPage: (data) => {
-              yPosition = (data.cursor?.y || yPosition) + 12
+              yPosition = (data.cursor?.y || yPosition) + 15
             }
           })
 
-          yPosition += 12
+          yPosition += 15
         })
-      })
+      }
+      
+      // TABLA RESUMEN POR CONCEPTO (condicional)
+      if (includeTablaResumen) {
+        if (yPosition > pageHeight - 60) {
+          yPosition = addNewPage()
+        }
+        
+        let sectionNum = 3
+        if (includeMetodologia) sectionNum++
+        if (includeResultadoPorModalidad) sectionNum++
+        
+        pdf.setFontSize(18)
+        pdf.setFont('helvetica', 'bold')
+        pdf.text(`${sectionNum}. TABLA RESUMEN POR CONCEPTO`, margin, yPosition)
+        yPosition += 15
+
+        pdf.setFontSize(12)
+        pdf.setFont('helvetica', 'normal')
+        pdf.text('Resumen consolidado por concepto con períodos y modalidades:', margin, yPosition)
+        yPosition += 15
+
+        // Agrupar por concepto
+        const conceptosMap = new Map<string, CalculationResult[]>()
+        results.forEach(r => {
+          const concepto = r.concepto || 'Sin concepto'
+          if (!conceptosMap.has(concepto)) {
+            conceptosMap.set(concepto, [])
+          }
+          conceptosMap.get(concepto)!.push(r)
+        })
+
+        const tablaResumenData: any[] = []
+        conceptosMap.forEach((resultados, concepto) => {
+          // Agrupar por cuantía dentro del concepto
+          const cuantiasMap = new Map<number, CalculationResult[]>()
+          resultados.forEach(r => {
+            if (!cuantiasMap.has(r.cuantía)) {
+              cuantiasMap.set(r.cuantía, [])
+            }
+            cuantiasMap.get(r.cuantía)!.push(r)
+          })
+
+          cuantiasMap.forEach((resPorCuantia, cuantia) => {
+            const firstResult = resPorCuantia[0]
+            const modalidades = resPorCuantia.map(r => 
+              r.modalidad === 'legal' ? 'Legal' :
+              r.modalidad === 'judicial' ? 'Judicial' :
+              r.modalidad === 'tae' ? 'TAE' : 'TAE+5%'
+            ).join(', ')
+            
+            const totalInteresesConcepto = resPorCuantia.reduce((sum, r) => sum + (r.resultado?.totalInteres || 0), 0)
+            
+            tablaResumenData.push([
+              concepto,
+              cuantia.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
+              new Date(firstResult.fecha_inicio).toLocaleDateString('es-ES'),
+              new Date(firstResult.fecha_fin).toLocaleDateString('es-ES'),
+              modalidades,
+              totalInteresesConcepto.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+            ])
+          })
+        })
+
+        if (tablaResumenData.length > 0) {
+          autoTable(pdf, {
+            startY: yPosition,
+            head: [['Concepto', 'Cuantía (€)', 'Fecha Inicio', 'Fecha Fin', 'Modalidades', 'Intereses (€)']],
+            body: tablaResumenData,
+            theme: 'grid',
+            styles: { fontSize: 8, cellPadding: 3 },
+            headStyles: { fillColor: [52, 152, 219], textColor: 255 },
+            margin: { left: margin, right: margin },
+            columnStyles: {
+              1: { halign: 'right' },
+              5: { halign: 'right' }
+            },
+            didDrawPage: (data) => {
+              yPosition = (data.cursor?.y || yPosition) + 15
+            }
+          })
+        }
+      }
+
+      // ANÁLISIS GRÁFICO (condicional)
+      if (includeResumenVisual) {
+        yPosition = addNewPage()
+        let sectionNum = 3
+        if (includeMetodologia) sectionNum++
+        if (includeResultadoPorModalidad) sectionNum++
+        if (includeTablaResumen) sectionNum++
+        
+        pdf.setFontSize(18)
+        pdf.setFont('helvetica', 'bold')
+        pdf.text(`${sectionNum}. ANÁLISIS GRÁFICO`, margin, yPosition)
+        yPosition += 15
+
+        pdf.setFontSize(12)
+        pdf.setFont('helvetica', 'normal')
+        pdf.text('Evolución temporal de los intereses calculados:', margin, yPosition)
+        yPosition += 15
+
+        // Intentar capturar gráficos
+        const chartElements = document.querySelectorAll('.recharts-wrapper')
+        if (chartElements.length > 0) {
+          try {
+            for (let i = 0; i < Math.min(chartElements.length, 2); i++) {
+              if (yPosition > pageHeight - 120) {
+                yPosition = addNewPage()
+              }
+
+              const canvas = await html2canvas(chartElements[i] as HTMLElement, {
+                useCORS: true,
+                allowTaint: true
+              })
+
+              const imgData = canvas.toDataURL('image/png')
+              const imgWidth = contentWidth
+              const imgHeight = (canvas.height * imgWidth) / canvas.width
+
+              if (imgHeight > pageHeight - yPosition - 40) {
+                // Si la imagen es demasiado grande, reducirla
+                const scale = (pageHeight - yPosition - 40) / imgHeight
+                const scaledWidth = imgWidth * scale
+                const scaledHeight = imgHeight * scale
+                pdf.addImage(imgData, 'PNG', margin, yPosition, scaledWidth, scaledHeight)
+                yPosition += scaledHeight + 10
+              } else {
+                pdf.addImage(imgData, 'PNG', margin, yPosition, imgWidth, imgHeight)
+                yPosition += imgHeight + 10
+              }
+
+              // Añadir título al gráfico
+              pdf.setFontSize(10)
+              pdf.setFont('helvetica', 'italic')
+              pdf.text(`Gráfico ${i + 1}: Evolución de intereses por modalidad`, margin, yPosition - 5)
+              yPosition += 10
+            }
+          } catch (error) {
+            console.warn('No se pudieron capturar los gráficos:', error)
+            pdf.setFontSize(10)
+            pdf.setFont('helvetica', 'normal')
+            pdf.text('Nota: Los gráficos no pudieron ser incluidos en el PDF.', margin, yPosition)
+            pdf.text('Para ver los gráficos completos, consulte la aplicación web.', margin, yPosition + 8)
+            yPosition += 20
+          }
+        } else {
+          pdf.setFontSize(10)
+          pdf.setFont('helvetica', 'normal')
+          pdf.text('No hay gráficos disponibles para incluir en el informe.', margin, yPosition)
+          yPosition += 15
+        }
+      }
+
+      // DETALLE DE CÁLCULOS (condicional)
+      if (includeDetalleCalculo) {
+        yPosition = addNewPage()
+        let sectionNum = 3
+        if (includeMetodologia) sectionNum++
+        if (includeResultadoPorModalidad) sectionNum++
+        if (includeTablaResumen) sectionNum++
+        if (includeResumenVisual) sectionNum++
+        
+        pdf.setFontSize(18)
+        pdf.setFont('helvetica', 'bold')
+        pdf.text(`${sectionNum}. DETALLE DE CÁLCULOS`, margin, yPosition)
+        yPosition += 15
+
+        pdf.setFontSize(12)
+        pdf.setFont('helvetica', 'normal')
+        pdf.text('Detalle año a año de todos los cálculos realizados:', margin, yPosition)
+        yPosition += 15
+
+        globalModalidades.forEach(modalidad => {
+          const modalityResults = results.filter(r => r.modalidad === modalidad && r.resultado?.detallePorAño)
+          if (modalityResults.length === 0) return
+
+          if (yPosition > pageHeight - 60) {
+            yPosition = addNewPage()
+          }
+
+          pdf.setFontSize(14)
+          pdf.setFont('helvetica', 'bold')
+          pdf.text(`${modalidad === 'legal' ? 'Intereses Legales' :
+                    modalidad === 'judicial' ? 'Intereses Judiciales' :
+                    modalidad === 'tae' ? 'Intereses TAE' : 'Intereses TAE + 5%'}`, margin, yPosition)
+          yPosition += 12
+
+          modalityResults.forEach(result => {
+            if (!result.resultado?.detallePorAño) return
+
+            if (yPosition > pageHeight - 80) {
+              yPosition = addNewPage()
+            }
+
+            pdf.setFontSize(10)
+            pdf.setFont('helvetica', 'bold')
+            pdf.text(`Capital: ${result.cuantía.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}`, margin + 10, yPosition)
+            yPosition += 8
+            pdf.text(`Período: ${new Date(result.fecha_inicio).toLocaleDateString('es-ES')} - ${new Date(result.fecha_fin).toLocaleDateString('es-ES')}`, margin + 10, yPosition)
+            yPosition += 10
+
+            const detailData = result.resultado.detallePorAño.map(year => [
+              year.año.toString(),
+              year.dias.toString(),
+              (year.tasa * 100).toFixed(4) + '%',
+              year.interes.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+            ])
+
+            autoTable(pdf, {
+              startY: yPosition,
+              head: [['Año', 'Días', 'Tasa', 'Interés (€)']],
+              body: detailData,
+              theme: 'grid',
+              styles: { fontSize: 7, cellPadding: 2 },
+              headStyles: { fillColor: [52, 152, 219], textColor: 255 },
+              margin: { left: margin + 10, right: margin },
+              columnStyles: {
+                1: { halign: 'center' },
+                2: { halign: 'right' },
+                3: { halign: 'right' }
+              },
+              didDrawPage: (data) => {
+                yPosition = (data.cursor?.y || yPosition) + 12
+              }
+            })
+
+            yPosition += 12
+          })
+        })
+      }
 
       // Descargar el PDF
       const fileName = `INFORME_INTERESES_${nombreExpediente.replace(/[^a-zA-Z0-9]/g, '_').toUpperCase()}.pdf`
@@ -1204,7 +1538,7 @@ export default function InterestCalculatorAdvanced() {
       console.error('Error generando PDF:', error)
       setError('Error al generar el PDF')
     }
-  }, [results, globalModalidades, globalFechaFin, globalTaeContrato, globalFechaSentencia, reportTitle, reportSubtitle, reportNotes, reportAdditionalInfo, reportFooter])
+  }, [results, globalModalidades, globalFechaFin, globalTaeContrato, globalFechaSentencia, reportTitle, reportSubtitle, reportNotes, reportAdditionalInfo, reportFooter, excelData, columnMapping, includeResultadoPorModalidad, includeTablaResumen, includeDetalleCalculo, includeResumenVisual, includeMetodologia, nombreExpedienteTemp, numeroProcedimiento])
 
   if (loading) {
     return (
@@ -1572,7 +1906,7 @@ export default function InterestCalculatorAdvanced() {
                 Personalizar Informe
               </button>
               <button
-                onClick={exportToPDF}
+                onClick={() => setShowPdfConfigModal(true)}
                 className="inline-flex items-center px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 ml-2"
               >
                 <Download className="h-4 w-4 mr-2" />
@@ -1862,6 +2196,85 @@ export default function InterestCalculatorAdvanced() {
             </div>
           </div>
 
+          {/* Sección de Selección de Contenidos del Informe */}
+          <div className="mt-6 border-t pt-6">
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">Secciones del Informe</h3>
+            <p className="text-sm text-gray-600 mb-4">
+              Selecciona las secciones que deseas incluir en el informe PDF:
+            </p>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="flex items-center">
+                <input
+                  type="checkbox"
+                  id="includeResultadoPorModalidad"
+                  checked={includeResultadoPorModalidad}
+                  onChange={(e) => setIncludeResultadoPorModalidad(e.target.checked)}
+                  className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                />
+                <label htmlFor="includeResultadoPorModalidad" className="ml-2 text-sm text-gray-700">
+                  <span className="font-medium">Resultado por Modalidad</span>
+                  <p className="text-xs text-gray-500">Resumen de cálculos agrupados por tipo de interés</p>
+                </label>
+              </div>
+
+              <div className="flex items-center">
+                <input
+                  type="checkbox"
+                  id="includeTablaResumen"
+                  checked={includeTablaResumen}
+                  onChange={(e) => setIncludeTablaResumen(e.target.checked)}
+                  className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                />
+                <label htmlFor="includeTablaResumen" className="ml-2 text-sm text-gray-700">
+                  <span className="font-medium">Tabla Resumen por Concepto</span>
+                  <p className="text-xs text-gray-500">Tabla con concepto, períodos en una fila única por concepto</p>
+                </label>
+              </div>
+
+              <div className="flex items-center">
+                <input
+                  type="checkbox"
+                  id="includeDetalleCalculo"
+                  checked={includeDetalleCalculo}
+                  onChange={(e) => setIncludeDetalleCalculo(e.target.checked)}
+                  className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                />
+                <label htmlFor="includeDetalleCalculo" className="ml-2 text-sm text-gray-700">
+                  <span className="font-medium">Detalle de Cálculos</span>
+                  <p className="text-xs text-gray-500">Desglose año a año de cada cálculo realizado</p>
+                </label>
+              </div>
+
+              <div className="flex items-center">
+                <input
+                  type="checkbox"
+                  id="includeResumenVisual"
+                  checked={includeResumenVisual}
+                  onChange={(e) => setIncludeResumenVisual(e.target.checked)}
+                  className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                />
+                <label htmlFor="includeResumenVisual" className="ml-2 text-sm text-gray-700">
+                  <span className="font-medium">Resumen Visual (Gráficos)</span>
+                  <p className="text-xs text-gray-500">Gráficos de evolución temporal de intereses</p>
+                </label>
+              </div>
+
+              <div className="flex items-center">
+                <input
+                  type="checkbox"
+                  id="includeMetodologia"
+                  checked={includeMetodologia}
+                  onChange={(e) => setIncludeMetodologia(e.target.checked)}
+                  className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                />
+                <label htmlFor="includeMetodologia" className="ml-2 text-sm text-gray-700">
+                  <span className="font-medium">Metodología de Cálculo</span>
+                  <p className="text-xs text-gray-500">Fórmulas matemáticas y tabla de intereses históricos</p>
+                </label>
+              </div>
+            </div>
+          </div>
+
           <div className="mt-6 flex justify-end space-x-3">
             <button
               onClick={() => {
@@ -1869,7 +2282,12 @@ export default function InterestCalculatorAdvanced() {
                 setReportSubtitle('DE INTERESES')
                 setReportNotes('')
                 setReportAdditionalInfo('')
-                setReportFooter('Sistema de Cálculo de Intereses Legales - Tasador Web v2.0')
+                setReportFooter('Departamento de Ejecuciones y Tasaciones - RUA ABOGADOS')
+                setIncludeResultadoPorModalidad(true)
+                setIncludeTablaResumen(true)
+                setIncludeDetalleCalculo(true)
+                setIncludeResumenVisual(true)
+                setIncludeMetodologia(true)
               }}
               className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50"
             >
@@ -1936,6 +2354,151 @@ export default function InterestCalculatorAdvanced() {
                 </div>
               </div>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* Modal de Configuración del PDF */}
+      {showPdfConfigModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="p-6">
+              <div className="flex items-center justify-between mb-6">
+                <div className="flex items-center space-x-2">
+                  <Download className="h-6 w-6 text-red-600" />
+                  <h2 className="text-xl font-bold text-gray-900">Configuración del Informe PDF</h2>
+                </div>
+                <button
+                  onClick={() => setShowPdfConfigModal(false)}
+                  className="text-gray-400 hover:text-gray-600"
+                >
+                  <X className="h-6 w-6" />
+                </button>
+              </div>
+
+              {/* Datos del Expediente */}
+              <div className="mb-6">
+                <h3 className="text-lg font-semibold text-gray-900 mb-4">Datos del Expediente</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Nombre del Expediente *
+                    </label>
+                    <input
+                      type="text"
+                      value={nombreExpedienteTemp}
+                      onChange={(e) => setNombreExpedienteTemp(e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-red-500"
+                      placeholder="Ej: Reclamación Juan Pérez"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Número de Procedimiento *
+                    </label>
+                    <input
+                      type="text"
+                      value={numeroProcedimiento}
+                      onChange={(e) => setNumeroProcedimiento(e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-red-500"
+                      placeholder="Ej: 123/2024"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Secciones a Incluir */}
+              <div className="mb-6">
+                <h3 className="text-lg font-semibold text-gray-900 mb-4">Secciones del Informe</h3>
+                <p className="text-sm text-gray-600 mb-4">
+                  Selecciona las secciones que deseas incluir en el informe:
+                </p>
+                <div className="grid grid-cols-1 gap-3">
+                  <label className="flex items-center p-3 border border-gray-200 rounded-md hover:bg-gray-50 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={includeResultadoPorModalidad}
+                      onChange={(e) => setIncludeResultadoPorModalidad(e.target.checked)}
+                      className="h-4 w-4 text-red-600 focus:ring-red-500 border-gray-300 rounded"
+                    />
+                    <div className="ml-3">
+                      <span className="font-medium text-gray-900">Resultado por Modalidad</span>
+                      <p className="text-xs text-gray-500">Resumen de cálculos agrupados por tipo de interés</p>
+                    </div>
+                  </label>
+
+                  <label className="flex items-center p-3 border border-gray-200 rounded-md hover:bg-gray-50 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={includeTablaResumen}
+                      onChange={(e) => setIncludeTablaResumen(e.target.checked)}
+                      className="h-4 w-4 text-red-600 focus:ring-red-500 border-gray-300 rounded"
+                    />
+                    <div className="ml-3">
+                      <span className="font-medium text-gray-900">Tabla Resumen por Concepto</span>
+                      <p className="text-xs text-gray-500">Tabla consolidada con períodos por concepto</p>
+                    </div>
+                  </label>
+
+                  <label className="flex items-center p-3 border border-gray-200 rounded-md hover:bg-gray-50 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={includeMetodologia}
+                      onChange={(e) => setIncludeMetodologia(e.target.checked)}
+                      className="h-4 w-4 text-red-600 focus:ring-red-500 border-gray-300 rounded"
+                    />
+                    <div className="ml-3">
+                      <span className="font-medium text-gray-900">Metodología de Cálculo</span>
+                      <p className="text-xs text-gray-500">Fórmulas matemáticas y tabla de intereses históricos</p>
+                    </div>
+                  </label>
+
+                  <label className="flex items-center p-3 border border-gray-200 rounded-md hover:bg-gray-50 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={includeResumenVisual}
+                      onChange={(e) => setIncludeResumenVisual(e.target.checked)}
+                      className="h-4 w-4 text-red-600 focus:ring-red-500 border-gray-300 rounded"
+                    />
+                    <div className="ml-3">
+                      <span className="font-medium text-gray-900">Resumen Visual (Gráficos)</span>
+                      <p className="text-xs text-gray-500">Gráficos de evolución temporal de intereses</p>
+                    </div>
+                  </label>
+
+                  <label className="flex items-center p-3 border border-gray-200 rounded-md hover:bg-gray-50 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={includeDetalleCalculo}
+                      onChange={(e) => setIncludeDetalleCalculo(e.target.checked)}
+                      className="h-4 w-4 text-red-600 focus:ring-red-500 border-gray-300 rounded"
+                    />
+                    <div className="ml-3">
+                      <span className="font-medium text-gray-900">Detalle de Cálculos</span>
+                      <p className="text-xs text-gray-500">Desglose año a año de cada cálculo</p>
+                    </div>
+                  </label>
+                </div>
+              </div>
+
+              {/* Botones */}
+              <div className="flex justify-end space-x-3 pt-4 border-t">
+                <button
+                  onClick={() => setShowPdfConfigModal(false)}
+                  className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50"
+                >
+                  Cancelar
+                </button>
+                <button
+                  onClick={exportToPDF}
+                  disabled={!nombreExpedienteTemp || !numeroProcedimiento}
+                  className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed inline-flex items-center"
+                >
+                  <Download className="h-4 w-4 mr-2" />
+                  Generar PDF
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       )}
