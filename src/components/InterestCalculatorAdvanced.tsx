@@ -354,9 +354,12 @@ export default function InterestCalculatorAdvanced() {
           }
 
           // Parse cuantía (handle both string and number)
-          const capital = typeof cuantiaValue === 'number' 
+          let capital = typeof cuantiaValue === 'number' 
             ? cuantiaValue 
             : parseFloat(String(cuantiaValue).replace(',', '.').replace(/[^\d.-]/g, ''))
+
+          // Normalizar a valor positivo
+          capital = normalizeAmount(capital)
 
           if (isNaN(capital) || capital <= 0) {
             // Skip rows with invalid or zero/negative amounts
@@ -599,10 +602,12 @@ export default function InterestCalculatorAdvanced() {
   const formatCellValue = (col: string, value: any) => {
     if (!value && value !== 0) return '-'
     
-    // Si es la columna de cuantía, formatear como moneda
+    // Si es la columna de cuantía, formatear como moneda (y convertir negativo a positivo)
     if (col === columnMapping.cuantía) {
-      const num = Number(value)
+      let num = Number(value)
       if (!isNaN(num)) {
+        // Convertir a valor absoluto (positivo)
+        num = Math.abs(num)
         return formatCurrency(num)
       }
     }
@@ -626,6 +631,13 @@ export default function InterestCalculatorAdvanced() {
     }
     
     return value
+  }
+  
+  // Función para normalizar valores de cuantía (convertir negativos a positivos)
+  const normalizeAmount = (amount: any): number => {
+    const num = Number(amount)
+    if (isNaN(num)) return 0
+    return Math.abs(num)
   }
 
   interface AnimatedCurrencyProps {
@@ -999,7 +1011,7 @@ export default function InterestCalculatorAdvanced() {
       // Calcular capital total como la suma única de cuantías (sin duplicar por modalidades)
       const uniqueCuantias = new Map<string, number>()
       excelData.forEach((row, index) => {
-        const cuantia = Number(row[columnMapping.cuantía])
+        const cuantia = normalizeAmount(row[columnMapping.cuantía])
         if (!isNaN(cuantia)) {
           uniqueCuantias.set(`${index}`, cuantia)
         }
