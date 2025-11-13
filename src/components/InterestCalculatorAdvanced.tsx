@@ -594,6 +594,39 @@ export default function InterestCalculatorAdvanced() {
     }
     return 'Fecha inválida'
   }
+  
+  // Función para formatear celdas de la tabla de vista previa
+  const formatCellValue = (col: string, value: any) => {
+    if (!value && value !== 0) return '-'
+    
+    // Si es la columna de cuantía, formatear como moneda
+    if (col === columnMapping.cuantía) {
+      const num = Number(value)
+      if (!isNaN(num)) {
+        return formatCurrency(num)
+      }
+    }
+    
+    // Si es la columna de fecha_inicio, intentar formatear como fecha
+    if (col === columnMapping.fecha_inicio) {
+      // Verificar si es un número (fecha serial de Excel)
+      if (typeof value === 'number' && value > 1000) {
+        const parsed = parseDate(value)
+        if (parsed) {
+          return parsed.toLocaleDateString('es-ES')
+        }
+      }
+      // Si es string, intentar parsear
+      if (typeof value === 'string') {
+        const parsed = parseDate(value)
+        if (parsed) {
+          return parsed.toLocaleDateString('es-ES')
+        }
+      }
+    }
+    
+    return value
+  }
 
   interface AnimatedCurrencyProps {
     amount: number
@@ -1850,7 +1883,7 @@ export default function InterestCalculatorAdvanced() {
                     <tr key={index} className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
                       {availableColumns.map((col, colIndex) => (
                         <td key={colIndex} className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                          {col === columnMapping.cuantía && row[col] ? formatCurrency(Number(row[col])) : (row[col] || '-')}
+                          {formatCellValue(col, row[col])}
                         </td>
                       ))}
                     </tr>
