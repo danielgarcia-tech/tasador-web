@@ -80,8 +80,17 @@ export class InterestCalculator {
    * Calcula el número de días entre dos fechas
    */
   private calcularDias(fechaInicio: Date, fechaFin: Date): number {
-    const diffTime = Math.abs(fechaFin.getTime() - fechaInicio.getTime());
-    return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    // Calcular la diferencia en días de forma precisa
+    // Establecer ambas fechas a las 00:00:00 para evitar problemas de hora
+    const inicio = new Date(fechaInicio.getFullYear(), fechaInicio.getMonth(), fechaInicio.getDate());
+    const fin = new Date(fechaFin.getFullYear(), fechaFin.getMonth(), fechaFin.getDate());
+    
+    const diffTime = fin.getTime() - inicio.getTime();
+    const dias = Math.round(diffTime / (1000 * 60 * 60 * 24));
+    
+    // En cálculos de intereses legales, se incluye el día de inicio
+    // Pero solo si es una diferencia válida (no negativa)
+    return Math.max(1, dias + 1);
   }
 
   /**
@@ -143,30 +152,25 @@ export class InterestCalculator {
         finAño = new Date(año, 11, 31); // 31 de diciembre
       }
 
-      // Para modalidades judiciales, manejar la transición legal -> judicial
+      // Para modalidades judiciales, solo calcular los intereses judiciales (sin los legales previos)
       if (modalidad === 'judicial' && fechaSentencia) {
-        if (finAño <= fechaSentencia) {
-          // Período completamente legal
-          const tasa = this.getTasaSegunModalidad(año, 'legal', taeContrato);
-          if (tasa) {
-            const dias = this.calcularDias(inicioAño, finAño);
-            const diasAño = this.esBisiesto(año) ? 366 : 365;
-            const interes = Math.round((capital * tasa * (dias / diasAño)) * 100) / 100;
+        // Determinar el inicio del período judicial
+        let inicioJudicial: Date;
+        
+        if (inicioAño >= fechaSentencia) {
+          // El período comienza en o después de la sentencia, todo es judicial
+          inicioJudicial = inicioAño;
+        } else {
+          // El período comienza antes de la sentencia, el período judicial comienza al día siguiente
+          inicioJudicial = new Date(fechaSentencia);
+          inicioJudicial.setDate(inicioJudicial.getDate() + 1);
+        }
 
-            resultado.totalInteres += interes;
-            resultado.detallePorAño.push({
-              año,
-              dias,
-              tasa,
-              interes,
-              tipo: 'legal'
-            });
-          }
-        } else if (inicioAño >= fechaSentencia) {
-          // Período completamente judicial
+        // Solo calcular si hay días judiciales en este año
+        if (inicioJudicial < finAño) {
           const tasa = this.getTasaSegunModalidad(año, 'judicial', taeContrato);
           if (tasa) {
-            const dias = this.calcularDias(inicioAño, finAño);
+            const dias = this.calcularDias(inicioJudicial, finAño);
             const diasAño = this.esBisiesto(año) ? 366 : 365;
             const interes = Math.round((capital * tasa * (dias / diasAño)) * 100) / 100;
 
@@ -178,49 +182,6 @@ export class InterestCalculator {
               interes,
               tipo: 'judicial'
             });
-          }
-        } else {
-          // Período mixto: parte legal + parte judicial
-          const finLegal = new Date(fechaSentencia);
-          const inicioJudicial = new Date(fechaSentencia);
-          inicioJudicial.setDate(inicioJudicial.getDate() + 1); // Día siguiente a la sentencia
-
-          // Parte legal
-          if (inicioAño < finLegal) {
-            const tasaLegal = this.getTasaSegunModalidad(año, 'legal', taeContrato);
-            if (tasaLegal) {
-              const diasLegal = this.calcularDias(inicioAño, finLegal);
-              const diasAño = this.esBisiesto(año) ? 366 : 365;
-              const interesLegal = Math.round((capital * tasaLegal * (diasLegal / diasAño)) * 100) / 100;
-
-              resultado.totalInteres += interesLegal;
-              resultado.detallePorAño.push({
-                año,
-                dias: diasLegal,
-                tasa: tasaLegal,
-                interes: interesLegal,
-                tipo: 'legal'
-              });
-            }
-          }
-
-          // Parte judicial
-          if (inicioJudicial < finAño) {
-            const tasaJudicial = this.getTasaSegunModalidad(año, 'judicial', taeContrato);
-            if (tasaJudicial) {
-              const diasJudicial = this.calcularDias(inicioJudicial, finAño);
-              const diasAño = this.esBisiesto(año) ? 366 : 365;
-              const interesJudicial = Math.round((capital * tasaJudicial * (diasJudicial / diasAño)) * 100) / 100;
-
-              resultado.totalInteres += interesJudicial;
-              resultado.detallePorAño.push({
-                año,
-                dias: diasJudicial,
-                tasa: tasaJudicial,
-                interes: interesJudicial,
-                tipo: 'judicial'
-              });
-            }
           }
         }
       } else {

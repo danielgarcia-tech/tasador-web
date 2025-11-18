@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react'
-import { Calculator, TrendingUp, Upload, AlertCircle, Trash2, BarChart3, Download, X, RefreshCw } from 'lucide-react'
+import { Calculator, TrendingUp, Upload, AlertCircle, Trash2, BarChart3, Download, X, RefreshCw, Plus } from 'lucide-react'
 import { interestCalculator, initializeInterestCalculator } from '../lib/interestCalculator'
 import type { InterestCalculationInput, InterestCalculationResult } from '../lib/interestCalculator'
 import * as XLSX from 'xlsx'
@@ -44,7 +44,7 @@ interface CalculationResult extends ExcelRow {
 }
 
 interface ColumnMapping {
-  cuantía: string
+  cuantías: string[] // Array para múltiples columnas de cuantía
   fecha_inicio: string
   concepto?: string
 }
@@ -55,7 +55,7 @@ export default function InterestCalculatorAdvanced() {
   const [error, setError] = useState<string | null>(null)
   const [excelData, setExcelData] = useState<ExcelRow[]>([])
   const [availableColumns, setAvailableColumns] = useState<string[]>([])
-  const [columnMapping, setColumnMapping] = useState<ColumnMapping>({ cuantía: '', fecha_inicio: '', concepto: '' })
+  const [columnMapping, setColumnMapping] = useState<ColumnMapping>({ cuantías: [''], fecha_inicio: '', concepto: '' })
   const [globalModalidades, setGlobalModalidades] = useState<Array<'legal' | 'judicial' | 'tae' | 'tae_plus5'>>(['legal'])
   const [globalFechaFin, setGlobalFechaFin] = useState<string>('')
   const [globalTaeContrato, setGlobalTaeContrato] = useState<string>('')
@@ -99,7 +99,7 @@ export default function InterestCalculatorAdvanced() {
     setResults([])
     setError(null)
     setAvailableColumns([])
-    setColumnMapping({ cuantía: '', fecha_inicio: '', concepto: '' })
+    setColumnMapping({ cuantías: [''], fecha_inicio: '', concepto: '' })
     setGlobalModalidades(['legal'])
     setGlobalFechaFin('')
     setGlobalTaeContrato('')
@@ -251,14 +251,14 @@ export default function InterestCalculatorAdvanced() {
       setColumnMapping({ cuantía: '', fecha_inicio: '', concepto: '' })
 
       const data = await file.arrayBuffer()
-      const workbook = XLSX.read(data, { type: 'array' })
+      const workbook = XLSX.read(data, { type: 'array', cellDates: true })
 
       // Get first worksheet
       const worksheetName = workbook.SheetNames[0]
       const worksheet = workbook.Sheets[worksheetName]
 
-      // Convert to JSON
-      const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 }) as any[][]
+      // Convert to JSON with raw strings for better control
+      const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1, raw: false }) as any[][]
 
       if (jsonData.length < 2) {
         throw new Error('El archivo debe contener al menos una fila de datos')
@@ -273,6 +273,7 @@ export default function InterestCalculatorAdvanced() {
       }
 
       setAvailableColumns(availableColumns)
+      setColumnMapping({ cuantías: [''], fecha_inicio: '', concepto: '' })
 
       // Convert data rows to objects using headers
       const dataRows: ExcelRow[] = []
@@ -305,8 +306,10 @@ export default function InterestCalculatorAdvanced() {
 
   // Optimización del cálculo de intereses con progress tracking
   const calculateAllInterests = useCallback(async () => {
-    if (!initialized || excelData.length === 0 || !columnMapping.cuantía || !columnMapping.fecha_inicio) {
-      setError('Debe seleccionar las columnas de mapeo y subir un archivo')
+    // Validar que haya al menos una cuantía seleccionada (no vacía)
+    const cuantiasSeleccionadas = columnMapping.cuantías.filter(q => q !== '')
+    if (!initialized || excelData.length === 0 || cuantiasSeleccionadas.length === 0 || !columnMapping.fecha_inicio) {
+      setError('Debe seleccionar al menos una columna de cuantía y la columna de fecha')
       return
     }
 
@@ -340,23 +343,30 @@ export default function InterestCalculatorAdvanced() {
       for (const [rowIndex, row] of excelData.entries()) {
         try {
           // Get values using column mapping
-          const cuantiaValue = row[columnMapping.cuantía]
           const fechaInicioValue = row[columnMapping.fecha_inicio]
           const conceptoValue = columnMapping.concepto ? row[columnMapping.concepto] : undefined
 
+          // Sumar todas las cuantías de las columnas seleccionadas (filtrar vacías)
+          let capital = 0
+          const cuantiasValidas = columnMapping.cuantías.filter(q => q !== '')
+          for (const cuantiaCol of cuantiasValidas) {
+            const cuantiaValue = row[cuantiaCol]
+            if (cuantiaValue) {
+              const valor = typeof cuantiaValue === 'number' 
+                ? cuantiaValue 
+                : parseFloat(String(cuantiaValue).replace(',', '.').replace(/[^\d.-]/g, ''))
+              if (!isNaN(valor)) {
+                capital += valor
+              }
+            }
+          }
+
           // Skip rows with invalid or missing data
-          if (!cuantiaValue || !fechaInicioValue ||
-              String(cuantiaValue).toLowerCase().includes('total') ||
+          if (capital <= 0 || !fechaInicioValue ||
               String(fechaInicioValue).toLowerCase().includes('total') ||
-              String(cuantiaValue).trim() === '' ||
               String(fechaInicioValue).trim() === '') {
             continue
           }
-
-          // Parse cuantía (handle both string and number)
-          let capital = typeof cuantiaValue === 'number' 
-            ? cuantiaValue 
-            : parseFloat(String(cuantiaValue).replace(',', '.').replace(/[^\d.-]/g, ''))
 
           // Normalizar a valor positivo
           capital = normalizeAmount(capital)
@@ -392,7 +402,9 @@ export default function InterestCalculatorAdvanced() {
             const parsedFechaFin = parseDate(globalFechaFin)
 
             if (!parsedFechaInicio) {
-              throw new Error(`Fecha inicio inválida: ${fechaInicioValue}`)
+              // Silently skip rows with invalid dates - don't throw error
+              console.debug(`Saltando fila con fecha inicio inválida: ${fechaInicioValue}`)
+              continue
             }
 
             if (!parsedFechaFin) {
@@ -425,8 +437,8 @@ export default function InterestCalculatorAdvanced() {
             calculatedResults.push({
               ...row,
               cuantía: capital,
-              fecha_inicio: parsedFechaInicio.toISOString().split('T')[0],
-              fecha_fin: parsedFechaFin.toISOString().split('T')[0],
+              fecha_inicio: formatDateToYYYYMMDD(parsedFechaInicio),
+              fecha_fin: formatDateToYYYYMMDD(parsedFechaFin),
               modalidad,
               tae_contrato: globalTaeContrato ? parseFloat(globalTaeContrato) : undefined,
               fecha_sentencia: globalFechaSentencia || undefined,
@@ -461,24 +473,41 @@ export default function InterestCalculatorAdvanced() {
 
   // Función auxiliar para parsear fechas
   const parseDate = (dateValue: any): Date | null => {
-    if (!dateValue) return null
+    if (!dateValue && dateValue !== 0) return null
 
     // If it's already a Date object
     if (dateValue instanceof Date && !isNaN(dateValue.getTime())) {
       return dateValue
     }
 
-    // If it's a number (Excel serial date)
-    if (typeof dateValue === 'number') {
-      // Excel dates are days since 1900-01-01, but Excel incorrectly treats 1900 as leap year
-      const excelEpoch = new Date(1900, 0, 1)
-      const days = dateValue - 2 // Adjust for Excel's leap year bug
-      return new Date(excelEpoch.getTime() + days * 24 * 60 * 60 * 1000)
+    // Convert to string for consistent processing
+    let dateString = String(dateValue).trim()
+
+    // If it's a number or numeric string (including decimals like 27.43)
+    if (typeof dateValue === 'number' || /^\d+(\.\d+)?$/.test(dateString)) {
+      const num = parseFloat(dateString)
+      
+      // Excel serial dates for reasonable historical dates start around 30000+ (1980s)
+      if (num > 30000) {
+        const excelEpoch = new Date(1900, 0, 1)
+        const days = num - 2 // Adjust for Excel's leap year bug
+        const resultDate = new Date(excelEpoch.getTime() + days * 24 * 60 * 60 * 1000)
+        if (!isNaN(resultDate.getTime())) {
+          return resultDate
+        }
+      }
+      
+      // For small numbers, they might be days of month with decimals representing time
+      // Skip these as they're invalid
+      return null
     }
 
-    // If it's a string
+    // If it's a string with date format
     if (typeof dateValue === 'string') {
-      // Try different formats
+      // Normalize separators - handle both . and / and -
+      let normalized = dateString.replace(/\./g, '/')
+      
+      // Try different formats in order of preference
       const formats = [
         // DD/MM/YYYY
         /^(\d{1,2})\/(\d{1,2})\/(\d{4})$/,
@@ -490,12 +519,10 @@ export default function InterestCalculatorAdvanced() {
         /^(\d{4})-(\d{1,2})-(\d{1,2})$/,
         // DD/MM/YY
         /^(\d{1,2})\/(\d{1,2})\/(\d{2})$/,
-        // MM/DD/YYYY (US format)
-        /^(\d{1,2})\/(\d{1,2})\/(\d{4})$/,
       ]
 
       for (const format of formats) {
-        const match = dateValue.match(format)
+        const match = normalized.match(format)
         if (match) {
           let year: number, month: number, day: number
           if (format === formats[0] || format === formats[1] || format === formats[4]) {
@@ -504,19 +531,27 @@ export default function InterestCalculatorAdvanced() {
             month = parseInt(match[2]) - 1 // JS months are 0-based
             year = parseInt(match[3])
             if (year < 100) year += 2000 // YY to YYYY
+            
+            // Validar que el mes sea válido (0-11 en JS, 1-12 en humano)
+            if (month < 0 || month > 11 || day < 1 || day > 31) {
+              continue // Intentar siguiente formato
+            }
           } else if (format === formats[2] || format === formats[3]) {
             // YYYY/MM/DD or YYYY-MM-DD
             year = parseInt(match[1])
             month = parseInt(match[2]) - 1
             day = parseInt(match[3])
+            
+            // Validar que el mes sea válido
+            if (month < 0 || month > 11 || day < 1 || day > 31) {
+              continue // Intentar siguiente formato
+            }
           } else {
-            // MM/DD/YYYY - assume US format
-            month = parseInt(match[1]) - 1
-            day = parseInt(match[2])
-            year = parseInt(match[3])
+            continue
           }
 
-          const date = new Date(year, month, day)
+          // Crear fecha a mediodía para evitar problemas de zona horaria
+          const date = new Date(year, month, day, 12, 0, 0, 0)
           if (!isNaN(date.getTime())) {
             return date
           }
@@ -524,13 +559,27 @@ export default function InterestCalculatorAdvanced() {
       }
 
       // Try native Date parsing as last resort
-      const nativeDate = new Date(dateValue)
+      const nativeDate = new Date(dateString)
       if (!isNaN(nativeDate.getTime())) {
         return nativeDate
       }
     }
 
     return null
+  }
+
+  // Función auxiliar para formatear fecha como YYYY-MM-DD sin conversión UTC
+  const formatDateToYYYYMMDD = (date: Date): string => {
+    const year = date.getFullYear()
+    const month = String(date.getMonth() + 1).padStart(2, '0')
+    const day = String(date.getDate()).padStart(2, '0')
+    return `${year}-${month}-${day}`
+  }
+
+  // Función auxiliar para parsear fecha YYYY-MM-DD sin conversión UTC
+  const parseDateFromYYYYMMDD = (dateString: string): Date => {
+    const [year, month, day] = dateString.split('-').map(Number)
+    return new Date(year, month - 1, day, 12, 0, 0, 0)
   }
 
   // Memoización del procesamiento de datos de evolución de intereses
@@ -874,21 +923,22 @@ export default function InterestCalculatorAdvanced() {
       // PORTADA
       // Añadir logo en la parte superior
       try {
-        // Convertir la imagen importada a base64 para jsPDF
-        const img = new Image()
-        img.src = logoRua
-        const canvas = document.createElement('canvas')
-        const ctx = canvas.getContext('2d')
-        canvas.width = img.width
-        canvas.height = img.height
-        ctx?.drawImage(img, 0, 0)
-        const imgData = canvas.toDataURL('image/png')
-
-        // Añadir logo centrado en la parte superior
-        const logoWidth = 80
-        const logoHeight = (img.height * logoWidth) / img.width
+        // Cargar imagen para obtener dimensiones reales
+        const logoImg = await new Promise<HTMLImageElement>((resolve, reject) => {
+          const img = new Image()
+          img.onload = () => resolve(img)
+          img.onerror = reject
+          img.src = logoRua
+        })
+        
+        // Calcular dimensiones manteniendo proporción
+        const maxLogoWidth = 80
+        const aspectRatio = logoImg.height / logoImg.width
+        const logoWidth = maxLogoWidth
+        const logoHeight = logoWidth * aspectRatio
         const logoX = (pageWidth - logoWidth) / 2
-        pdf.addImage(imgData, 'PNG', logoX, 30, logoWidth, logoHeight)
+        
+        pdf.addImage(logoRua, 'PNG', logoX, 30, logoWidth, logoHeight)
       } catch (error) {
         // Si hay error con el logo, continuar sin él
         console.warn('No se pudo cargar el logo:', error)
@@ -1010,9 +1060,13 @@ export default function InterestCalculatorAdvanced() {
       
       // Calcular capital total como la suma única de cuantías (sin duplicar por modalidades)
       const uniqueCuantias = new Map<string, number>()
+      const cuantiasValidas = columnMapping.cuantías.filter(q => q !== '')
       excelData.forEach((row, index) => {
-        const cuantia = normalizeAmount(row[columnMapping.cuantía])
-        if (!isNaN(cuantia)) {
+        let cuantia = 0
+        for (const cuantiaCol of cuantiasValidas) {
+          cuantia += normalizeAmount(row[cuantiaCol])
+        }
+        if (!isNaN(cuantia) && cuantia > 0) {
           uniqueCuantias.set(`${index}`, cuantia)
         }
       })
@@ -1020,7 +1074,7 @@ export default function InterestCalculatorAdvanced() {
       pdf.setFont('helvetica', 'normal')
       pdf.text(`• Total de cálculos realizados: ${totalCalculos}`, margin, yPosition)
       yPosition += 8
-      pdf.text(`• Período de cálculo: Hasta ${new Date(globalFechaFin).toLocaleDateString('es-ES')}`, margin, yPosition)
+      pdf.text(`• Período de cálculo: Hasta ${parseDateFromYYYYMMDD(globalFechaFin).toLocaleDateString('es-ES')}`, margin, yPosition)
       yPosition += 8
       pdf.text(`• Modalidades calculadas: ${globalModalidades.join(', ')}`, margin, yPosition)
       yPosition += 15
@@ -1067,7 +1121,7 @@ export default function InterestCalculatorAdvanced() {
       pdf.text('Parámetros utilizados en los cálculos:', margin, yPosition)
       yPosition += 10
 
-      pdf.text(`• Fecha fin de cálculo: ${new Date(globalFechaFin).toLocaleDateString('es-ES')}`, margin + 10, yPosition)
+      pdf.text(`• Fecha fin de cálculo: ${parseDateFromYYYYMMDD(globalFechaFin).toLocaleDateString('es-ES')}`, margin + 10, yPosition)
       yPosition += 8
 
       if (globalModalidades.includes('tae') || globalModalidades.includes('tae_plus5')) {
@@ -1141,9 +1195,11 @@ export default function InterestCalculatorAdvanced() {
           pdf.text('Intereses Judiciales:', margin, yPosition)
           yPosition += 8
           pdf.setFont('helvetica', 'normal')
-          pdf.text('• Antes de sentencia: Se aplica el interés legal vigente cada año.', margin + 10, yPosition)
+          pdf.text('Se aplica el interés de demora procesal (legal + 2 puntos) únicamente al período posterior a', margin + 10, yPosition)
           yPosition += 6
-          pdf.text('• Después de sentencia: Se aplica el interés de demora procesal (legal + 2 puntos).', margin + 10, yPosition)
+          pdf.text('la sentencia. Los resultados mostrados reflejan SOLO los intereses judiciales realmente generados,', margin + 10, yPosition)
+          yPosition += 6
+          pdf.text('sin incluir el período legal previo a la sentencia.', margin + 10, yPosition)
           yPosition += 10
         }
 
@@ -1373,6 +1429,30 @@ export default function InterestCalculatorAdvanced() {
           conceptosMap.get(concepto)!.push(r)
         })
 
+        // Construir headers dinámicos basados en modalidades seleccionadas
+        const baseHeaders = ['Concepto', 'Cuantía (€)', 'Fecha Inicio', 'Fecha Fin']
+        const modalidadHeaders: string[] = []
+        const modalidadKeys: Array<'legal' | 'judicial' | 'tae' | 'tae_plus5'> = []
+        
+        if (globalModalidades.includes('legal')) {
+          modalidadHeaders.push('Legal (€)')
+          modalidadKeys.push('legal')
+        }
+        if (globalModalidades.includes('judicial')) {
+          modalidadHeaders.push('Judicial (€)')
+          modalidadKeys.push('judicial')
+        }
+        if (globalModalidades.includes('tae')) {
+          modalidadHeaders.push('TAE (€)')
+          modalidadKeys.push('tae')
+        }
+        if (globalModalidades.includes('tae_plus5')) {
+          modalidadHeaders.push('TAE+5% (€)')
+          modalidadKeys.push('tae_plus5')
+        }
+
+        const headers = [...baseHeaders, ...modalidadHeaders]
+
         const tablaResumenData: any[] = []
         conceptosMap.forEach((resultados, concepto) => {
           // Agrupar por cuantía dentro del concepto
@@ -1386,38 +1466,48 @@ export default function InterestCalculatorAdvanced() {
 
           cuantiasMap.forEach((resPorCuantia, cuantia) => {
             const firstResult = resPorCuantia[0]
-            const modalidades = resPorCuantia.map(r => 
-              r.modalidad === 'legal' ? 'Legal' :
-              r.modalidad === 'judicial' ? 'Judicial' :
-              r.modalidad === 'tae' ? 'TAE' : 'TAE+5%'
-            ).join(', ')
             
-            const totalInteresesConcepto = resPorCuantia.reduce((sum, r) => sum + (r.resultado?.totalInteres || 0), 0)
+            // Calcular intereses por modalidad
+            const interesesPorModalidad: Record<string, number> = {}
+            modalidadKeys.forEach(mod => {
+              const resModalidad = resPorCuantia.find(r => r.modalidad === mod)
+              interesesPorModalidad[mod] = resModalidad?.resultado?.totalInteres || 0
+            })
             
-            tablaResumenData.push([
+            const row = [
               concepto,
               cuantia.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
-              new Date(firstResult.fecha_inicio).toLocaleDateString('es-ES'),
-              new Date(firstResult.fecha_fin).toLocaleDateString('es-ES'),
-              modalidades,
-              totalInteresesConcepto.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
-            ])
+              parseDateFromYYYYMMDD(firstResult.fecha_inicio).toLocaleDateString('es-ES'),
+              parseDateFromYYYYMMDD(firstResult.fecha_fin).toLocaleDateString('es-ES'),
+              ...modalidadKeys.map(mod => 
+                interesesPorModalidad[mod].toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+              )
+            ]
+            
+            tablaResumenData.push(row)
           })
         })
 
         if (tablaResumenData.length > 0) {
+          // Construir columnStyles dinámicamente
+          const columnStyles: any = {
+            1: { halign: 'right' }, // Cuantía
+          }
+          
+          // Alinear a la derecha las columnas de intereses (empiezan en índice 4)
+          modalidadKeys.forEach((_, idx) => {
+            columnStyles[4 + idx] = { halign: 'right' }
+          })
+          
           autoTable(pdf, {
             startY: yPosition,
-            head: [['Concepto', 'Cuantía (€)', 'Fecha Inicio', 'Fecha Fin', 'Modalidades', 'Intereses (€)']],
+            head: [headers],
             body: tablaResumenData,
             theme: 'grid',
             styles: { fontSize: 8, cellPadding: 3 },
             headStyles: { fillColor: [52, 152, 219], textColor: 255 },
             margin: { left: margin, right: margin },
-            columnStyles: {
-              1: { halign: 'right' },
-              5: { halign: 'right' }
-            },
+            columnStyles: columnStyles,
             didDrawPage: (data) => {
               yPosition = (data.cursor?.y || yPosition) + 15
             }
@@ -1677,18 +1767,47 @@ export default function InterestCalculatorAdvanced() {
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
               <div>
                 <label className="block text-sm font-medium text-blue-900 mb-2">
-                  Columna de Cuantía *
+                  Columnas de Cuantía * (Puedes seleccionar múltiples - se sumarán)
                 </label>
-                <select
-                  value={columnMapping.cuantía}
-                  onChange={(e) => setColumnMapping(prev => ({ ...prev, cuantía: e.target.value }))}
-                  className="w-full px-3 py-2 border border-blue-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                >
-                  <option value="">Seleccionar columna...</option>
-                  {availableColumns.map((col, index) => (
-                    <option key={index} value={col}>{col}</option>
+                <div className="space-y-2">
+                  {columnMapping.cuantías.map((cuantiaCol, idx) => (
+                    <div key={idx} className="flex gap-2">
+                      <select
+                        value={cuantiaCol}
+                        onChange={(e) => {
+                          const newCuantias = [...columnMapping.cuantías]
+                          newCuantias[idx] = e.target.value
+                          setColumnMapping(prev => ({ ...prev, cuantías: newCuantias }))
+                        }}
+                        className="flex-1 px-3 py-2 border border-blue-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      >
+                        <option value="">Seleccionar columna...</option>
+                        {availableColumns.map((col, index) => (
+                          <option key={index} value={col}>{col}</option>
+                        ))}
+                      </select>
+                      <button
+                        onClick={() => {
+                          const newCuantias = columnMapping.cuantías.filter((_, i) => i !== idx)
+                          setColumnMapping(prev => ({ ...prev, cuantías: newCuantias }))
+                        }}
+                        className="px-3 py-2 bg-red-500 text-white rounded-md hover:bg-red-600"
+                        title="Eliminar esta columna"
+                      >
+                        ✕
+                      </button>
+                    </div>
                   ))}
-                </select>
+                  <button
+                    onClick={() => {
+                      setColumnMapping(prev => ({ ...prev, cuantías: [...prev.cuantías, ''] }))
+                    }}
+                    className="w-full px-3 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 flex items-center justify-center gap-2"
+                  >
+                    <Plus className="h-4 w-4" />
+                    Agregar Columna de Cuantía
+                  </button>
+                </div>
               </div>
               <div>
                 <label className="block text-sm font-medium text-blue-900 mb-2">
@@ -1830,7 +1949,7 @@ export default function InterestCalculatorAdvanced() {
                   disabled={
                     calculating || 
                     !initialized || 
-                    !columnMapping.cuantía || 
+                    columnMapping.cuantías.filter(q => q !== '').length === 0 || 
                     !columnMapping.fecha_inicio || 
                     !globalFechaFin ||
                     ((globalModalidades.includes('tae') || globalModalidades.includes('tae_plus5')) && !globalTaeContrato) ||
