@@ -248,7 +248,7 @@ export default function InterestCalculatorAdvanced() {
       setExcelData([])
       setResults([])
       setAvailableColumns([])
-      setColumnMapping({ cuantía: '', fecha_inicio: '', concepto: '' })
+      setColumnMapping({ cuantías: [''], fecha_inicio: '', concepto: '' })
 
       const data = await file.arrayBuffer()
       const workbook = XLSX.read(data, { type: 'array', cellDates: true })
@@ -652,7 +652,7 @@ export default function InterestCalculatorAdvanced() {
     if (!value && value !== 0) return '-'
     
     // Si es la columna de cuantía, formatear como moneda (y convertir negativo a positivo)
-    if (col === columnMapping.cuantía) {
+    if (columnMapping.cuantías.includes(col)) {
       let num = Number(value)
       if (!isNaN(num)) {
         // Convertir a valor absoluto (positivo)
@@ -1933,9 +1933,9 @@ export default function InterestCalculatorAdvanced() {
                 <h3 className="text-lg font-semibold text-gray-900">
                   Datos Cargados ({excelData.length} filas)
                 </h3>
-                {columnMapping.cuantía && columnMapping.fecha_inicio && (
+                {columnMapping.cuantías.some(c => c !== '') && columnMapping.fecha_inicio && (
                   <p className="text-sm text-gray-600 mt-1">
-                    Mapeo aplicado: <span className="font-medium text-blue-600">"{columnMapping.cuantía}" → Cuantía</span>, 
+                    Mapeo aplicado: <span className="font-medium text-blue-600">"{columnMapping.cuantías.filter(c => c !== '').join(', ')}" → Cuantías</span>, 
                     <span className="font-medium text-blue-600 ml-1">"{columnMapping.fecha_inicio}" → Fecha Inicio</span>
                     {columnMapping.concepto && (
                       <span className="font-medium text-green-600 ml-1">"{columnMapping.concepto}" → Concepto</span>
@@ -2002,7 +2002,7 @@ export default function InterestCalculatorAdvanced() {
                     {availableColumns.map((col, index) => (
                       <th key={index} className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                         {col}
-                        {col === columnMapping.cuantía && <span className="ml-1 text-blue-600">→ Cuantía</span>}
+                        {columnMapping.cuantías.includes(col) && <span className="ml-1 text-blue-600">→ Cuantía</span>}
                         {col === columnMapping.fecha_inicio && <span className="ml-1 text-blue-600">→ Fecha Inicio</span>}
                         {col === columnMapping.concepto && <span className="ml-1 text-green-600">→ Concepto</span>}
                       </th>
