@@ -284,6 +284,32 @@ El sistema incluye un editor HTML WYSIWYG integrado en el panel de administraci�
 
 ## 📝 Changelog Reciente
 
+### 2025-11-18 - Mejoras en Calculadora de Intereses Avanzada
+
+**Nuevas funcionalidades implementadas**:
+- ✅ **Múltiples columnas de cuantía**: Soporte para seleccionar varias columnas de cuantía que se suman automáticamente
+- ✅ **Parsing de fechas mejorado**: Soporte extendido para múltiples formatos de fecha (DD/MM/YYYY, DD-MM-YYYY, YYYY/MM/DD, etc.)
+- ✅ **Validación de fechas robusta**: Mejor manejo de fechas inválidas y conversión automática
+- ✅ **Cálculos judiciales simplificados**: Solo se calculan intereses judiciales post-sentencia (sin duplicar legales previos)
+- ✅ **Optimizaciones de memoria**: Mejor gestión de recursos y limpieza automática de datos
+- ✅ **Exportación mejorada**: PDF y Excel con mejor formato y manejo de múltiples cuantías
+
+**Correcciones técnicas**:
+- ✅ **Errores TypeScript corregidos**: Actualización completa de referencias `cuantía` → `cuantías`
+- ✅ **Validaciones adaptadas**: Lógica actualizada para trabajar con arrays de columnas
+- ✅ **Interfaz de usuario mejorada**: Mejor experiencia en selección y visualización de múltiples cuantías
+- ✅ **Formateo de celdas optimizado**: Manejo correcto de formato moneda para múltiples columnas
+
+**Archivos modificados**:
+- `src/components/InterestCalculatorAdvanced.tsx` - Lógica principal y UI
+- `src/lib/interestCalculator.ts` - Algoritmos de cálculo judiciales
+
+**Impacto**:
+- ✅ Mayor flexibilidad en carga de datos Excel con múltiples columnas de importe
+- ✅ Cálculos más precisos y eficientes
+- ✅ Mejor experiencia de usuario en la calculadora avanzada
+- ✅ Código TypeScript completamente validado sin errores
+
 ### 2025-09-25 - Corrección de Políticas RLS y Errores 401
 
 **Problema resuelto**: Errores 401 Unauthorized durante la inicialización de la base de datos
