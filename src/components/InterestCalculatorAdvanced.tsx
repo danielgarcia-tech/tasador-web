@@ -339,42 +339,70 @@ export default function InterestCalculatorAdvanced() {
       const calculatedResults: CalculationResult[] = []
       const totalRows = excelData.length
       const totalCalculations = totalRows * globalModalidades.length
+      let processedRows = 0
+      let skippedRows: Array<{rowIndex: number, reason: string, data: any}> = []
 
       for (const [rowIndex, row] of excelData.entries()) {
         try {
           // Get values using column mapping
           const fechaInicioValue = row[columnMapping.fecha_inicio]
           const conceptoValue = columnMapping.concepto ? row[columnMapping.concepto] : undefined
-
           // Sumar todas las cuantías de las columnas seleccionadas (filtrar vacías)
+          // Se suman tal como vienen en el Excel (negativos como negativos, positivos como positivos)
           let capital = 0
           const cuantiasValidas = columnMapping.cuantías.filter(q => q !== '')
           for (const cuantiaCol of cuantiasValidas) {
             const cuantiaValue = row[cuantiaCol]
-            if (cuantiaValue) {
+            if (cuantiaValue || cuantiaValue === 0) {
               const valor = typeof cuantiaValue === 'number' 
                 ? cuantiaValue 
                 : parseFloat(String(cuantiaValue).replace(',', '.').replace(/[^\d.-]/g, ''))
               if (!isNaN(valor)) {
+                // Sumar tal como viene, sin convertir a positivo
                 capital += valor
               }
             }
           }
 
-          // Skip rows with invalid or missing data
-          if (capital <= 0 || !fechaInicioValue ||
-              String(fechaInicioValue).toLowerCase().includes('total') ||
-              String(fechaInicioValue).trim() === '') {
+          // Validar datos básicos
+          const fechaStr = String(fechaInicioValue || '').trim().toLowerCase()
+          const isRowLabel = fechaStr.includes('total') || 
+                            fechaStr.includes('fecha') || 
+                            fechaStr.includes('suma') ||
+                            fechaStr === ''
+          
+          if (isRowLabel) {
+            skippedRows.push({rowIndex: rowIndex + 1, reason: 'Fila de encabezado o etiqueta', data: row})
             continue
           }
 
-          // Normalizar a valor positivo
-          capital = normalizeAmount(capital)
-
-          if (isNaN(capital) || capital <= 0) {
-            // Skip rows with invalid or zero/negative amounts
+          // Descartar filas con capital NaN
+          if (isNaN(capital)) {
+            skippedRows.push({rowIndex: rowIndex + 1, reason: `Capital no es un número válido`, data: row})
             continue
           }
+
+          // Descartar filas con capital CERO
+          if (capital === 0) {
+            skippedRows.push({rowIndex: rowIndex + 1, reason: `Capital es cero`, data: row})
+            continue
+          }
+
+          // Descartar filas con capital NEGATIVO - no se calculan intereses
+          if (capital < 0) {
+            skippedRows.push({rowIndex: rowIndex + 1, reason: `Capital negativo (${capital}) - no se calcula interés`, data: row})
+            continue
+          }
+
+          // Parse date early to validate
+          const parsedFechaInicio = parseDate(fechaInicioValue)
+          
+          if (!parsedFechaInicio) {
+            skippedRows.push({rowIndex: rowIndex + 1, reason: `Fecha inicio inválida (${fechaInicioValue})`, data: row})
+            continue
+          }
+
+          processedRows++
 
           // Calculate for each selected modality
           for (const [modalityIndex, modalidad] of globalModalidades.entries()) {
@@ -398,14 +426,7 @@ export default function InterestCalculatorAdvanced() {
               continue
             }
             // Parse dates
-            const parsedFechaInicio = parseDate(fechaInicioValue)
             const parsedFechaFin = parseDate(globalFechaFin)
-
-            if (!parsedFechaInicio) {
-              // Silently skip rows with invalid dates - don't throw error
-              console.debug(`Saltando fila con fecha inicio inválida: ${fechaInicioValue}`)
-              continue
-            }
 
             if (!parsedFechaFin) {
               throw new Error(`Fecha fin inválida: ${globalFechaFin}`)
@@ -424,16 +445,13 @@ export default function InterestCalculatorAdvanced() {
             }
 
             if (modalidad === 'judicial' && globalFechaSentencia) {
-              input.fechaSentencia = new Date(globalFechaSentencia)
+              input.fechaSentencia = parseDateFromYYYYMMDD(globalFechaSentencia)
             }
 
             const result = interestCalculator.calcularIntereses(input)
 
-            // Skip if total interest is zero or negative
-            if (result.totalInteres <= 0) {
-              continue
-            }
-
+            // Incluir todos los resultados, incluso si los intereses son 0
+            // (esto es importante para mantener todas las filas del Excel)
             calculatedResults.push({
               ...row,
               cuantía: capital,
@@ -447,10 +465,23 @@ export default function InterestCalculatorAdvanced() {
             })
           }
         } catch (rowError) {
+          skippedRows.push({rowIndex: rowIndex + 1, reason: `Error: ${rowError instanceof Error ? rowError.message : 'Desconocido'}`, data: row})
           console.warn('Error calculating row:', rowError)
           // Skip rows with errors completely - don't add any results
           continue
         }
+      }
+
+      // Log summary of processing
+      console.log(`📊 Resumen de procesamiento:`)
+      console.log(`   - Total de filas en Excel: ${totalRows}`)
+      console.log(`   - Filas procesadas: ${processedRows}`)
+      console.log(`   - Filas descartadas: ${skippedRows.length}`)
+      if (skippedRows.length > 0 && skippedRows.length <= 20) {
+        console.log(`   - Detalles de filas descartadas:`)
+        skippedRows.forEach(skip => {
+          console.log(`     Fila ${skip.rowIndex}: ${skip.reason}`)
+        })
       }
 
       setCalculationProgress(100)
@@ -680,13 +711,6 @@ export default function InterestCalculatorAdvanced() {
     }
     
     return value
-  }
-  
-  // Función para normalizar valores de cuantía (convertir negativos a positivos)
-  const normalizeAmount = (amount: any): number => {
-    const num = Number(amount)
-    if (isNaN(num)) return 0
-    return Math.abs(num)
   }
 
   interface AnimatedCurrencyProps {
@@ -1056,24 +1080,26 @@ export default function InterestCalculatorAdvanced() {
       yPosition += 15
 
       // Estadísticas generales
-      const totalCalculos = results.length
       
-      // Calcular capital total como la suma única de cuantías (sin duplicar por modalidades)
-      const uniqueCuantias = new Map<string, number>()
+      // Calcular capital total: Sumar directamente desde excelData tal como vienen los valores
+      // Esto asegura que coincida exactamente con la suma del usuario
+      let capitalTotal = 0
       const cuantiasValidas = columnMapping.cuantías.filter(q => q !== '')
-      excelData.forEach((row, index) => {
-        let cuantia = 0
+      excelData.forEach((row) => {
         for (const cuantiaCol of cuantiasValidas) {
-          cuantia += normalizeAmount(row[cuantiaCol])
-        }
-        if (!isNaN(cuantia) && cuantia > 0) {
-          uniqueCuantias.set(`${index}`, cuantia)
+          const cuantiaValue = row[cuantiaCol]
+          if (cuantiaValue || cuantiaValue === 0) {
+            const valor = typeof cuantiaValue === 'number' 
+              ? cuantiaValue 
+              : parseFloat(String(cuantiaValue).replace(',', '.').replace(/[^\d.-]/g, ''))
+            if (!isNaN(valor)) {
+              capitalTotal += valor
+            }
+          }
         }
       })
 
       pdf.setFont('helvetica', 'normal')
-      pdf.text(`• Total de cálculos realizados: ${totalCalculos}`, margin, yPosition)
-      yPosition += 8
       pdf.text(`• Período de cálculo: Hasta ${parseDateFromYYYYMMDD(globalFechaFin).toLocaleDateString('es-ES')}`, margin, yPosition)
       yPosition += 8
       pdf.text(`• Modalidades calculadas: ${globalModalidades.join(', ')}`, margin, yPosition)
@@ -1318,6 +1344,24 @@ export default function InterestCalculatorAdvanced() {
         pdf.text(`${sectionNum}. RESULTADOS POR MODALIDAD`, margin, yPosition)
         yPosition += 15
 
+        // Calcular el capital total UNA SOLA VEZ para todas las modalidades
+        // Sumar directamente desde excelData tal como vienen los valores (mismo cálculo que en resumen)
+        let capitalTotalFijo = 0
+        const cuantiasValidasModal = columnMapping.cuantías.filter(q => q !== '')
+        excelData.forEach((row) => {
+          for (const cuantiaCol of cuantiasValidasModal) {
+            const cuantiaValue = row[cuantiaCol]
+            if (cuantiaValue || cuantiaValue === 0) {
+              const valor = typeof cuantiaValue === 'number' 
+                ? cuantiaValue 
+                : parseFloat(String(cuantiaValue).replace(',', '.').replace(/[^\d.-]/g, ''))
+              if (!isNaN(valor)) {
+                capitalTotalFijo += valor
+              }
+            }
+          }
+        })
+
         globalModalidades.forEach((modalidad, index) => {
           const modalityResults = results.filter(r => r.modalidad === modalidad)
           if (modalityResults.length === 0) return
@@ -1335,20 +1379,9 @@ export default function InterestCalculatorAdvanced() {
           yPosition += 10
 
           const totalInteresesModalidad = modalityResults.reduce((sum, r) => sum + (r.resultado?.totalInteres || 0), 0)
-          
-          // Calcular capital de esta modalidad sin duplicar cuantías
-          const modalityUniqueCuantias = new Set<number>()
-          modalityResults.forEach(r => {
-            modalityUniqueCuantias.add(r.cuantía)
-          })
-          const capitalModalidad = Array.from(modalityUniqueCuantias).reduce((sum, val) => sum + val, 0)
 
           pdf.setFontSize(11)
           pdf.setFont('helvetica', 'normal')
-          pdf.text(`• Número de cálculos: ${modalityResults.length}`, margin + 10, yPosition)
-          yPosition += 7
-          pdf.text(`• Capital total: ${capitalModalidad.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}`, margin + 10, yPosition)
-          yPosition += 7
           pdf.text(`• Intereses totales: ${totalInteresesModalidad.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}`, margin + 10, yPosition)
           yPosition += 12
 
