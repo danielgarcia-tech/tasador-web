@@ -33,6 +33,8 @@ interface ExcelRow {
 
 interface CalculationResult extends ExcelRow {
   cuantía: number
+  cuantías_desglosadas?: Record<string, number> // Guardar cuantías individuales por columna
+  columna_cuantía?: string // La columna específica de cuantía para este resultado
   fecha_inicio: string
   fecha_fin: string
   modalidad: 'legal' | 'judicial' | 'tae' | 'tae_plus5'
@@ -338,7 +340,6 @@ export default function InterestCalculatorAdvanced() {
 
       const calculatedResults: CalculationResult[] = []
       const totalRows = excelData.length
-      const totalCalculations = totalRows * globalModalidades.length
       let processedRows = 0
       let skippedRows: Array<{rowIndex: number, reason: string, data: any}> = []
 
@@ -347,24 +348,11 @@ export default function InterestCalculatorAdvanced() {
           // Get values using column mapping
           const fechaInicioValue = row[columnMapping.fecha_inicio]
           const conceptoValue = columnMapping.concepto ? row[columnMapping.concepto] : undefined
-          // Sumar todas las cuantías de las columnas seleccionadas (filtrar vacías)
-          // Se suman tal como vienen en el Excel (negativos como negativos, positivos como positivos)
-          let capital = 0
+          
+          // Para cada columna de cuantía seleccionada, crear UN RESULTADO SEPARADO
           const cuantiasValidas = columnMapping.cuantías.filter(q => q !== '')
-          for (const cuantiaCol of cuantiasValidas) {
-            const cuantiaValue = row[cuantiaCol]
-            if (cuantiaValue || cuantiaValue === 0) {
-              const valor = typeof cuantiaValue === 'number' 
-                ? cuantiaValue 
-                : parseFloat(String(cuantiaValue).replace(',', '.').replace(/[^\d.-]/g, ''))
-              if (!isNaN(valor)) {
-                // Sumar tal como viene, sin convertir a positivo
-                capital += valor
-              }
-            }
-          }
-
-          // Validar datos básicos
+          
+          // Primero validar la fecha para toda la fila
           const fechaStr = String(fechaInicioValue || '').trim().toLowerCase()
           const isRowLabel = fechaStr.includes('total') || 
                             fechaStr.includes('fecha') || 
@@ -376,24 +364,6 @@ export default function InterestCalculatorAdvanced() {
             continue
           }
 
-          // Descartar filas con capital NaN
-          if (isNaN(capital)) {
-            skippedRows.push({rowIndex: rowIndex + 1, reason: `Capital no es un número válido`, data: row})
-            continue
-          }
-
-          // Descartar filas con capital CERO
-          if (capital === 0) {
-            skippedRows.push({rowIndex: rowIndex + 1, reason: `Capital es cero`, data: row})
-            continue
-          }
-
-          // Descartar filas con capital NEGATIVO - no se calculan intereses
-          if (capital < 0) {
-            skippedRows.push({rowIndex: rowIndex + 1, reason: `Capital negativo (${capital}) - no se calcula interés`, data: row})
-            continue
-          }
-
           // Parse date early to validate
           const parsedFechaInicio = parseDate(fechaInicioValue)
           
@@ -402,67 +372,97 @@ export default function InterestCalculatorAdvanced() {
             continue
           }
 
-          processedRows++
-
-          // Calculate for each selected modality
-          for (const [modalityIndex, modalidad] of globalModalidades.entries()) {
-            const currentCalculation = (rowIndex * globalModalidades.length) + modalityIndex + 1
-            const progress = Math.round((currentCalculation / totalCalculations) * 100)
-            
-            setCalculationProgress(progress)
-            setCalculationStatus(`Calculando ${modalidad} para registro ${rowIndex + 1}/${totalRows}...`)
-            
-            // Add a small delay for progress visualization (only for large datasets)
-            if (totalRows > 100 && currentCalculation % 10 === 0) {
-              await new Promise(resolve => setTimeout(resolve, 10))
+          // PROCESAMIENTO POR COLUMNA DE CUANTÍA
+          for (const cuantiaCol of cuantiasValidas) {
+            const cuantiaValue = row[cuantiaCol]
+            if (!cuantiaValue && cuantiaValue !== 0) {
+              // Saltar si la columna está vacía para esta fila
+              continue
             }
-            // Skip TAE modalities if no TAE contract rate is provided
-            if ((modalidad === 'tae' || modalidad === 'tae_plus5') && !globalTaeContrato) {
+            
+            const valor = typeof cuantiaValue === 'number' 
+              ? cuantiaValue 
+              : parseFloat(String(cuantiaValue).replace(',', '.').replace(/[^\d.-]/g, ''))
+            
+            if (isNaN(valor)) {
+              skippedRows.push({rowIndex: rowIndex + 1, reason: `Capital no es un número válido en columna "${cuantiaCol}"`, data: row})
               continue
             }
 
-            // Skip judicial if no sentence date is provided
-            if (modalidad === 'judicial' && !globalFechaSentencia) {
+            // Descartar filas con capital CERO
+            if (valor === 0) {
+              skippedRows.push({rowIndex: rowIndex + 1, reason: `Capital es cero en columna "${cuantiaCol}"`, data: row})
               continue
             }
-            // Parse dates
-            const parsedFechaFin = parseDate(globalFechaFin)
 
-            if (!parsedFechaFin) {
-              throw new Error(`Fecha fin inválida: ${globalFechaFin}`)
+            // Descartar filas con capital NEGATIVO
+            if (valor < 0) {
+              skippedRows.push({rowIndex: rowIndex + 1, reason: `Capital negativo (${valor}) en columna "${cuantiaCol}" - no se calcula interés`, data: row})
+              continue
             }
 
-            const input: InterestCalculationInput = {
-              capital,
-              fechaInicio: parsedFechaInicio,
-              fechaFin: parsedFechaFin,
-              modalidad
+            processedRows++
+
+            // Calculate for each selected modality
+            for (const [modalityIndex, modalidad] of globalModalidades.entries()) {
+              const currentCalculation = (rowIndex * globalModalidades.length * cuantiasValidas.length) + (cuantiasValidas.indexOf(cuantiaCol) * globalModalidades.length) + modalityIndex + 1
+              const progress = Math.round((currentCalculation / (totalRows * globalModalidades.length * cuantiasValidas.length)) * 100)
+              
+              setCalculationProgress(progress)
+              setCalculationStatus(`Calculando ${modalidad} para columna "${cuantiaCol}" en registro ${rowIndex + 1}/${totalRows}...`)
+              
+              // Add a small delay for progress visualization (only for large datasets)
+              if (totalRows > 100 && currentCalculation % 10 === 0) {
+                await new Promise(resolve => setTimeout(resolve, 10))
+              }
+              // Skip TAE modalities if no TAE contract rate is provided
+              if ((modalidad === 'tae' || modalidad === 'tae_plus5') && !globalTaeContrato) {
+                continue
+              }
+
+              // Skip judicial if no sentence date is provided
+              if (modalidad === 'judicial' && !globalFechaSentencia) {
+                continue
+              }
+              // Parse dates
+              const parsedFechaFin = parseDate(globalFechaFin)
+
+              if (!parsedFechaFin) {
+                throw new Error(`Fecha fin inválida: ${globalFechaFin}`)
+              }
+
+              const input: InterestCalculationInput = {
+                capital: valor,
+                fechaInicio: parsedFechaInicio,
+                fechaFin: parsedFechaFin,
+                modalidad
+              }
+
+              // Add optional fields based on modality
+              if ((modalidad === 'tae' || modalidad === 'tae_plus5') && globalTaeContrato) {
+                input.taeContrato = parseFloat(globalTaeContrato)
+              }
+
+              if (modalidad === 'judicial' && globalFechaSentencia) {
+                input.fechaSentencia = parseDateFromYYYYMMDD(globalFechaSentencia)
+              }
+
+              const result = interestCalculator.calcularIntereses(input)
+
+              // Crear un resultado POR CADA COLUMNA DE CUANTÍA
+              calculatedResults.push({
+                ...row,
+                cuantía: valor,
+                columna_cuantía: cuantiaCol, // Guardar la columna de cuantía específica
+                fecha_inicio: formatDateToYYYYMMDD(parsedFechaInicio),
+                fecha_fin: formatDateToYYYYMMDD(parsedFechaFin),
+                modalidad,
+                tae_contrato: globalTaeContrato ? parseFloat(globalTaeContrato) : undefined,
+                fecha_sentencia: globalFechaSentencia || undefined,
+                concepto: conceptoValue ? String(conceptoValue) : undefined,
+                resultado: result
+              })
             }
-
-            // Add optional fields based on modality
-            if ((modalidad === 'tae' || modalidad === 'tae_plus5') && globalTaeContrato) {
-              input.taeContrato = parseFloat(globalTaeContrato)
-            }
-
-            if (modalidad === 'judicial' && globalFechaSentencia) {
-              input.fechaSentencia = parseDateFromYYYYMMDD(globalFechaSentencia)
-            }
-
-            const result = interestCalculator.calcularIntereses(input)
-
-            // Incluir todos los resultados, incluso si los intereses son 0
-            // (esto es importante para mantener todas las filas del Excel)
-            calculatedResults.push({
-              ...row,
-              cuantía: capital,
-              fecha_inicio: formatDateToYYYYMMDD(parsedFechaInicio),
-              fecha_fin: formatDateToYYYYMMDD(parsedFechaFin),
-              modalidad,
-              tae_contrato: globalTaeContrato ? parseFloat(globalTaeContrato) : undefined,
-              fecha_sentencia: globalFechaSentencia || undefined,
-              concepto: conceptoValue ? String(conceptoValue) : undefined,
-              resultado: result
-            })
           }
         } catch (rowError) {
           skippedRows.push({rowIndex: rowIndex + 1, reason: `Error: ${rowError instanceof Error ? rowError.message : 'Desconocido'}`, data: row})
@@ -1393,6 +1393,7 @@ export default function InterestCalculatorAdvanced() {
           const tableData = modalityResults.map(r => {
             const row = [
               r.cuantía.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
+              r.columna_cuantía ? `(${r.columna_cuantía})` : '', // Mostrar la columna de cuantía
               new Date(r.fecha_inicio).toLocaleDateString('es-ES'),
               new Date(r.fecha_fin).toLocaleDateString('es-ES'),
               (r.resultado?.totalInteres || 0).toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
@@ -1406,7 +1407,7 @@ export default function InterestCalculatorAdvanced() {
             return row
           })
 
-          const tableHeaders = [['Capital (€)', 'Fecha Inicio', 'Fecha Fin', 'Intereses (€)']]
+          const tableHeaders = [['Capital (€)', 'Columna', 'Fecha Inicio', 'Fecha Fin', 'Intereses (€)']]
           if (modalityResults.some(r => r.concepto)) {
             tableHeaders[0].unshift('Concepto')
           }
@@ -1463,7 +1464,7 @@ export default function InterestCalculatorAdvanced() {
         })
 
         // Construir headers dinámicos basados en modalidades seleccionadas
-        const baseHeaders = ['Concepto', 'Cuantía (€)', 'Fecha Inicio', 'Fecha Fin']
+        const baseHeaders = ['Concepto', 'Cuantía (€)', 'Columna', 'Fecha Inicio', 'Fecha Fin']
         const modalidadHeaders: string[] = []
         const modalidadKeys: Array<'legal' | 'judicial' | 'tae' | 'tae_plus5'> = []
         
@@ -1488,16 +1489,17 @@ export default function InterestCalculatorAdvanced() {
 
         const tablaResumenData: any[] = []
         conceptosMap.forEach((resultados, concepto) => {
-          // Agrupar por cuantía dentro del concepto
-          const cuantiasMap = new Map<number, CalculationResult[]>()
+          // Agrupar por cuantía y columna dentro del concepto
+          const cuantiasColumnasMap = new Map<string, CalculationResult[]>()
           resultados.forEach(r => {
-            if (!cuantiasMap.has(r.cuantía)) {
-              cuantiasMap.set(r.cuantía, [])
+            const key = `${r.cuantía}_${r.columna_cuantía || 'default'}`
+            if (!cuantiasColumnasMap.has(key)) {
+              cuantiasColumnasMap.set(key, [])
             }
-            cuantiasMap.get(r.cuantía)!.push(r)
+            cuantiasColumnasMap.get(key)!.push(r)
           })
 
-          cuantiasMap.forEach((resPorCuantia, cuantia) => {
+          cuantiasColumnasMap.forEach((resPorCuantia) => {
             const firstResult = resPorCuantia[0]
             
             // Calcular intereses por modalidad
@@ -1509,7 +1511,8 @@ export default function InterestCalculatorAdvanced() {
             
             const row = [
               concepto,
-              cuantia.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
+              firstResult.cuantía.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
+              firstResult.columna_cuantía ? `(${firstResult.columna_cuantía})` : '',
               parseDateFromYYYYMMDD(firstResult.fecha_inicio).toLocaleDateString('es-ES'),
               parseDateFromYYYYMMDD(firstResult.fecha_fin).toLocaleDateString('es-ES'),
               ...modalidadKeys.map(mod => 
@@ -1525,11 +1528,12 @@ export default function InterestCalculatorAdvanced() {
           // Construir columnStyles dinámicamente
           const columnStyles: any = {
             1: { halign: 'right' }, // Cuantía
+            2: { halign: 'center' }, // Columna
           }
           
-          // Alinear a la derecha las columnas de intereses (empiezan en índice 4)
+          // Alinear a la derecha las columnas de intereses (empiezan en índice 5)
           modalidadKeys.forEach((_, idx) => {
-            columnStyles[4 + idx] = { halign: 'right' }
+            columnStyles[5 + idx] = { halign: 'right' }
           })
           
           autoTable(pdf, {
@@ -2151,6 +2155,9 @@ export default function InterestCalculatorAdvanced() {
                             Cuantía
                           </th>
                           <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Columna
+                          </th>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                             Período
                           </th>
                           <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -2166,6 +2173,9 @@ export default function InterestCalculatorAdvanced() {
                           <tr key={index} className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
                             <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
                               {formatCurrency(result.cuantía)}
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                              {result.columna_cuantía || '-'}
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                               {formatDate(result.fecha_inicio)} - {formatDate(result.fecha_fin)}
