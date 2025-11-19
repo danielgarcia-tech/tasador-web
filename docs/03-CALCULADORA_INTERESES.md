@@ -446,6 +446,54 @@ Tabla con:
 - **Excel**: Datos tabulares para análisis
 - **CSV**: Formato de texto para importar
 
+### 5. Procesamiento de Múltiples Columnas de Cuantía ⭐ (v2.1)
+**Nueva funcionalidad**: Carga archivos Excel con múltiples columnas de cuantía y procésalas individualmente.
+
+#### Características:
+- 📁 Mapeo flexible de columnas Excel
+  - Selecciona múltiples columnas como "Cuantía"
+  - Cada columna se procesa INDEPENDIENTEMENTE
+  - Se pueden procesar simultáneamente diferentes conceptos/montos
+
+- 📊 Procesamiento Individual por Columna
+  - Para cada fila del Excel: se crea UN resultado por CADA columna de cuantía seleccionada
+  - Cada cálculo conserva referencia a su columna origen (`columna_cuantía`)
+  - Validación individual de cada valor
+
+- 📋 Tablas Actualizadas en PDF
+  - "Resultados por Modalidad": Muestra la columna origen de cada cálculo
+  - "Tabla Resumen por Concepto": Agrupa correctamente por cuantía + columna origen
+  - Cada línea es fácilmente identificable
+
+#### Ejemplo de Uso:
+```
+Excel con columnas:
+┌─────────────────────────────────────────────────┐
+│ Concepto     │ Monto_1  │ Monto_2  │ Fecha     │
+├─────────────────────────────────────────────────┤
+│ Proceso A    │ 5,000€   │ 3,000€   │ 01/01/23  │
+│ Proceso B    │ 8,500€   │ 2,200€   │ 15/03/23  │
+└─────────────────────────────────────────────────┘
+
+Al seleccionar:
+- Cuantía: "Monto_1" + "Monto_2"
+- Fecha: "Fecha"
+- Concepto: "Concepto"
+
+Se generan cálculos:
+- Proceso A - Monto_1: 5,000€ → X€ intereses
+- Proceso A - Monto_2: 3,000€ → Y€ intereses
+- Proceso B - Monto_1: 8,500€ → Z€ intereses
+- Proceso B - Monto_2: 2,200€ → W€ intereses
+```
+
+#### Ventajas:
+✅ Sin duplicar filas en el Excel
+✅ Cada concepto puede tener múltiples importes
+✅ Reportes PDF claros con identificación de origen
+✅ Compatibilidad con modalidades múltiples (Legal, Judicial, TAE, TAE+5%)
+✅ Agrupación inteligente por concepto + columna en resumen
+
 ## Casos de Uso
 
 ### Caso 1: Cálculo Simple

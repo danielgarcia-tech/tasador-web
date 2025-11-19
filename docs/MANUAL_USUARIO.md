@@ -306,6 +306,61 @@ Columna de Fecha Inicio:   [Selecciona: Desde]
 Columna de Fecha Fin:      [Selecciona: Hasta]
 ```
 
+#### 4.1 ⭐ NUEVO: Usar Múltiples Columnas de Cuantía
+
+**Funcionalidad v2.1**: Ahora puedes seleccionar **múltiples columnas como "Cuantía"** y cada una se procesará independientemente.
+
+**¿Por qué es útil?**
+- Un mismo concepto/cliente puede tener múltiples deudas
+- Evitas duplicar filas en el Excel
+- Cada columna se calcula por separado
+- El PDF muestra claramente el origen de cada cálculo
+
+**Ejemplo:**
+
+```
+Tu archivo Excel:
+┌──────────┬─────────────┬─────────────┬──────────────┬──────────────┐
+│ Concepto │ Deuda Civil │ Deuda Penal │ Fecha Inicio │ Fecha Fin    │
+├──────────┼─────────────┼─────────────┼──────────────┼──────────────┤
+│ Caso A   │ 10,000€     │ 5,000€      │ 01/01/2023   │ 31/12/2024   │
+│ Caso B   │ 8,500€      │ 3,200€      │ 15/03/2023   │ 30/06/2024   │
+└──────────┴─────────────┴─────────────┴──────────────┴──────────────┘
+
+Mapear en la app:
+- Cuantía: [✓ Deuda Civil] [✓ Deuda Penal]  ← MÚLTIPLES
+- Concepto: [Concepto]
+- Fecha Inicio: [Fecha Inicio]
+- Fecha Fin: [Fecha Fin]
+
+Resultado (4 cálculos en lugar de 2):
+✓ Caso A - Deuda Civil: 10,000€ → 600€ intereses
+✓ Caso A - Deuda Penal: 5,000€ → 300€ intereses
+✓ Caso B - Deuda Civil: 8,500€ → 510€ intereses
+✓ Caso B - Deuda Penal: 3,200€ → 192€ intereses
+
+PDF - Tabla "Resultados por Modalidad":
+┌──────────┬─────────┬────────────┬──────────┐
+│ Concepto │ Capital │ Columna    │ Interés  │
+├──────────┼─────────┼────────────┼──────────┤
+│ Caso A   │10,000€  │(Deuda Civ.)│ 600€     │
+│ Caso A   │ 5,000€  │(Deuda Pen.)│ 300€     │
+│ Caso B   │ 8,500€  │(Deuda Civ.)│ 510€     │
+│ Caso B   │ 3,200€  │(Deuda Pen.)│ 192€     │
+└──────────┴─────────┴────────────┴──────────┘
+```
+
+**Para agregar más columnas de cuantía:**
+- Haz clic en el botón **"+ Agregar Columna de Cuantía"**
+- Selecciona la nueva columna del dropdown
+- Repite para cada columna adicional
+
+**Notas importantes:**
+- ✅ Cada columna se procesa INDEPENDIENTEMENTE
+- ✅ Las columnas vacías se ignoran automáticamente
+- ✅ Ideal para casos con múltiples conceptos de deuda
+- ✅ Compatible con todas las modalidades de interés
+
 #### 5. Configurar Parámetros Globales
 
 | Parámetro | Descripción |
@@ -537,5 +592,71 @@ Selecciona la fase en que **finalmente terminó** el procedimiento.
    - Desglose de costas
    - Información legal
    - Referencia Aranzadi
+
+---
+
+### P: ¿Puedo procesar múltiples columnas de cuantía simultáneamente? ⭐ v2.1
+
+**R:** ¡Sí! Esta es una de las principales características nuevas:
+
+1. En el **"Mapeo de Columnas"**, selecciona **múltiples columnas** como "Cuantía"
+2. Haz clic en **"+ Agregar Columna de Cuantía"** para agregar más
+3. Cada fila del Excel se procesará con **cada columna de cuantía** independientemente
+
+**Ventajas:**
+- ✅ Sin duplicación de filas en Excel
+- ✅ Cada deuda se calcula por separado
+- ✅ El PDF identifica claramente el origen de cada cálculo
+- ✅ Resumen inteligente agrupado por concepto + columna
+
+**Ejemplo:**
+```
+Excel: Cliente "Juan García" con 3 deudas diferentes
+├─ Deuda Anterior: 5,000€
+├─ Deuda Juicio: 8,500€
+└─ Deuda Multa: 2,200€
+
+Resultado: 3 cálculos independientes
+✓ Deuda Anterior: 5,000€ → X€ intereses
+✓ Deuda Juicio: 8,500€ → Y€ intereses  
+✓ Deuda Multa: 2,200€ → Z€ intereses
+
+PDF muestra cada uno claramente identificado con su columna origen
+```
+
+---
+
+### P: ¿Qué ocurre si una celda de cuantía está vacía?
+
+**R:** El sistema ignora automáticamente las celdas vacías:
+- Si la fila tiene 3 columnas de cuantía pero solo 1 tiene valor → se procesa solo esa
+- Sin mensajes de error
+- Las filas se procesarán correctamente con el resto de columnas que tengan datos
+
+---
+
+### P: ¿Cómo personalizo los informes PDF de intereses?
+
+**R:** El Cálculo Complejo incluye opciones de personalización:
+
+1. **Antes de procesar**: Configura los parámetros (modalidades, TAE, fecha sentencia)
+2. **Después de calcular**: Haz clic en **"Personalizar Informe"**
+3. **Modifica:**
+   - 📝 **Título Principal**: Nombre del informe
+   - 📝 **Subtítulo**: Información adicional
+   - 📝 **Notas del Expediente**: Observaciones especiales del caso
+   - 📝 **Información Adicional**: Referencias legales, normativas
+   - 📝 **Pie de Página**: Datos de tu despacho/firma
+
+4. **Secciones del Informe** (selecciona cuáles incluir):
+   - ✅ Resumen Ejecutivo
+   - ✅ Parámetros de Cálculo
+   - ✅ Metodología de Cálculo
+   - ✅ Resultados por Modalidad
+   - ✅ Tabla Resumen por Concepto
+   - ✅ Análisis Gráfico
+   - ✅ Detalle de Cálculos
+
+5. **Guardar como Plantilla**: Reutiliza la configuración en futuros informes
 
 ---
