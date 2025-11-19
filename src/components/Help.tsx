@@ -501,41 +501,34 @@ Interés = 10.000 × (5,25 / 100) × (210 / 365) = 302,74€
         title: 'Formato del archivo Excel',
         content: `
           <h4>Estructura requerida del archivo</h4>
-          <p>El archivo Excel debe contener una tabla con las siguientes columnas (respetando los nombres exactos):</p>
+          <p>El archivo Excel debe contener las siguientes columnas:</p>
           
-          <table>
-            <thead><tr><th>Columna</th><th>Descripción</th><th>Formato</th><th>Obligatorio</th></tr></thead>
-            <tbody>
-              <tr><td><strong>CUANTIA</strong></td><td>Importe principal</td><td>Numérico (ej: 10000.50)</td><td>Sí</td></tr>
-              <tr><td><strong>FECHA_INICIO</strong></td><td>Fecha de inicio del devengo</td><td>DD/MM/AAAA</td><td>Sí</td></tr>
-              <tr><td><strong>FECHA_FIN</strong></td><td>Fecha de finalización del cálculo</td><td>DD/MM/AAAA</td><td>Sí</td></tr>
-              <tr><td><strong>TIPO_INTERES</strong></td><td>Tipo de interés aplicable</td><td>Texto (Legal/Judicial/TAE)</td><td>Sí</td></tr>
-              <tr><td><strong>EXPEDIENTE</strong></td><td>Nº de expediente (opcional)</td><td>Texto</td><td>No</td></tr>
-              <tr><td><strong>CLIENTE</strong></td><td>Nombre del cliente (opcional)</td><td>Texto</td><td>No</td></tr>
-            </tbody>
-          </table>
+          <ul>
+            <li><strong>FECHA_INICIO (obligatoria):</strong> Fecha de inicio del devengo (formato DD/MM/AAAA)</li>
+            <li><strong>Columnas de CUANTIA (obligatorias):</strong> Puedes tener múltiples columnas con nombres como CUANTIA, CONCEPTO1_MONTO, CONCEPTO2_MONTO, etc. El sistema procesará cada columna de forma independiente</li>
+            <li><strong>CONCEPTO (opcional):</strong> Descripción del movimiento o concepto</li>
+          </ul>
 
-          <h4>Ejemplo de estructura correcta</h4>
+          <h4>Concepto clave: Cada fila = un movimiento independiente</h4>
+          <p>El sistema interpreta <strong>cada fila del Excel como un movimiento independiente</strong>. Si tienes múltiples columnas de cuantía (ej: CONCEPTO1_MONTO, CONCEPTO2_MONTO), el sistema creará un cálculo de intereses para cada columna, pero siempre dentro del mismo período (FECHA_INICIO a FECHA_FIN).</p>
+
+          <h4>Ejemplo de estructura correcta con múltiples cuantías</h4>
           <pre>
-| CUANTIA  | FECHA_INICIO | FECHA_FIN  | TIPO_INTERES | EXPEDIENTE | CLIENTE          |
-|----------|--------------|------------|--------------|------------|------------------|
-| 10000.00 | 05/08/2021   | 27/10/2025 | Legal        | EJ-123/24  | Juan García      |
-| 5500.50  | 01/01/2023   | 31/12/2024 | Judicial     | EJ-456/24  | María López      |
-| 7200.00  | 15/03/2022   | 15/10/2025 | Legal        | EJ-789/24  | Pedro Martínez   |
+| FECHA_INICIO | CONCEPTO1_MONTO | CONCEPTO2_MONTO | FECHA_FIN  | CONCEPTO              |
+|--------------|-----------------|-----------------|------------|----------------------|
+| 05/08/2021   | 10000.00        | 5500.00         | 27/10/2025 | Procedimiento civil   |
+| 01/01/2023   | 7200.00         | 3000.50         | 31/12/2024 | Procedimiento penal   |
           </pre>
 
           <h4>Validaciones automáticas</h4>
-          <p>El sistema verifica automáticamente:</p>
           <ul>
             <li>✅ Formato correcto de fechas (DD/MM/AAAA)</li>
-            <li>✅ Cuantías numéricas válidas (sin símbolos de moneda)</li>
-            <li>✅ Tipos de interés reconocidos por el sistema</li>
-            <li>✅ Fechas de inicio anteriores a fechas de fin</li>
-            <li>✅ Presencia de todas las columnas obligatorias</li>
+            <li>✅ Cuantías numéricas válidas (sin símbolos de moneda €, sin separadores de miles)</li>
+            <li>✅ Presencia de la columna FECHA_INICIO</li>
           </ul>
 
           <div class="callout">
-            ⚠️ <strong>Importante:</strong> No incluyas símbolos de moneda (€) ni separadores de miles en las cuantías. Usa el punto (.) como separador decimal. Las fechas deben seguir estrictamente el formato DD/MM/AAAA.
+            💡 <strong>Tip:</strong> Usa el punto (.) como separador decimal en las cuantías. El sistema generará un resultado de cálculo para cada columna de cuantía detectada, permitiendo análisis por concepto.
           </div>
         `
       },
@@ -584,6 +577,124 @@ Interés = 10.000 × (5,25 / 100) × (210 / 365) = 302,74€
             📄 <strong>Recomendación:</strong> Personaliza siempre el título y subtítulo para identificar claramente el lote de expedientes procesados. Esto facilita el archivo y la trazabilidad interna del departamento.
           </div>
         `
+      },
+      {
+        id: 'multiples-columnas',
+        title: '⭐ Usar múltiples columnas de cuantía (v2.1)',
+        content: `
+          <h4>Nueva funcionalidad: Procesamiento por columna</h4>
+          <p>A partir de la versión 2.1, es posible seleccionar <strong>múltiples columnas como "Cuantía"</strong> en un mismo archivo Excel, procesando cada columna de forma independiente.</p>
+
+          <h4>¿Por qué es útil esta funcionalidad?</h4>
+          <ul>
+            <li><strong>Sin duplicación de filas:</strong> Un mismo cliente o expediente puede tener múltiples deudas sin repetir filas</li>
+            <li><strong>Procesamiento independiente:</strong> Cada columna se calcula por separado con su propio resultado</li>
+            <li><strong>Informes claros:</strong> El PDF muestra la columna origen de cada cálculo</li>
+            <li><strong>Ahorro de tiempo:</strong> Procesa lotes más complejos en una única importación</li>
+          </ul>
+
+          <h4>Ejemplo de uso</h4>
+          <p><strong>Archivo Excel con múltiples conceptos de deuda:</strong></p>
+          <p><em>Nota: Fecha Fin se proporciona en la ventana modal de configuración, no en el Excel</em></p>
+          <pre>
+| Concepto  | Prima Seguro | Interés    | Comisiones      | Fecha Inicio |
+|-----------|--------------|------------|-----------------|--------------|
+| Caso A    | 10,000€      | 5,000€     | 3,000€          | 01/01/2023   |
+| Caso B    | 8,500€       | 3,200€     | 2,100€          | 15/03/2023   |
+| Caso C    | 12,000€      | 6,500€     | 4,000€          | 01/09/2023   |
+          </pre>
+
+          <p><strong>Configuración en TASADOR:</strong></p>
+          <ul>
+            <li>Columnas de Cuantía: <strong>[✓ Prima Seguro] [✓ Interés] [✓ Comisiones]</strong></li>
+            <li>Concepto: Concepto</li>
+            <li>Fecha Inicio: Fecha Inicio</li>
+            <li>Fecha Fin: <em>(se proporciona en la ventana modal, no en Excel)</em></li>
+          </ul>
+
+          <p><strong>Resultado: 9 cálculos independientes (3 casos × 3 columnas)</strong></p>
+          <table>
+            <thead><tr><th>Concepto</th><th>Tipo Concepto</th><th>Capital</th><th>Intereses Calculados</th></tr></thead>
+            <tbody>
+              <tr><td>Caso A</td><td>Prima Seguro</td><td>10,000€</td><td>600€</td></tr>
+              <tr><td>Caso A</td><td>Interés</td><td>5,000€</td><td>300€</td></tr>
+              <tr><td>Caso A</td><td>Comisiones</td><td>3,000€</td><td>180€</td></tr>
+              <tr><td>Caso B</td><td>Prima Seguro</td><td>8,500€</td><td>510€</td></tr>
+              <tr><td>Caso B</td><td>Interés</td><td>3,200€</td><td>192€</td></tr>
+              <tr><td>Caso B</td><td>Comisiones</td><td>2,100€</td><td>126€</td></tr>
+              <tr><td colspan="3" style="text-align: right; font-weight: bold;">TOTAL INTERESES:</td><td style="font-weight: bold;">1,908€</td></tr>
+            </tbody>
+          </table>
+
+          <h4>Pasos para usar múltiples columnas</h4>
+          <ol>
+            <li>Carga tu archivo Excel como de costumbre</li>
+            <li>En la sección <strong>"Mapeo de Columnas"</strong>, localiza el selector de <strong>"Columnas de Cuantía"</strong></li>
+            <li>Selecciona la <strong>primera columna de cuantía</strong> del dropdown</li>
+            <li>Haz clic en el botón <strong>"+ Agregar Columna de Cuantía"</strong></li>
+            <li>Selecciona la <strong>segunda columna</strong> del nuevo dropdown</li>
+            <li>Repite el paso anterior para cada columna adicional que necesites procesar</li>
+            <li>Las columnas vacías se ignorarán automáticamente durante el procesamiento</li>
+          </ol>
+
+          <h4>Campos opcionales</h4>
+          <ul>
+            <li><strong>Fecha Fin:</strong> No es necesaria en el Excel. Se proporciona en la ventana modal de configuración y se aplica a todos los cálculos</li>
+            <li><strong>Fecha Sentencia:</strong> Solo es requerida si utilizas la modalidad de <strong>Interés Judicial</strong>. Para otras modalidades (Legal, TAE, TAE+5%), es completamente opcional</li>
+          </ul>
+
+          <h4>Características importantes</h4>
+          <ul>
+            <li>✅ Cada columna se procesa <strong>INDEPENDIENTEMENTE</strong></li>
+            <li>✅ Las celdas vacías se saltan automáticamente sin error</li>
+            <li>✅ Compatible con <strong>todas las modalidades</strong> de interés (Legal, Judicial, TAE, TAE+5%)</li>
+            <li>✅ Ideal para casos complejos con múltiples conceptos de deuda</li>
+            <li>✅ Los PDF muestran claramente el origen de cada cálculo</li>
+            <li>✅ La tabla de resumen agrupa inteligentemente por concepto + columna</li>
+          </ul>
+
+          <div class="callout">
+            🎯 <strong>Caso de uso típico:</strong> Liquidación de una persona física o jurídica con múltiples procedimientos, cada uno generando diferentes tipos de deuda (civil, penal, mercantil, tributaria). Todo se procesa en un único lote sin necesidad de duplicar filas.
+          </div>
+        `
+      },
+      {
+        id: 'personalizar-pdf-avanzado',
+        title: 'Personalización avanzada de informes PDF',
+        content: `
+          <h4>Opciones de personalización disponibles (v2.1+)</h4>
+          <p>El sistema permite personalizar cada aspecto del informe PDF generado, permitiendo crear documentos profesionales según los estándares de RUA Abogados.</p>
+
+          <h4>Secciones del informe PDF (seleccionables)</h4>
+          <p>Puedes elegir qué secciones incluir en el PDF generado:</p>
+          <ul>
+            <li>☑️ <strong>Resumen Ejecutivo:</strong> Datos principales, período de cálculo, modalidades utilizadas</li>
+            <li>☑️ <strong>Parámetros de Cálculo:</strong> Configuración específica utilizada (TAE, fechas, tipos de interés)</li>
+            <li>☑️ <strong>Metodología de Cálculo:</strong> Explicación de fórmulas y cálculos aplicados</li>
+            <li>☑️ <strong>Resultados por Modalidad:</strong> Desglose de intereses para cada tipo (Legal, Judicial, TAE)</li>
+            <li>☑️ <strong>Tabla Resumen por Concepto:</strong> Consolidado de todos los cálculos por concepto</li>
+            <li>☑️ <strong>Análisis Gráfico:</strong> Gráficos de evolución temporal e intereses por modalidad</li>
+            <li>☑️ <strong>Detalle de Cálculos:</strong> Desglose año a año de cada expediente procesado</li>
+          </ul>
+
+          <h4>Flujo de personalización</h4>
+          <ol>
+            <li>Tras procesar el lote y ver los resultados, haz clic en <strong>"Personalizar Informe"</strong></li>
+            <li>Completa los campos de texto (títulos, notas, información adicional, pie)</li>
+            <li>Selecciona qué secciones deseas incluir usando los checkboxes</li>
+            <li>Opcionalmente, <strong>guarda esta configuración como plantilla</strong> para reutilizarla</li>
+            <li>Haz clic en <strong>"Descargar PDF"</strong> para generar el documento personalizado</li>
+          </ol>
+
+          <h4>Validaciones de personalización</h4>
+          <ul>
+            <li>✅ El sistema verifica que los títulos no estén vacíos (mínimo 3 caracteres)</li>
+            <li>✅ Las fechas de generación se añaden automáticamente</li>
+            <li>✅ El logo de RUA Abogados se inserta automáticamente en la portada</li>
+            <li>✅ Todas las tablas se formatean automáticamente para legibilidad</li>
+            <li>✅ Los números se formatean según la localización española (ej: 1.234,56€)</li>
+          </ul>
+        `
       }
     ]
   },
@@ -598,6 +709,7 @@ Interés = 10.000 × (5,25 / 100) × (210 / 365) = 302,74€
 
       <h3>Funcionalidades principales</h3>
       <ul>
+
         <li><strong>Búsqueda avanzada:</strong> Localiza tasaciones por nombre de cliente, número de procedimiento, juzgado o entidad demandada</li>
         <li><strong>Filtros inteligentes:</strong> Filtra por fecha de creación, municipio, tipo de procedimiento o estado</li>
         <li><strong>Ordenación flexible:</strong> Ordena por fecha, cuantía, cliente o cualquier campo</li>
