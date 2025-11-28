@@ -65,6 +65,7 @@ export default function InterestCalculatorAdvanced() {
   const [results, setResults] = useState<CalculationResult[]>([])
   const [calculating, setCalculating] = useState(false)
   const [expandedModalities, setExpandedModalities] = useState<Set<string>>(new Set())
+  const [dragOver, setDragOver] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   // Estados para personalización del informe
@@ -305,6 +306,36 @@ export default function InterestCalculatorAdvanced() {
       console.error('Error processing file:', err)
     }
   }, [])
+
+  // Handlers para drag and drop
+  const handleDragOver = useCallback((e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault()
+    e.stopPropagation()
+    setDragOver(true)
+  }, [])
+
+  const handleDragLeave = useCallback((e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault()
+    e.stopPropagation()
+    setDragOver(false)
+  }, [])
+
+  const handleDrop = useCallback((e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault()
+    e.stopPropagation()
+    setDragOver(false)
+
+    const files = e.dataTransfer.files
+    if (files && files.length > 0) {
+      // Crear un evento sintético para reutilizar handleFileUpload
+      const event = {
+        target: {
+          files: files
+        }
+      } as unknown as React.ChangeEvent<HTMLInputElement>
+      handleFileUpload(event)
+    }
+  }, [handleFileUpload])
 
   // Optimización del cálculo de intereses con progress tracking
   const calculateAllInterests = useCallback(async () => {
@@ -1763,12 +1794,21 @@ export default function InterestCalculatorAdvanced() {
         </p>
 
         {/* File Upload Section */}
-        <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 mb-6">
+        <div 
+          className={`border-2 border-dashed rounded-lg p-6 mb-6 transition-all duration-200 ${
+            dragOver 
+              ? 'border-blue-500 bg-blue-50 shadow-lg' 
+              : 'border-gray-300 hover:border-gray-400 hover:bg-gray-50'
+          }`}
+          onDragOver={handleDragOver}
+          onDragLeave={handleDragLeave}
+          onDrop={handleDrop}
+        >
           <div className="text-center">
-            <Upload className="mx-auto h-12 w-12 text-gray-400 mb-4" />
+            <Upload className={`mx-auto h-12 w-12 mb-4 transition-colors ${dragOver ? 'text-blue-500' : 'text-gray-400'}`} />
             <div className="space-y-2">
-              <p className="text-sm text-gray-600">
-                Selecciona cualquier archivo Excel/CSV. Podrás mapear las columnas después de cargarlo.
+              <p className="text-sm font-medium text-gray-700">
+                {dragOver ? '📥 Suelta el archivo aquí...' : 'Arrastra un archivo Excel/CSV o haz clic para seleccionar'}
               </p>
               <p className="text-xs text-gray-500">
                 Formatos soportados: .xlsx, .xls, .csv
@@ -1785,7 +1825,7 @@ export default function InterestCalculatorAdvanced() {
               />
               <label
                 htmlFor="file-upload"
-                className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 cursor-pointer"
+                className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 cursor-pointer transition-colors"
               >
                 <Upload className="h-4 w-4 mr-2" />
                 Seleccionar Archivo
