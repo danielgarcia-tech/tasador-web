@@ -68,8 +68,8 @@ async function getSignatureImage(nombreFirmante: string): Promise<Uint8Array> {
   try {
     // Determinar la ruta según el firmante
     const rutaImagen = nombreFirmante === 'Pablo L. Rúa Sobrino' 
-      ? '/public/firmas/pablo-rua-firma.png'
-      : '/public/firmas/jesus-oroza-firma.png'
+      ? '/firmas/pablo-rua-firma.png'
+      : '/firmas/jesus-oroza-firma.png'
     
     // Intentar cargar la imagen
     const response = await fetch(rutaImagen)
