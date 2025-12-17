@@ -1,5 +1,4 @@
 import jsPDF from 'jspdf'
-import { saveAs } from 'file-saver'
 
 interface TasacionData {
   nombreCliente: string
@@ -61,16 +60,6 @@ function getFirmantePorFecha(fechaDemanda?: string): { nombre: string; cargo: st
       cargo: 'ABOGADO',
       numeroCol: 'Col. ICA Ferrol'
     }
-  }
-}
-
-// Función para obtener la ruta de la imagen de firma según el firmante
-function getImagenFirma(fechaDemanda?: string): string {
-  const firmante = getFirmantePorFecha(fechaDemanda)
-  if (firmante.nombre === 'Pablo L. Rúa Sobrino') {
-    return '/public/firmas/pablo-rua-firma.png'
-  } else {
-    return '/public/firmas/jesus-oroza-firma.png'
   }
 }
 
@@ -249,7 +238,6 @@ export async function generateMinutaDocx(tasacionData: TasacionData): Promise<vo
     // Datos del firmante (alineado a la derecha)
     pdf.setFont('times', 'bold')
     pdf.setFontSize(12)
-    const firmanteFontWidth = pdf.getStringUnitWidth(firmante.nombre) * pdf.internal.getFontSize() / pdf.internal.pageSize.getWidth() * 25.4
     pdf.text(firmante.nombre, pageWidth - margin - 2, y, { align: 'right' })
     y += 7
     pdf.text(firmante.cargo, pageWidth - margin - 2, y, { align: 'right' })
