@@ -187,6 +187,7 @@ export default function HistorialTasaciones() {
         iva: tasacion.iva_21,
         total: tasacion.total,
         fecha: new Date(tasacion.created_at).toLocaleDateString('es-ES'),
+        fechaDemanda: tasacion.fecha_demanda || undefined,
         refAranzadi: tasacion.ref_aranzadi || undefined
       }
 

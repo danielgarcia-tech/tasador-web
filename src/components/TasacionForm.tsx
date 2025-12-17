@@ -232,6 +232,7 @@ export default function TasacionForm() {
         iva: resultado.iva,
         total: resultado.total,
         fecha: new Date().toLocaleDateString('es-ES'),
+        fechaDemanda: formData.fecha_demanda || undefined,
         refAranzadi: formData.ref_aranzadi || undefined
       }
 
