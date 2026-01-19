@@ -54,8 +54,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // Verificar contraseña usando la función crypt de PostgreSQL
       const { data: authData, error: authError } = await supabase
         .rpc('verify_password', {
-          password: password,
-          password_hash: userData.password_hash
+          input_password: password,
+          stored_hash: userData.password_hash
         })
 
       if (authError || !authData) {
