@@ -38,9 +38,9 @@ export default function InterestCalculatorComponent({ className = '' }: Interest
   const [calculating, setCalculating] = useState(false)
 
   // Estados para personalización del informe PDF
-  const [reportTitle, setReportTitle] = useState<string>('INFORME DE CÁLCULO DE INTERESES')
-  const [reportSubtitle, setReportSubtitle] = useState<string>('Cálculo Simple de Intereses')
-  const [reportFooter, setReportFooter] = useState<string>('Departamento de Ejecuciones y Tasaciones - RUA ABOGADOS')
+  const reportTitle = 'INFORME DE CÁLCULO DE INTERESES'
+  const reportSubtitle = 'Cálculo Simple de Intereses'
+  const reportFooter = 'Departamento de Ejecuciones y Tasaciones - RUA ABOGADOS'
   const [nombreExpediente, setNombreExpediente] = useState<string>('')
   const [numeroProcedimiento, setNumeroProcedimiento] = useState<string>('')
 
@@ -132,7 +132,6 @@ export default function InterestCalculatorComponent({ className = '' }: Interest
       const pageWidth = pdf.internal.pageSize.getWidth()
       const pageHeight = pdf.internal.pageSize.getHeight()
       const margin = 20
-      const contentWidth = pageWidth - (margin * 2)
 
       // Función auxiliar para añadir pie de página
       const addFooter = (pageNum: number) => {
