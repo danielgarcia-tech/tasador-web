@@ -1,7 +1,20 @@
 import { useState, useEffect } from 'react'
-import { Calculator, Calendar, Euro, TrendingUp, AlertCircle } from 'lucide-react'
+import { Calculator, Calendar, Euro, TrendingUp, AlertCircle, Download } from 'lucide-react'
 import { interestCalculator, initializeInterestCalculator } from '../lib/interestCalculator'
 import type { InterestCalculationInput, InterestCalculationResult } from '../lib/interestCalculator'
+import jsPDF from 'jspdf'
+import autoTable from 'jspdf-autotable'
+import logoRua from '../assets/logo-rua.png'
+
+// Extender el tipo jsPDF para incluir autoTable
+declare module 'jspdf' {
+  interface jsPDF {
+    autoTable: (options: any) => jsPDF
+    lastAutoTable: {
+      finalY: number
+    }
+  }
+}
 
 interface InterestCalculatorProps {
   className?: string
@@ -23,6 +36,13 @@ export default function InterestCalculatorComponent({ className = '' }: Interest
   // Result state
   const [resultado, setResultado] = useState<InterestCalculationResult | null>(null)
   const [calculating, setCalculating] = useState(false)
+
+  // Estados para personalización del informe PDF
+  const [reportTitle, setReportTitle] = useState<string>('INFORME DE CÁLCULO DE INTERESES')
+  const [reportSubtitle, setReportSubtitle] = useState<string>('Cálculo Simple de Intereses')
+  const [reportFooter, setReportFooter] = useState<string>('Departamento de Ejecuciones y Tasaciones - RUA ABOGADOS')
+  const [nombreExpediente, setNombreExpediente] = useState<string>('')
+  const [numeroProcedimiento, setNumeroProcedimiento] = useState<string>('')
 
   // Initialize calculator
   useEffect(() => {
@@ -101,6 +121,240 @@ export default function InterestCalculatorComponent({ className = '' }: Interest
       style: 'currency',
       currency: 'EUR'
     }).format(amount)
+  }
+
+  const generatePDF = async () => {
+    if (!resultado) return
+
+    try {
+      const pdf = new jsPDF()
+      let pageNumber = 1
+      const pageWidth = pdf.internal.pageSize.getWidth()
+      const pageHeight = pdf.internal.pageSize.getHeight()
+      const margin = 20
+      const contentWidth = pageWidth - (margin * 2)
+
+      // Función auxiliar para añadir pie de página
+      const addFooter = (pageNum: number) => {
+        pdf.setFontSize(8)
+        pdf.setFont('helvetica', 'italic')
+        pdf.text(`Página ${pageNum}`, margin, pageHeight - 10)
+        if (nombreExpediente) {
+          pdf.text(`Expediente: ${nombreExpediente}`, pageWidth - margin - 60, pageHeight - 10)
+        }
+        if (numeroProcedimiento) {
+          pdf.text(`Nº Procedimiento: ${numeroProcedimiento}`, margin, pageHeight - 5)
+        }
+        pdf.text('RUA ABOGADOS', pageWidth - margin - 40, pageHeight - 5)
+      }
+
+      // Función auxiliar para añadir nueva página
+      const addNewPage = () => {
+        pdf.addPage()
+        pageNumber++
+        addFooter(pageNumber)
+        return margin
+      }
+
+      // PORTADA
+      try {
+        const logoImg = await new Promise<HTMLImageElement>((resolve, reject) => {
+          const img = new Image()
+          img.onload = () => resolve(img)
+          img.onerror = reject
+          img.src = logoRua
+        })
+        
+        const maxLogoWidth = 80
+        const aspectRatio = logoImg.height / logoImg.width
+        const logoWidth = maxLogoWidth
+        const logoHeight = logoWidth * aspectRatio
+        const logoX = (pageWidth - logoWidth) / 2
+        
+        pdf.addImage(logoRua, 'PNG', logoX, 30, logoWidth, logoHeight)
+      } catch (error) {
+        console.warn('No se pudo cargar el logo:', error)
+      }
+
+      pdf.setFontSize(24)
+      pdf.setFont('helvetica', 'bold')
+      pdf.text(reportTitle, pageWidth / 2, 130, { align: 'center' })
+
+      pdf.setFontSize(18)
+      pdf.setFont('helvetica', 'normal')
+      pdf.text(reportSubtitle, pageWidth / 2, 150, { align: 'center' })
+
+      if (nombreExpediente) {
+        pdf.setFontSize(16)
+        pdf.setFont('helvetica', 'normal')
+        pdf.text('Expediente:', pageWidth / 2, 180, { align: 'center' })
+
+        pdf.setFontSize(18)
+        pdf.setFont('helvetica', 'bold')
+        pdf.text(nombreExpediente.toUpperCase(), pageWidth / 2, 195, { align: 'center' })
+      }
+      
+      if (numeroProcedimiento) {
+        pdf.setFontSize(14)
+        pdf.setFont('helvetica', 'normal')
+        pdf.text(`Nº Procedimiento: ${numeroProcedimiento}`, pageWidth / 2, 210, { align: 'center' })
+      }
+
+      pdf.setFontSize(12)
+      pdf.setFont('helvetica', 'normal')
+      pdf.text(`Fecha de generación: ${new Date().toLocaleDateString('es-ES')}`, pageWidth / 2, 230, { align: 'center' })
+      pdf.text(`Hora: ${new Date().toLocaleTimeString('es-ES')}`, pageWidth / 2, 240, { align: 'center' })
+
+      pdf.setFontSize(10)
+      pdf.text(reportFooter, pageWidth / 2, 250, { align: 'center' })
+
+      addFooter(pageNumber)
+
+      // RESUMEN EJECUTIVO
+      let yPosition = addNewPage()
+      pdf.setFontSize(18)
+      pdf.setFont('helvetica', 'bold')
+      pdf.text('RESUMEN EJECUTIVO', pageWidth / 2, yPosition, { align: 'center' })
+      yPosition += 15
+
+      pdf.setFontSize(12)
+      pdf.setFont('helvetica', 'normal')
+
+      const capitalNum = parseFloat(capital.replace(',', '.'))
+      const summaryData = [
+        ['Capital Principal:', formatCurrency(capitalNum)],
+        ['Total Intereses:', formatCurrency(resultado.totalInteres)],
+        ['Total a Pagar:', formatCurrency(capitalNum + resultado.totalInteres)],
+        ['Modalidad:', modalidad === 'legal' ? 'Interés Legal' :
+                      modalidad === 'judicial' ? 'Interés Judicial' :
+                      modalidad === 'tae' ? 'TAE Contrato' : 'TAE + 5%'],
+        ['Fecha Inicio:', new Date(fechaInicio).toLocaleDateString('es-ES')],
+        ['Fecha Fin:', new Date(fechaFin).toLocaleDateString('es-ES')],
+        ['Días Totales:', resultado.detallePorAño.reduce((sum, d) => sum + d.dias, 0).toString()]
+      ]
+
+      if (modalidad === 'tae' || modalidad === 'tae_plus5') {
+        summaryData.push(['TAE Contrato:', `${taeContrato}%`])
+      }
+
+      if (modalidad === 'judicial' && fechaSentencia) {
+        summaryData.push(['Fecha Sentencia:', new Date(fechaSentencia).toLocaleDateString('es-ES')])
+      }
+
+      autoTable(pdf, {
+        startY: yPosition,
+        head: [['Concepto', 'Valor']],
+        body: summaryData,
+        theme: 'grid',
+        headStyles: {
+          fillColor: [52, 73, 94],
+          textColor: [255, 255, 255],
+          fontStyle: 'bold',
+          halign: 'center'
+        },
+        columnStyles: {
+          0: { fontStyle: 'bold', cellWidth: 80 },
+          1: { halign: 'right', cellWidth: 90 }
+        },
+        margin: { left: margin, right: margin }
+      })
+
+      yPosition = pdf.lastAutoTable.finalY + 20
+
+      // DETALLE POR AÑO
+      if (yPosition > pageHeight - 100) {
+        yPosition = addNewPage()
+      } else {
+        yPosition += 10
+      }
+
+      pdf.setFontSize(16)
+      pdf.setFont('helvetica', 'bold')
+      pdf.text('DETALLE DE CÁLCULO POR AÑO', pageWidth / 2, yPosition, { align: 'center' })
+      yPosition += 10
+
+      const detalleData = resultado.detallePorAño.map(detalle => [
+        detalle.año.toString(),
+        detalle.dias.toString(),
+        `${(detalle.tasa * 100).toFixed(2)}%`,
+        detalle.tipo === 'legal' ? 'Legal' :
+        detalle.tipo === 'judicial' ? 'Judicial' :
+        detalle.tipo === 'tae' ? 'TAE' : 'TAE+5%',
+        formatCurrency(detalle.interes)
+      ])
+
+      autoTable(pdf, {
+        startY: yPosition,
+        head: [['Año', 'Días', 'Tasa (%)', 'Tipo', 'Interés (€)']],
+        body: detalleData,
+        foot: [['', '', '', 'TOTAL:', formatCurrency(resultado.totalInteres)]],
+        theme: 'striped',
+        headStyles: {
+          fillColor: [52, 73, 94],
+          textColor: [255, 255, 255],
+          fontStyle: 'bold',
+          halign: 'center'
+        },
+        footStyles: {
+          fillColor: [41, 128, 185],
+          textColor: [255, 255, 255],
+          fontStyle: 'bold',
+          halign: 'right'
+        },
+        columnStyles: {
+          0: { halign: 'center' },
+          1: { halign: 'center' },
+          2: { halign: 'center' },
+          3: { halign: 'center' },
+          4: { halign: 'right', fontStyle: 'bold' }
+        },
+        margin: { left: margin, right: margin }
+      })
+
+      yPosition = pdf.lastAutoTable.finalY + 20
+
+      // METODOLOGÍA
+      if (yPosition > pageHeight - 60) {
+        yPosition = addNewPage()
+      }
+
+      pdf.setFontSize(16)
+      pdf.setFont('helvetica', 'bold')
+      pdf.text('METODOLOGÍA DE CÁLCULO', pageWidth / 2, yPosition, { align: 'center' })
+      yPosition += 10
+
+      pdf.setFontSize(10)
+      pdf.setFont('helvetica', 'normal')
+      
+      const metodologiaTexto = [
+        'El cálculo de intereses se ha realizado conforme a la legislación española vigente,',
+        'aplicando la fórmula estándar de interés simple con año comercial de 360 días:',
+        '',
+        'Interés = Capital × Tasa × Días / 360',
+        '',
+        'Los tipos de interés aplicados corresponden a las tasas oficiales publicadas',
+        'por el Banco de España para cada período del cálculo.'
+      ]
+
+      metodologiaTexto.forEach(linea => {
+        if (yPosition > pageHeight - 30) {
+          yPosition = addNewPage()
+        }
+        pdf.text(linea, margin, yPosition)
+        yPosition += 6
+      })
+
+      // Guardar PDF
+      const fileName = nombreExpediente 
+        ? `Informe_Intereses_${nombreExpediente.replace(/\s+/g, '_')}_${new Date().toLocaleDateString('es-ES').replace(/\//g, '-')}.pdf`
+        : `Informe_Intereses_${new Date().toLocaleDateString('es-ES').replace(/\//g, '-')}.pdf`
+      
+      pdf.save(fileName)
+
+    } catch (error) {
+      console.error('Error al generar PDF:', error)
+      setError('Error al generar el PDF')
+    }
   }
 
   if (loading) {
@@ -241,6 +495,39 @@ export default function InterestCalculatorComponent({ className = '' }: Interest
           )}
         </div>
 
+        {/* Campos opcionales para el informe PDF */}
+        <div className="border-t border-gray-200 pt-6">
+          <h3 className="text-sm font-medium text-gray-700 mb-4">
+            Información Opcional para el Informe PDF
+          </h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Nombre del Expediente
+              </label>
+              <input
+                type="text"
+                value={nombreExpediente}
+                onChange={(e) => setNombreExpediente(e.target.value)}
+                placeholder="Ej: Expediente XYZ-2024"
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary-500 focus:border-primary-500"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Nº de Procedimiento
+              </label>
+              <input
+                type="text"
+                value={numeroProcedimiento}
+                onChange={(e) => setNumeroProcedimiento(e.target.value)}
+                placeholder="Ej: 123/2024"
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary-500 focus:border-primary-500"
+              />
+            </div>
+          </div>
+        </div>
+
         {/* Calculate Button */}
         <div className="flex justify-center">
           <button
@@ -266,7 +553,16 @@ export default function InterestCalculatorComponent({ className = '' }: Interest
         {/* Results */}
         {resultado && (
           <div className="border-t border-gray-200 pt-6">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">Resultado del Cálculo</h3>
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-lg font-semibold text-gray-900">Resultado del Cálculo</h3>
+              <button
+                onClick={generatePDF}
+                className="flex items-center space-x-2 bg-primary-600 text-white px-4 py-2 rounded-md hover:bg-primary-700 focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 transition-colors"
+              >
+                <Download className="h-4 w-4" />
+                <span>Descargar PDF</span>
+              </button>
+            </div>
 
             {/* Total Interest */}
             <div className="bg-primary-50 border border-primary-200 rounded-lg p-4 mb-6">
