@@ -30,6 +30,7 @@ import { buscarMunicipios, obtenerTodosMunicipios } from '../lib/municipios'
 import { buscarEntidades, obtenerTodasEntidades, buscarEntidadPorCodigo } from '../lib/entidades'
 import { generateMinutaDocx } from '../lib/docx-generator'
 import { type Tasacion } from '../lib/supabase'
+import HistorialLiquidaciones from './HistorialLiquidaciones'
 
 const tasacionSchema = z.object({
   nombre_cliente: z.string().min(1, 'El nombre del cliente es requerido'),
@@ -48,6 +49,9 @@ type TasacionForm = z.infer<typeof tasacionSchema>
 
 export default function HistorialTasaciones() {
   const { tasaciones, loading, error, isOffline, refresh, update: updateTasacion, delete: deleteTasacion } = useTasaciones()
+
+  // Estado para el selector de tipo de historial
+  const [tipoHistorial, setTipoHistorial] = useState<'tasaciones' | 'liquidaciones'>('tasaciones')
 
   // Función helper para determinar el tipo de costas basado en fecha de demanda
   const getTipoCostas = (fechaDemanda: string | null | undefined): string => {
@@ -682,12 +686,49 @@ export default function HistorialTasaciones() {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900">Historial de Tasaciones</h1>
-          <p className="text-gray-600 mt-1">Gestiona y consulta todas las tasaciones realizadas</p>
+      {/* Selector de Tipo de Historial */}
+      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
+        <div className="flex gap-4">
+          <button
+            onClick={() => setTipoHistorial('tasaciones')}
+            className={`flex-1 py-3 px-6 rounded-lg font-medium transition-all ${
+              tipoHistorial === 'tasaciones'
+                ? 'bg-blue-600 text-white shadow-md'
+                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+            }`}
+          >
+            <div className="flex items-center justify-center gap-2">
+              <FileText className="h-5 w-5" />
+              <span>Historial de Tasaciones</span>
+            </div>
+          </button>
+          <button
+            onClick={() => setTipoHistorial('liquidaciones')}
+            className={`flex-1 py-3 px-6 rounded-lg font-medium transition-all ${
+              tipoHistorial === 'liquidaciones'
+                ? 'bg-blue-600 text-white shadow-md'
+                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+            }`}
+          >
+            <div className="flex items-center justify-center gap-2">
+              <TrendingUp className="h-5 w-5" />
+              <span>Historial de Liquidaciones</span>
+            </div>
+          </button>
         </div>
+      </div>
+
+      {/* Mostrar componente según selección */}
+      {tipoHistorial === 'liquidaciones' ? (
+        <HistorialLiquidaciones />
+      ) : (
+        <>
+          {/* Header */}
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+            <div>
+              <h1 className="text-3xl font-bold text-gray-900">Historial de Tasaciones</h1>
+              <p className="text-gray-600 mt-1">Gestiona y consulta todas las tasaciones realizadas</p>
+            </div>
         <div className="flex items-center gap-3">
           <button
             onClick={() => descargarReporteExcel(filteredTasaciones)}
@@ -1526,6 +1567,8 @@ export default function HistorialTasaciones() {
             </div>
           </div>
         </div>
+      )}
+        </>
       )}
     </div>
   )

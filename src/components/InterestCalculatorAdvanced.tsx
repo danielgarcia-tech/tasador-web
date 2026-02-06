@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react'
-import { Calculator, TrendingUp, Upload, AlertCircle, Trash2, BarChart3, Download, X, RefreshCw, Plus } from 'lucide-react'
+import { Calculator, TrendingUp, Upload, AlertCircle, Trash2, BarChart3, Download, X, RefreshCw, Plus, Save } from 'lucide-react'
 import { interestCalculator, initializeInterestCalculator } from '../lib/interestCalculator'
 import type { InterestCalculationInput, InterestCalculationResult } from '../lib/interestCalculator'
 import * as XLSX from 'xlsx'
@@ -7,6 +7,8 @@ import CountUp from './CountUp'
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, BarChart, Bar } from 'recharts'
 import jsPDF from 'jspdf'
 import autoTable from 'jspdf-autotable'
+import { supabase } from '../lib/supabase'
+import { useAuth } from '../contexts/CustomAuthContext'
 
 // Extender el tipo jsPDF para incluir autoTable
 declare module 'jspdf' {
@@ -52,6 +54,7 @@ interface ColumnMapping {
 }
 
 export default function InterestCalculatorAdvanced() {
+  const { user } = useAuth()
   const [initialized, setInitialized] = useState(false)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -92,6 +95,13 @@ export default function InterestCalculatorAdvanced() {
   const [showPdfConfigModal, setShowPdfConfigModal] = useState<boolean>(false)
   const [numeroProcedimiento, setNumeroProcedimiento] = useState<string>('')
   const [nombreExpedienteTemp, setNombreExpedienteTemp] = useState<string>('')
+
+  // Estados para modal de duplicados
+  const [showDuplicateModal, setShowDuplicateModal] = useState<boolean>(false)
+  const [duplicateData, setDuplicateData] = useState<any>(null)
+  const [newRefAranzadi, setNewRefAranzadi] = useState<string>('')
+  const [duplicateAction, setDuplicateAction] = useState<'update' | 'create' | null>(null)
+  const [duplicateResolve, setDuplicateResolve] = useState<((value: 'update' | 'create' | 'cancel') => void) | null>(null)
 
   // Función para reset completo de la calculadora
   const resetCalculator = useCallback(() => {
@@ -337,6 +347,199 @@ export default function InterestCalculatorAdvanced() {
     }
   }, [handleFileUpload])
 
+  // Función helper para mostrar modal de duplicados y esperar decisión del usuario
+  const showDuplicateModalAndWait = (existingData: any, newData: any, refAranzadi: string): Promise<'update' | 'create' | 'cancel'> => {
+    return new Promise((resolve) => {
+      setDuplicateData({ existing: existingData, new: newData, refAranzadi })
+      setNewRefAranzadi(refAranzadi + '-BIS')
+      setDuplicateAction(null)
+      setDuplicateResolve(() => resolve)
+      setShowDuplicateModal(true)
+    })
+  }
+
+  // Función para cerrar modal de duplicados
+  const closeDuplicateModal = (action: 'update' | 'create' | 'cancel') => {
+    setShowDuplicateModal(false)
+    if (duplicateResolve) {
+      duplicateResolve(action)
+      setDuplicateResolve(null)
+    }
+    setDuplicateData(null)
+    setNewRefAranzadi('')
+    setDuplicateAction(null)
+  }
+
+  // Función para guardar manualmente una liquidación
+  const saveManualLiquidation = async () => {
+    if (!user?.id) {
+      alert('Debes estar autenticado para guardar liquidaciones')
+      return
+    }
+
+    if (results.length === 0) {
+      alert('No hay resultados para guardar')
+      return
+    }
+
+    // Preguntar por la referencia Aranzadi
+    let refAranzadi = prompt('Introduce la Referencia Aranzadi para esta liquidación:')
+    
+    if (!refAranzadi || refAranzadi.trim() === '') {
+      alert('Debes introducir una Referencia Aranzadi válida')
+      return
+    }
+
+    try {
+      // Verificar si ya existe una liquidación con esa referencia Aranzadi
+      const { data: existingLiquidacion, error: checkError} = await supabase
+        .from('tasador_historial_liquidaciones')
+        .select('*')
+        .eq('ref_aranzadi', refAranzadi.trim())
+        .eq('user_id', user.id)
+        .maybeSingle()
+
+      if (checkError) {
+        console.error('Error verificando duplicados:', checkError)
+        throw checkError
+      }
+
+      // Agrupar todos los resultados por modalidad
+      const groupedByModalidad = {
+        legal: null as number | null,
+        judicial: null as number | null,
+        tae: null as number | null,
+        tae_plus5: null as number | null
+      }
+
+      results.forEach(result => {
+        if (result.resultado && result.modalidad) {
+          if (!groupedByModalidad[result.modalidad]) {
+            groupedByModalidad[result.modalidad] = 0
+          }
+          groupedByModalidad[result.modalidad]! += result.resultado.totalInteres
+        }
+      })
+
+      const totalNuevo = 
+        (groupedByModalidad.legal || 0) + 
+        (groupedByModalidad.judicial || 0) + 
+        (groupedByModalidad.tae || 0) + 
+        (groupedByModalidad.tae_plus5 || 0)
+
+      // Si existe, mostrar modal y esperar decisión
+      if (existingLiquidacion) {
+        const action = await showDuplicateModalAndWait(existingLiquidacion, groupedByModalidad, refAranzadi)
+
+        if (action === 'cancel') {
+          alert('Operación cancelada. No se guardó ninguna liquidación.')
+          return
+        }
+
+        if (action === 'update') {
+          // ACTUALIZAR el registro existente
+          const recordToUpdate = {
+            intereses_legales: groupedByModalidad.legal,
+            interes_judicial: groupedByModalidad.judicial,
+            tae_cto: groupedByModalidad.tae,
+            tae_mas_5: groupedByModalidad.tae_plus5,
+            fecha_fin: globalFechaFin || null,
+            fecha_sentencia: globalFechaSentencia || null,
+            tae_porcentaje: globalTaeContrato ? parseFloat(globalTaeContrato) : null,
+            updated_at: new Date().toISOString()
+          }
+
+          const { error: updateError } = await supabase
+            .from('tasador_historial_liquidaciones')
+            .update(recordToUpdate)
+            .eq('id', existingLiquidacion.id)
+
+          if (updateError) {
+            console.error('Error actualizando liquidación:', updateError)
+            alert(`❌ Error al actualizar la liquidación:\n\n${updateError.message}`)
+          } else {
+            console.log('Liquidación actualizada:', recordToUpdate)
+            alert(`✅ Liquidación ACTUALIZADA correctamente con referencia: ${refAranzadi}\n\nTotal: €${totalNuevo.toFixed(2)}`)
+          }
+        } else if (action === 'create') {
+          // Verificar que la nueva referencia no exista
+          const { data: existingNuevaRef } = await supabase
+            .from('tasador_historial_liquidaciones')
+            .select('id')
+            .eq('ref_aranzadi', newRefAranzadi.trim())
+            .eq('user_id', user.id)
+            .maybeSingle()
+
+          if (existingNuevaRef) {
+            alert(`❌ La referencia "${newRefAranzadi}" también existe. Por favor, usa una referencia diferente e intenta de nuevo.`)
+            return
+          }
+
+          // Crear nuevo registro con la nueva referencia
+          const recordToInsert = {
+            user_id: user.id,
+            ref_aranzadi: newRefAranzadi.trim(),
+            intereses_legales: groupedByModalidad.legal,
+            interes_judicial: groupedByModalidad.judicial,
+            tae_cto: groupedByModalidad.tae,
+            tae_mas_5: groupedByModalidad.tae_plus5,
+            fecha_fin: globalFechaFin || null,
+            fecha_sentencia: globalFechaSentencia || null,
+            tae_porcentaje: globalTaeContrato ? parseFloat(globalTaeContrato) : null
+          }
+
+          const { error: insertError } = await supabase
+            .from('tasador_historial_liquidaciones')
+            .insert([recordToInsert])
+
+          if (insertError) {
+            console.error('Error guardando nueva liquidación:', insertError)
+            alert(`❌ Error al guardar la liquidación:\n\n${insertError.message}`)
+          } else {
+            console.log('Nueva liquidación guardada:', recordToInsert)
+            alert(`✅ NUEVA liquidación guardada correctamente con referencia: ${newRefAranzadi}\n\nTotal: €${totalNuevo.toFixed(2)}`)
+          }
+        }
+      } else {
+        // No existe, crear nuevo registro normalmente
+        const recordToInsert = {
+          user_id: user.id,
+          ref_aranzadi: refAranzadi.trim(),
+          intereses_legales: groupedByModalidad.legal,
+          interes_judicial: groupedByModalidad.judicial,
+          tae_cto: groupedByModalidad.tae,
+          tae_mas_5: groupedByModalidad.tae_plus5,
+          fecha_fin: globalFechaFin || null,
+          fecha_sentencia: globalFechaSentencia || null,
+          tae_porcentaje: globalTaeContrato ? parseFloat(globalTaeContrato) : null
+        }
+
+        console.log('Guardando liquidación:', recordToInsert)
+
+        const { error: insertError } = await supabase
+          .from('tasador_historial_liquidaciones')
+          .insert([recordToInsert])
+
+        if (insertError) {
+          console.error('Error guardando liquidación:', insertError)
+          alert(`❌ Error al guardar la liquidación:\n\n${insertError.message}`)
+        } else {
+          const totalNuevo = 
+            (groupedByModalidad.legal || 0) + 
+            (groupedByModalidad.judicial || 0) + 
+            (groupedByModalidad.tae || 0) + 
+            (groupedByModalidad.tae_plus5 || 0)
+          console.log('Liquidación guardada:', recordToInsert)
+          alert(`✅ Liquidación guardada correctamente con referencia: ${refAranzadi}\n\nTotal: €${totalNuevo.toFixed(2)}`)
+        }
+      }
+    } catch (err) {
+      console.error('Error al guardar liquidación:', err)
+      const errorMessage = err instanceof Error ? err.message : 'Error desconocido'
+      alert(`Error inesperado al guardar la liquidación:\n\n${errorMessage}\n\nRevisa la consola del navegador para más detalles.`)
+    }
+  }
+
   // Optimización del cálculo de intereses con progress tracking
   const calculateAllInterests = useCallback(async () => {
     // Validar que haya al menos una cuantía seleccionada (no vacía)
@@ -516,7 +719,7 @@ export default function InterestCalculatorAdvanced() {
       }
 
       setCalculationProgress(100)
-      setCalculationStatus('Finalizando cálculos...')
+      setCalculationStatus('Cálculos completados')
       setResults(calculatedResults)
       
       // Clear progress after a short delay
@@ -531,7 +734,7 @@ export default function InterestCalculatorAdvanced() {
     } finally {
       setCalculating(false)
     }
-  }, [initialized, excelData, columnMapping, globalFechaFin, globalModalidades, globalTaeContrato, globalFechaSentencia])
+  }, [initialized, excelData, columnMapping, globalFechaFin, globalModalidades, globalTaeContrato, globalFechaSentencia, user])
 
   // Función auxiliar para parsear fechas
   const parseDate = (dateValue: any): Date | null => {
@@ -1735,7 +1938,199 @@ export default function InterestCalculatorAdvanced() {
       const fileName = `INFORME_INTERESES_${nombreExpediente.replace(/[^a-zA-Z0-9]/g, '_').toUpperCase()}.pdf`
       pdf.save(fileName)
 
-      alert(`PDF generado correctamente: ${fileName}`)
+      // Subir el PDF al storage de Supabase
+      if (user?.id) {
+        try {
+          // Convertir el PDF a blob
+          const pdfBlob = pdf.output('blob')
+          
+          // Crear nombre único para el archivo: timestamp_refaranzadi.pdf
+          const timestamp = new Date().getTime()
+          const storageFileName = `${timestamp}_${numeroProcedimiento.replace(/[^a-zA-Z0-9]/g, '_')}.pdf`
+          
+          // Subir al bucket de Supabase Storage
+          const { data: uploadData, error: uploadError } = await supabase.storage
+            .from('informes_liquidaciones')
+            .upload(storageFileName, pdfBlob, {
+              contentType: 'application/pdf',
+              cacheControl: '3600',
+              upsert: false
+            })
+
+          if (uploadError) {
+            console.error('Error subiendo PDF al storage:', uploadError)
+          } else {
+            console.log('✅ PDF subido exitosamente al storage:', uploadData.path)
+            
+            // Guardar relación en la tabla tasador_relacion_informes_liquidaciones
+            try {
+              const { error: relationError } = await supabase
+                .from('tasador_relacion_informes_liquidaciones')
+                .insert([{
+                  ref_aranzadi: numeroProcedimiento.trim(),
+                  user_id: user.id,
+                  nombre_archivo: storageFileName
+                }])
+              
+              if (relationError) {
+                console.error('Error guardando relación informe:', relationError)
+              } else {
+                console.log('✅ Relación informe-liquidación guardada')
+              }
+            } catch (relationErr) {
+              console.error('Error al guardar relación:', relationErr)
+            }
+          }
+        } catch (storageError) {
+          console.error('Error al subir PDF al storage:', storageError)
+        }
+      }
+
+      // Guardar automáticamente la liquidación en la base de datos con validación de duplicados
+      if (user?.id) {
+        try {
+          // Verificar si ya existe una liquidación con ese número de procedimiento
+          const { data: existingLiquidacion, error: checkError } = await supabase
+            .from('tasador_historial_liquidaciones')
+            .select('*')
+            .eq('ref_aranzadi', numeroProcedimiento.trim())
+            .eq('user_id', user.id)
+            .maybeSingle()
+
+          if (checkError) {
+            console.error('Error verificando duplicados:', checkError)
+            throw checkError
+          }
+
+          // Agrupar todos los resultados por modalidad
+          const groupedByModalidad = {
+            legal: null as number | null,
+            judicial: null as number | null,
+            tae: null as number | null,
+            tae_plus5: null as number | null
+          }
+
+          results.forEach(result => {
+            if (result.resultado && result.modalidad) {
+              if (!groupedByModalidad[result.modalidad]) {
+                groupedByModalidad[result.modalidad] = 0
+              }
+              groupedByModalidad[result.modalidad]! += result.resultado.totalInteres
+            }
+          })
+
+          const totalNuevo = 
+            (groupedByModalidad.legal || 0) + 
+            (groupedByModalidad.judicial || 0) + 
+            (groupedByModalidad.tae || 0) + 
+            (groupedByModalidad.tae_plus5 || 0)
+
+          // Si existe, mostrar modal y esperar decisión
+          if (existingLiquidacion) {
+            const action = await showDuplicateModalAndWait(existingLiquidacion, groupedByModalidad, numeroProcedimiento)
+
+            if (action === 'cancel') {
+              alert(`✅ PDF generado correctamente: ${fileName}\n\n❌ La liquidación NO fue actualizada en el historial (se mantuvo la versión anterior).`)
+              return
+            }
+
+            if (action === 'update') {
+              // ACTUALIZAR el registro existente
+              const recordToUpdate = {
+                intereses_legales: groupedByModalidad.legal,
+                interes_judicial: groupedByModalidad.judicial,
+                tae_cto: groupedByModalidad.tae,
+                tae_mas_5: groupedByModalidad.tae_plus5,
+                fecha_fin: globalFechaFin || null,
+                fecha_sentencia: globalFechaSentencia || null,
+                tae_porcentaje: globalTaeContrato ? parseFloat(globalTaeContrato) : null,
+                updated_at: new Date().toISOString()
+              }
+
+              const { error: updateError } = await supabase
+                .from('tasador_historial_liquidaciones')
+                .update(recordToUpdate)
+                .eq('id', existingLiquidacion.id)
+
+              if (!updateError) {
+                console.log('✅ Liquidación ACTUALIZADA en el historial')
+                alert(`✅ PDF generado correctamente: ${fileName}\n\n📝 La liquidación ha sido ACTUALIZADA en el historial.\nTotal: €${totalNuevo.toFixed(2)}`)
+              } else {
+                console.error('Error actualizando liquidación:', updateError)
+                alert(`✅ PDF generado correctamente: ${fileName}\n\n⚠️ No se pudo actualizar la liquidación en el historial:\n${updateError.message}`)
+              }
+            } else if (action === 'create') {
+              // Verificar que la nueva referencia no exista
+              const { data: existingNuevaRef } = await supabase
+                .from('tasador_historial_liquidaciones')
+                .select('id')
+                .eq('ref_aranzadi', newRefAranzadi.trim())
+                .eq('user_id', user.id)
+                .maybeSingle()
+
+              if (existingNuevaRef) {
+                alert(`❌ La referencia "${newRefAranzadi}" también existe.\n\n✅ PDF generado correctamente: ${fileName}`)
+                return
+              }
+
+              // Crear nuevo registro con la nueva referencia
+              const recordToInsert = {
+                user_id: user.id,
+                ref_aranzadi: newRefAranzadi.trim(),
+                intereses_legales: groupedByModalidad.legal,
+                interes_judicial: groupedByModalidad.judicial,
+                tae_cto: groupedByModalidad.tae,
+                tae_mas_5: groupedByModalidad.tae_plus5,
+                fecha_fin: globalFechaFin || null,
+                fecha_sentencia: globalFechaSentencia || null,
+                tae_porcentaje: globalTaeContrato ? parseFloat(globalTaeContrato) : null
+              }
+
+              const { error: insertError } = await supabase
+                .from('tasador_historial_liquidaciones')
+                .insert([recordToInsert])
+
+              if (!insertError) {
+                console.log('✅ Nueva liquidación guardada en el historial')
+                alert(`✅ PDF generado correctamente: ${fileName}\n\n📝 NUEVA liquidación guardada en el historial con referencia: ${newRefAranzadi}\nTotal: €${totalNuevo.toFixed(2)}`)
+              } else {
+                console.error('Error guardando nueva liquidación:', insertError)
+                alert(`✅ PDF generado correctamente: ${fileName}\n\n⚠️ No se pudo guardar la nueva liquidación en el historial:\n${insertError.message}`)
+              }
+            }
+          } else {
+            // No existe, crear nuevo registro
+            const recordToInsert = {
+              user_id: user.id,
+              ref_aranzadi: numeroProcedimiento.trim(),
+              intereses_legales: groupedByModalidad.legal,
+              interes_judicial: groupedByModalidad.judicial,
+              tae_cto: groupedByModalidad.tae,
+              tae_mas_5: groupedByModalidad.tae_plus5,
+              fecha_fin: globalFechaFin || null,
+              fecha_sentencia: globalFechaSentencia || null,
+              tae_porcentaje: globalTaeContrato ? parseFloat(globalTaeContrato) : null
+            }
+
+            const { error: insertError } = await supabase
+              .from('tasador_historial_liquidaciones')
+              .insert([recordToInsert])
+
+            if (!insertError) {
+              console.log('✅ Liquidación guardada automáticamente en el historial')
+              alert(`✅ PDF generado correctamente: ${fileName}\n\n📝 La liquidación ha sido guardada en el historial.\nTotal: €${totalNuevo.toFixed(2)}`)
+            } else {
+              console.error('Error guardando liquidación automáticamente:', insertError)
+              alert(`✅ PDF generado correctamente: ${fileName}\n\n⚠️ No se pudo guardar la liquidación en el historial:\n${insertError.message}`)
+            }
+          }
+        } catch (dbError) {
+          console.error('Error al guardar en base de datos:', dbError)
+          alert(`✅ PDF generado correctamente: ${fileName}\n\n⚠️ Hubo un error al intentar guardar en el historial. El PDF se generó correctamente.`)
+        }
+      } else {
+        alert(`✅ PDF generado correctamente: ${fileName}`)
+      }
 
     } catch (error) {
       console.error('Error generando PDF:', error)
@@ -2132,27 +2527,37 @@ export default function InterestCalculatorAdvanced() {
               <h3 className="text-lg font-semibold text-gray-900">
                 Resultados del Cálculo
               </h3>
-              <button
-                onClick={exportToExcel}
-                className="inline-flex items-center px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700"
-              >
-                <Upload className="h-4 w-4 mr-2" />
-                Exportar a Excel
-              </button>
-              <button
-                onClick={() => setShowReportCustomization(!showReportCustomization)}
-                className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
-              >
-                <BarChart3 className="h-4 w-4 mr-2" />
-                Personalizar Informe
-              </button>
-              <button
-                onClick={() => setShowPdfConfigModal(true)}
-                className="inline-flex items-center px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 ml-2"
-              >
-                <Download className="h-4 w-4 mr-2" />
-                Descargar PDF
-              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={saveManualLiquidation}
+                  className="inline-flex items-center px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700 transition-colors"
+                  title="Guardar liquidación en la base de datos"
+                >
+                  <Save className="h-4 w-4 mr-2" />
+                  Guardar Liquidación
+                </button>
+                <button
+                  onClick={exportToExcel}
+                  className="inline-flex items-center px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700"
+                >
+                  <Upload className="h-4 w-4 mr-2" />
+                  Exportar a Excel
+                </button>
+                <button
+                  onClick={() => setShowReportCustomization(!showReportCustomization)}
+                  className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+                >
+                  <BarChart3 className="h-4 w-4 mr-2" />
+                  Personalizar Informe
+                </button>
+                <button
+                  onClick={() => setShowPdfConfigModal(true)}
+                  className="inline-flex items-center px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700"
+                >
+                  <Download className="h-4 w-4 mr-2" />
+                  Descargar PDF
+                </button>
+              </div>
             </div>
 
             {globalModalidades.map(modalidad => {
@@ -2745,6 +3150,218 @@ export default function InterestCalculatorAdvanced() {
                   Generar PDF
                 </button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal de Duplicados */}
+      {showDuplicateModal && duplicateData && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto shadow-2xl">
+            <div className="bg-gradient-to-r from-amber-500 to-orange-600 p-6 text-white">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h2 className="text-3xl font-bold flex items-center">
+                    <AlertCircle className="h-8 w-8 mr-3" />
+                    Liquidación Duplicada Detectada
+                  </h2>
+                  <p className="text-amber-100 mt-1">Ya existe una liquidación con esta referencia</p>
+                </div>
+                <button
+                  onClick={() => closeDuplicateModal('cancel')}
+                  className="text-white hover:text-gray-200 text-3xl font-bold transition-colors"
+                >
+                  ×
+                </button>
+              </div>
+            </div>
+
+            <div className="p-6 space-y-6">
+              {/* Referencia Duplicada */}
+              <div className="bg-amber-50 border-l-4 border-amber-500 p-4 rounded-r-lg">
+                <h3 className="text-lg font-semibold text-amber-900 mb-2">Referencia Aranzadi Duplicada</h3>
+                <p className="text-2xl font-bold text-amber-700">{duplicateData.refAranzadi}</p>
+              </div>
+
+              {/* Comparativa de Valores */}
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                {/* Valores Actuales */}
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-5">
+                  <h3 className="text-xl font-bold text-blue-900 mb-4 flex items-center">
+                    <span className="bg-blue-600 text-white rounded-full w-8 h-8 flex items-center justify-center mr-2">📊</span>
+                    Valores ACTUALES en Base de Datos
+                  </h3>
+                  <div className="space-y-3">
+                    <div className="flex justify-between items-center bg-white p-3 rounded border-l-4 border-emerald-500">
+                      <span className="text-gray-700 font-medium">Int. Legales:</span>
+                      <span className="text-lg font-bold text-emerald-600">€{(duplicateData.existing.intereses_legales || 0).toFixed(2)}</span>
+                    </div>
+                    <div className="flex justify-between items-center bg-white p-3 rounded border-l-4 border-blue-500">
+                      <span className="text-gray-700 font-medium">Int. Judicial:</span>
+                      <span className="text-lg font-bold text-blue-600">€{(duplicateData.existing.interes_judicial || 0).toFixed(2)}</span>
+                    </div>
+                    <div className="flex justify-between items-center bg-white p-3 rounded border-l-4 border-purple-500">
+                      <span className="text-gray-700 font-medium">TAE CTO:</span>
+                      <span className="text-lg font-bold text-purple-600">€{(duplicateData.existing.tae_cto || 0).toFixed(2)}</span>
+                    </div>
+                    <div className="flex justify-between items-center bg-white p-3 rounded border-l-4 border-pink-500">
+                      <span className="text-gray-700 font-medium">TAE+5:</span>
+                      <span className="text-lg font-bold text-pink-600">€{(duplicateData.existing.tae_mas_5 || 0).toFixed(2)}</span>
+                    </div>
+                    <div className="bg-blue-600 text-white p-4 rounded-lg mt-4">
+                      <div className="flex justify-between items-center">
+                        <span className="font-semibold">TOTAL:</span>
+                        <span className="text-2xl font-bold">
+                          €{((duplicateData.existing.intereses_legales || 0) + 
+                             (duplicateData.existing.interes_judicial || 0) + 
+                             (duplicateData.existing.tae_cto || 0) + 
+                             (duplicateData.existing.tae_mas_5 || 0)).toFixed(2)}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Valores Nuevos */}
+                <div className="bg-green-50 border border-green-200 rounded-lg p-5">
+                  <h3 className="text-xl font-bold text-green-900 mb-4 flex items-center">
+                    <span className="bg-green-600 text-white rounded-full w-8 h-8 flex items-center justify-center mr-2">🔢</span>
+                    Valores NUEVOS a Guardar
+                  </h3>
+                  <div className="space-y-3">
+                    <div className="flex justify-between items-center bg-white p-3 rounded border-l-4 border-emerald-500">
+                      <span className="text-gray-700 font-medium">Int. Legales:</span>
+                      <span className="text-lg font-bold text-emerald-600">€{(duplicateData.new.legal || 0).toFixed(2)}</span>
+                    </div>
+                    <div className="flex justify-between items-center bg-white p-3 rounded border-l-4 border-blue-500">
+                      <span className="text-gray-700 font-medium">Int. Judicial:</span>
+                      <span className="text-lg font-bold text-blue-600">€{(duplicateData.new.judicial || 0).toFixed(2)}</span>
+                    </div>
+                    <div className="flex justify-between items-center bg-white p-3 rounded border-l-4 border-purple-500">
+                      <span className="text-gray-700 font-medium">TAE CTO:</span>
+                      <span className="text-lg font-bold text-purple-600">€{(duplicateData.new.tae || 0).toFixed(2)}</span>
+                    </div>
+                    <div className="flex justify-between items-center bg-white p-3 rounded border-l-4 border-pink-500">
+                      <span className="text-gray-700 font-medium">TAE+5:</span>
+                      <span className="text-lg font-bold text-pink-600">€{(duplicateData.new.tae_plus5 || 0).toFixed(2)}</span>
+                    </div>
+                    <div className="bg-green-600 text-white p-4 rounded-lg mt-4">
+                      <div className="flex justify-between items-center">
+                        <span className="font-semibold">TOTAL:</span>
+                        <span className="text-2xl font-bold">
+                          €{((duplicateData.new.legal || 0) + 
+                             (duplicateData.new.judicial || 0) + 
+                             (duplicateData.new.tae || 0) + 
+                             (duplicateData.new.tae_plus5 || 0)).toFixed(2)}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Opciones */}
+              <div className="bg-gray-50 border border-gray-200 rounded-lg p-5">
+                <h3 className="text-lg font-bold text-gray-900 mb-4">¿Qué deseas hacer?</h3>
+                <div className="space-y-4">
+                  {/* Opción 1: Actualizar */}
+                  <div 
+                    className={`border-2 rounded-lg p-4 cursor-pointer transition-all ${
+                      duplicateAction === 'update' 
+                        ? 'border-blue-500 bg-blue-50' 
+                        : 'border-gray-300 hover:border-blue-300 hover:bg-gray-50'
+                    }`}
+                    onClick={() => setDuplicateAction('update')}
+                  >
+                    <div className="flex items-start">
+                      <input
+                        type="radio"
+                        checked={duplicateAction === 'update'}
+                        onChange={() => setDuplicateAction('update')}
+                        className="mt-1 mr-3 h-5 w-5 text-blue-600"
+                      />
+                      <div className="flex-1">
+                        <h4 className="text-lg font-semibold text-gray-900">Actualizar liquidación existente</h4>
+                        <p className="text-sm text-gray-600 mt-1">
+                          Reemplazar los valores actuales en la base de datos con los nuevos valores calculados
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Opción 2: Crear Nuevo */}
+                  <div 
+                    className={`border-2 rounded-lg p-4 cursor-pointer transition-all ${
+                      duplicateAction === 'create' 
+                        ? 'border-green-500 bg-green-50' 
+                        : 'border-gray-300 hover:border-green-300 hover:bg-gray-50'
+                    }`}
+                    onClick={() => setDuplicateAction('create')}
+                  >
+                    <div className="flex items-start">
+                      <input
+                        type="radio"
+                        checked={duplicateAction === 'create'}
+                        onChange={() => setDuplicateAction('create')}
+                        className="mt-1 mr-3 h-5 w-5 text-green-600"
+                      />
+                      <div className="flex-1">
+                        <h4 className="text-lg font-semibold text-gray-900">Crear nuevo registro</h4>
+                        <p className="text-sm text-gray-600 mt-1 mb-3">
+                          Guardar como un nuevo registro con una referencia Aranzadi diferente
+                        </p>
+                        {duplicateAction === 'create' && (
+                          <div className="mt-3">
+                            <label className="block text-sm font-medium text-gray-700 mb-2">
+                              Nueva Referencia Aranzadi:
+                            </label>
+                            <input
+                              type="text"
+                              value={newRefAranzadi}
+                              onChange={(e) => setNewRefAranzadi(e.target.value)}
+                              placeholder="Ej: 236-2025-BIS"
+                              className="w-full px-4 py-2 border-2 border-green-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent font-mono"
+                            />
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-gray-50 p-6 flex justify-end gap-3 border-t">
+              <button
+                onClick={() => closeDuplicateModal('cancel')}
+                className="px-6 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-100 font-medium transition-colors"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={() => {
+                  if (duplicateAction === 'create' && (!newRefAranzadi || newRefAranzadi.trim() === '')) {
+                    alert('Por favor, introduce una nueva referencia Aranzadi válida')
+                    return
+                  }
+                  if (duplicateAction) {
+                    closeDuplicateModal(duplicateAction)
+                  } else {
+                    alert('Por favor, selecciona una opción')
+                  }
+                }}
+                disabled={!duplicateAction}
+                className={`px-6 py-2 rounded-lg font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
+                  duplicateAction === 'update' 
+                    ? 'bg-blue-600 hover:bg-blue-700 text-white' 
+                    : duplicateAction === 'create'
+                    ? 'bg-green-600 hover:bg-green-700 text-white'
+                    : 'bg-gray-400 text-white'
+                }`}
+              >
+                {duplicateAction === 'update' ? 'Actualizar Liquidación' : duplicateAction === 'create' ? 'Crear Nueva Liquidación' : 'Selecciona una opción'}
+              </button>
             </div>
           </div>
         </div>

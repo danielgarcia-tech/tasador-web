@@ -107,31 +107,52 @@ Bienvenido a la documentación técnica de Tasador Web. Este directorio contiene
 
 ---
 
+### 💾 [8. Historial de Liquidaciones](./08-HISTORIAL_LIQUIDACIONES.md)
+**Descripción:** Documentación técnica del módulo de gestión de liquidaciones
+- Componentes principales y estructura
+- Tablas de base de datos (tasador_historial_liquidaciones, tasador_relacion_informes_liquidaciones)
+- Storage de archivos (bucket informes_liquidaciones)
+- Funcionalidades (guardar, auto-guardado de PDFs, descarga)
+- Estadísticas en tiempo real (4 tarjetas)
+- Botones y acciones disponibles
+- Filtros avanzados (7 tipos)
+- Visor modal de detalles con 4 secciones
+- Integración con PDF (generación y almacenamiento)
+- Descarga de informes desde Storage
+
+**Leer si:** Trabajas con liquidaciones de intereses, necesitas entender cómo se almacenan PDFs o quieres implementar descarga de informes
+
+---
+
 ## 🎯 Guías Rápidas por Rol
 
 ### Para Desarrolladores Frontend
 1. Leer: [Arquitectura](./01-ARQUITECTURA.md) (Visión general)
 2. Leer: [Tasaciones](./02-TASACIONES.md) (Componentes y hooks)
 3. Leer: [Calculadora de Intereses](./03-CALCULADORA_INTERESES.md) (Lógica)
-4. Leer: [Deployment](./07-DEPLOYMENT_VERCEL.md) (Cómo deployar)
+4. Leer: [Historial Liquidaciones](./08-HISTORIAL_LIQUIDACIONES.md) (Gestión PDFs)
+5. Leer: [Deployment](./07-DEPLOYMENT_VERCEL.md) (Cómo deployar)
 
 ### Para Administradores
 1. Leer: [Arquitectura](./01-ARQUITECTURA.md) (Entender el sistema)
 2. Leer: [Panel Admin](./05-PANEL_ADMIN.md) (Gestión completa)
 3. Leer: [Crear Usuarios](./06-CREAR_USUARIOS_SUPABASE.md) (Gestión de accesos)
-4. Leer: [Deployment](./07-DEPLOYMENT_VERCEL.md) (Monitoreo)
+4. Leer: [Historial Liquidaciones](./08-HISTORIAL_LIQUIDACIONES.md) (Ver y exportar liquidaciones)
+5. Leer: [Deployment](./07-DEPLOYMENT_VERCEL.md) (Monitoreo)
 
 ### Para DevOps / Backend
 1. Leer: [Arquitectura](./01-ARQUITECTURA.md) (Componentes backend)
 2. Leer: [Deployment](./07-DEPLOYMENT_VERCEL.md) (CI/CD)
 3. Leer: [Crear Usuarios](./06-CREAR_USUARIOS_SUPABASE.md) (Auth)
-4. Leer: [Panel Admin](./05-PANEL_ADMIN.md) (Configuración)
+4. Leer: [Historial Liquidaciones](./08-HISTORIAL_LIQUIDACIONES.md) (Storage y base de datos)
+5. Leer: [Panel Admin](./05-PANEL_ADMIN.md) (Configuración)
 
 ### Para Product Managers / QA
 1. Leer: [Arquitectura](./01-ARQUITECTURA.md) (Visión general)
 2. Leer: [Tasaciones](./02-TASACIONES.md) (Funcionalidad principal)
 3. Leer: [Calculadora de Intereses](./03-CALCULADORA_INTERESES.md) (Funcionalidad secundaria)
 4. Leer: [Historial](./04-HISTORIAL_TASACIONES.md) (Gestión de datos)
+5. Leer: [Historial Liquidaciones](./08-HISTORIAL_LIQUIDACIONES.md) (Informes y estadísticas)
 
 ---
 
@@ -174,10 +195,11 @@ Bienvenido a la documentación técnica de Tasador Web. Este directorio contiene
 | Arquitectura | - | Diagrama, capas, flujos |
 | Tasaciones | - | CRUD, cálculo, validación |
 | Intereses | - | Fórmulas, tipos, capitalización |
-| Historial | - | Filtros, búsqueda, exportación |
+| Historial Tasaciones | - | Filtros, búsqueda, exportación |
 | Panel Admin | - | CRUD datos, gestión usuarios |
 | Crear Usuarios | - | Métodos, roles, gestión |
 | Deployment | - | CI/CD, Vercel, troubleshooting |
+| Historial Liquidaciones | - | PDFs, almacenamiento, estadísticas |
 
 ---
 

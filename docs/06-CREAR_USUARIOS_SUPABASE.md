@@ -2,11 +2,110 @@
 
 ## Descripción General
 
-Esta guía explica cómo crear usuarios en Supabase de manera segura y eficiente. Se pueden crear usuarios de dos formas:
-1. **A través de la interfaz admin de Tasador Web** (Recomendado)
-2. **Directamente en el dashboard de Supabase** (Para casos específicos)
+Esta guía explica cómo crear usuarios en Supabase de manera segura y eficiente para Tasador Web. El sistema utiliza una tabla personalizada `usuarios_personalizados` para la gestión de usuarios con autenticación mediante email y contraseña encriptada.
 
-## Método 1: Crear Usuario desde Panel Admin de Tasador Web (RECOMENDADO)
+## ⚡ Métodos de Creación
+
+Se pueden crear usuarios de tres formas:
+1. **SQL directo con MCP de Supabase** (Más rápido para usuarios individuales) ⭐ RECOMENDADO
+2. **A través de la interfaz admin de Tasador Web** (Interfaz amigable)
+3. **Directamente en el dashboard de Supabase** (Máximo control)
+
+---
+
+## Método 1: Crear Usuario con SQL directo (RECOMENDADO) ⭐
+
+### Descripción
+
+Este es el método más rápido y directo para crear usuarios. Utiliza el MCP de Supabase o el SQL Editor para insertar usuarios directamente en la tabla `usuarios_personalizados`.
+
+### Pasos
+
+#### 1. Acceder a SQL Editor
+
+```
+Opción A: Usar VS Code con MCP de Supabase (integrado)
+Opción B: Dashboard Supabase → SQL Editor
+```
+
+#### 2. Ejecutar Query de Creación
+
+**Plantilla SQL:**
+
+```sql
+-- Crear usuario con contraseña encriptada
+INSERT INTO usuarios_personalizados (
+  email,
+  password_hash,
+  nombre,
+  rol,
+  activo
+) VALUES (
+  'usuario@example.com',                    -- Email del usuario
+  crypt('ContraseñaSegura123', gen_salt('bf')),  -- Contraseña encriptada con bcrypt
+  'Nombre Completo',                        -- Nombre del usuario
+  'user',                                   -- Rol: 'admin', 'user', o 'readonly'
+  true                                      -- Usuario activo desde el inicio
+) RETURNING id, email, nombre, rol, activo, created_at;
+```
+
+**Ejemplo Real:**
+
+```sql
+-- Crear usuario para Juan García
+INSERT INTO usuarios_personalizados (
+  email,
+  password_hash,
+  nombre,
+  rol,
+  activo
+) VALUES (
+  'juan.garcia@despacho.es',
+  crypt('JuanGarcia2026.', gen_salt('bf')),
+  'Juan García López',
+  'user',
+  true
+) RETURNING id, email, nombre, rol, activo, created_at;
+```
+
+#### 3. Verificar Creación
+
+El sistema devolverá:
+
+```json
+{
+  "id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+  "email": "juan.garcia@despacho.es",
+  "nombre": "Juan García López",
+  "rol": "user",
+  "activo": true,
+  "created_at": "2026-02-05T10:30:00.000Z"
+}
+```
+
+### Ventajas de este Método
+
+✅ **Rápido**: Creación inmediata sin navegación de UI  
+✅ **Control total**: Defines exactamente todos los parámetros  
+✅ **Contraseñas personalizadas**: Puedes establecer la contraseña que quieras  
+✅ **Sin dependencias**: No requiere que el panel admin esté implementado  
+✅ **Auditable**: El RETURNING muestra exactamente qué se creó
+
+### Crear Múltiples Usuarios a la Vez
+
+```sql
+-- Crear varios usuarios en una sola operación
+INSERT INTO usuarios_personalizados (email, password_hash, nombre, rol, activo)
+VALUES 
+  ('usuario1@empresa.es', crypt('Pass123.', gen_salt('bf')), 'Usuario Uno', 'user', true),
+  ('usuario2@empresa.es', crypt('Pass456.', gen_salt('bf')), 'Usuario Dos', 'user', true),
+  ('admin@empresa.es', crypt('Admin789.', gen_salt('bf')), 'Admin Principal', 'admin', true)
+RETURNING id, email, nombre, rol;
+```
+
+---
+
+## Método 2: Crear Usuario desde Panel Admin de Tasador Web
 
 ### Pasos
 
@@ -94,49 +193,52 @@ El sistema automáticamente:
 
 ```
 1. Valida los datos en cliente
+   ├─ Email válido y único
+   ├─ Nombre no vacío
+   └─ Rol válido
    ↓
-2. Crea usuario en Supabase Auth
-   ├─ Genera ID único (UUID)
-   ├─ Crea cuenta con email
-   └─ Establece estado "confirmado"
+2. Genera contraseña temporal segura
+   └─ Formato: 12 caracteres alfanuméricos
    ↓
 3. Crea registro en tabla usuarios_personalizados
-   ├─ Inserta: id, email, nombre, apellido, rol, activo=true
-   └─ Establece fecha de creación
+   ├─ Genera ID único (UUID)
+   ├─ Inserta: email, password_hash (bcrypt), nombre, rol
+   ├─ Establece: activo=true, created_at=NOW()
+   └─ Hash de contraseña con bcrypt
    ↓
-4. Envía email de bienvenida
-   ├─ Asunto: "Bienvenido a Tasador Web"
-   ├─ Incluye: link de login
-   └─ Contraseña temporal
+4. Muestra credenciales al administrador
+   ├─ Email del usuario
+   ├─ Contraseña temporal generada
+   └─ Instrucción: "Enviar credenciales al usuario"
    ↓
 5. Muestra confirmación
-   └─ "Usuario creado exitosamente"
+   └─ "✅ Usuario creado exitosamente"
 ```
 
-#### 6. El Nuevo Usuario Recibe Email
+#### 6. Comunicar Credenciales al Usuario
 
-**Email de bienvenida:**
+**El administrador debe enviar manualmente (por email/mensaje seguro):**
 
 ```
-Asunto: Bienvenido a Tasador Web
+Asunto: Acceso a Tasador Web
 
 Hola Juan,
 
 Tu cuenta ha sido creada en Tasador Web.
 
-Datos de acceso:
-Email: juan.garcia@despacho.es
-Contraseña temporal: [GeneradaAleatoriamente]
+📧 Email: juan.garcia@despacho.es
+🔑 Contraseña temporal: Abc123Xyz789
 
-Link de acceso: https://tasador-web.vercel.app/
+🔗 Acceso: https://tasador-web.vercel.app/
 
-⚠️ Por seguridad, cambia tu contraseña en el primer acceso.
-
-¿Preguntas? Contacta al administrador.
+⚠️ Por seguridad, cambia tu contraseña en el primer acceso desde:
+   Menú → Perfil → Cambiar Contraseña
 
 Saludos,
-Equipo Tasador Web
+Equipo Administración
 ```
+
+**Nota**: Considera usar canales seguros para enviar contraseñas (WhatsApp cifrado, email con seguimiento, etc.)
 
 #### 7. Primer Acceso del Usuario
 
@@ -160,7 +262,7 @@ Equipo Tasador Web
 
 ---
 
-## Método 2: Crear Usuario Directamente en Supabase Dashboard
+## Método 3: Crear Usuario Directamente en Supabase Dashboard
 
 ### Pasos
 
@@ -172,73 +274,45 @@ Equipo Tasador Web
 3. Seleccionar proyecto "tasador-web"
 ```
 
-#### 2. Navegar a Autenticación
+#### 2. Navegar a SQL Editor
 
 ```
 En el menú lateral:
-Authentication
-    ├─ Users (Actualizar)
-    ├─ Policies
-    ├─ URL Configuration
-    └─ Providers
-    
-Hacer clic en: Users
+SQL Editor
 ```
 
-#### 3. Crear Usuario
+#### 3. Usar Query de Creación
 
-En la pantalla de usuarios:
-
-```
-Botón en esquina superior derecha: "+ Create a new user"
-```
-
-#### 4. Completar Formulario
-
-```
-┌─────────────────────────────────────────────────────┐
-│ Create a new user                                   │
-├─────────────────────────────────────────────────────┤
-│                                                     │
-│ Email: [__________________________________]         │
-│ *Requerido                                          │
-│                                                     │
-│ Password: [__________________________________]      │
-│ *Dejar vacío para generar en cliente                │
-│                                                     │
-│ Auto Confirm User: [✓] Activado                     │
-│ *Recomendado: activado                              │
-│                                                     │
-│ [Cancel]  [Create User]                             │
-│                                                     │
-└─────────────────────────────────────────────────────┘
-```
-
-#### 5. Completar Perfil en BD
-
-Después de crear en Auth, agregar datos en tabla `usuarios_personalizados`:
+Copia y pega la siguiente query, modificando los valores:
 
 ```sql
+-- Crear usuario directamente
 INSERT INTO usuarios_personalizados (
-  id,
   email,
+  password_hash,
   nombre,
   rol,
   activo
 ) VALUES (
-  'xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx',  -- ID retornado por Supabase
-  'usuario@example.com',
-  'Juan García',
-  'user',
-  true
-);
+  'usuario@example.com',                      -- Email del usuario
+  crypt('ContraseñaSegura123', gen_salt('bf')), -- Contraseña encriptada
+  'Juan García',                              -- Nombre completo
+  'user',                                     -- Rol
+  true                                        -- Activo
+) RETURNING id, email, nombre, rol, created_at;
 ```
 
-**Obtener el ID:** Después de crear usuario en Auth, copiar el UUID mostrado.
+#### 4. Ejecutar Query
+
+Presiona **RUN** o `Ctrl + Enter` para ejecutar.
+
+#### 5. Verificar Resultado
+
+La query devolverá el ID del usuario creado y sus datos.
 
 ---
 
-## Método 3: Crear Usuarios en Masa (Bulk)
+## Método 4: Crear Usuarios en Masa (Bulk)
 
 ### Importar desde Excel
 
@@ -391,43 +465,63 @@ Resultado:
 
 ## Tabla SQL: usuarios_personalizados
 
+### Estructura Completa
+
 ```sql
 CREATE TABLE usuarios_personalizados (
-  id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   
-  -- Información básica
+  -- Autenticación
   email VARCHAR(255) UNIQUE NOT NULL,
+  password_hash TEXT NOT NULL,
+  
+  -- Información del usuario
   nombre VARCHAR(255),
-  apellidos VARCHAR(255),
   
   -- Permisos y estado
   rol VARCHAR(50) DEFAULT 'user',
-  -- Valores: 'admin', 'user', 'readonly'
+  -- Valores permitidos: 'admin', 'user', 'readonly'
   
   activo BOOLEAN DEFAULT true,
   
   -- Auditoría
-  ultimo_acceso TIMESTAMP,
-  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  
-  -- Índices
-  INDEX idx_email (email),
-  INDEX idx_rol (rol)
+  ultimo_login TIMESTAMP WITH TIME ZONE,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
--- Row Level Security
-CREATE POLICY "Users can see their own profile"
-  ON usuarios_personalizados FOR SELECT
-  USING (auth.uid() = id OR auth.jwt()->>'role' = 'admin');
+-- Índices para optimizar búsquedas
+CREATE INDEX idx_usuarios_email ON usuarios_personalizados(email);
+CREATE INDEX idx_usuarios_rol ON usuarios_personalizados(rol);
+CREATE INDEX idx_usuarios_activo ON usuarios_personalizados(activo);
 
-CREATE POLICY "Only admins can modify users"
-  ON usuarios_personalizados FOR UPDATE
-  USING (auth.jwt()->>'role' = 'admin');
+-- Trigger para actualizar updated_at automáticamente
+CREATE OR REPLACE FUNCTION update_updated_at_column()
+RETURNS TRIGGER AS $$
+BEGIN
+   NEW.updated_at = NOW();
+   RETURN NEW;
+END;
+$$ language 'plpgsql';
 
-CREATE POLICY "Only admins can delete users"
-  ON usuarios_personalizados FOR DELETE
-  USING (auth.jwt()->>'role' = 'admin');
+CREATE TRIGGER update_usuarios_updated_at 
+  BEFORE UPDATE ON usuarios_personalizados
+  FOR EACH ROW 
+  EXECUTE FUNCTION update_updated_at_column();
+```
+
+### Verificar Estructura
+
+```sql
+-- Ver estructura de la tabla
+SELECT 
+  column_name, 
+  data_type, 
+  is_nullable, 
+  column_default
+FROM information_schema.columns
+WHERE table_name = 'usuarios_personalizados'
+ORDER BY ordinal_position;
 ```
 
 ---
@@ -561,7 +655,7 @@ Valores válidos:
 
 ## Código de Ejemplo
 
-### Crear usuario mediante API
+### Crear usuario mediante SQL desde aplicación
 
 ```typescript
 // src/lib/user-management.ts
@@ -569,55 +663,24 @@ Valores válidos:
 export async function crearUsuario(
   email: string,
   nombre: string,
-  apellido: string,
+  password: string,
   rol: 'admin' | 'user' | 'readonly' = 'user'
-): Promise<{ id: string; email: string }> {
+): Promise<{ id: string; email: string; password: string }> {
   try {
-    // 1. Crear en Supabase Auth
-    const { data: authData, error: authError } = 
-      await supabase.auth.admin.createUser({
-        email,
-        password: generarPasswordTemporal(),
-        email_confirm: true,
-        user_metadata: {
-          nombre,
-          apellido,
-          rol
-        }
-      })
-
-    if (authError) throw authError
-
-    // 2. Crear en tabla usuarios_personalizados
-    const { data: dbData, error: dbError } = await supabase
-      .from('usuarios_personalizados')
-      .insert([
-        {
-          id: authData.user.id,
-          email,
-          nombre,
-          apellidos: apellido,
-          rol,
-          activo: true
-        }
-      ])
-      .select()
-      .single()
-
-    if (dbError) throw dbError
-
-    // 3. Enviar email de bienvenida
-    await supabase.functions.invoke('send-welcome-email', {
-      body: {
-        email,
-        nombre,
-        rol
-      }
+    // Crear usuario en usuarios_personalizados con contraseña encriptada
+    const { data, error } = await supabase.rpc('crear_usuario', {
+      p_email: email,
+      p_password: password,
+      p_nombre: nombre,
+      p_rol: rol
     })
 
+    if (error) throw error
+
     return {
-      id: authData.user.id,
-      email: authData.user.email || ''
+      id: data.id,
+      email: data.email,
+      password: password // Devolver para comunicar al usuario
     }
   } catch (error) {
     throw new Error(`Error creando usuario: ${error.message}`)
@@ -625,8 +688,59 @@ export async function crearUsuario(
 }
 
 function generarPasswordTemporal(): string {
-  return Math.random().toString(36).slice(-12)
+  // Generar contraseña de 12 caracteres (letras y números)
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789'
+  let password = ''
+  for (let i = 0; i < 12; i++) {
+    password += chars.charAt(Math.floor(Math.random() * chars.length))
+  }
+  return password
 }
+```
+
+### Función SQL reutilizable
+
+```sql
+-- Crear función para simplificar la creación de usuarios
+CREATE OR REPLACE FUNCTION crear_usuario(
+  p_email VARCHAR,
+  p_password VARCHAR,
+  p_nombre VARCHAR,
+  p_rol VARCHAR DEFAULT 'user'
+)
+RETURNS TABLE (
+  id UUID,
+  email VARCHAR,
+  nombre VARCHAR,
+  rol VARCHAR,
+  created_at TIMESTAMP WITH TIME ZONE
+) AS $$
+BEGIN
+  RETURN QUERY
+  INSERT INTO usuarios_personalizados (
+    email,
+    password_hash,
+    nombre,
+    rol,
+    activo
+  ) VALUES (
+    p_email,
+    crypt(p_password, gen_salt('bf')),
+    p_nombre,
+    p_rol,
+    true
+  )
+  RETURNING 
+    usuarios_personalizados.id,
+    usuarios_personalizados.email,
+    usuarios_personalizados.nombre,
+    usuarios_personalizados.rol,
+    usuarios_personalizados.created_at;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- Uso:
+-- SELECT * FROM crear_usuario('nuevo@empresa.es', 'Password123', 'Nuevo Usuario', 'user');
 ```
 
 ### Hook para crear usuario
@@ -665,10 +779,142 @@ export function useCreateUser() {
 
 ---
 
+## Queries Útiles para Gestión
+
+### Listar todos los usuarios
+
+```sql
+SELECT 
+  id,
+  email,
+  nombre,
+  rol,
+  activo,
+  ultimo_login,
+  created_at
+FROM usuarios_personalizados
+ORDER BY created_at DESC;
+```
+
+### Buscar usuario por email
+
+```sql
+SELECT * FROM usuarios_personalizados
+WHERE email = 'usuario@example.com';
+```
+
+### Cambiar contraseña de usuario
+
+```sql
+UPDATE usuarios_personalizados
+SET 
+  password_hash = crypt('NuevaContraseña123', gen_salt('bf')),
+  updated_at = NOW()
+WHERE email = 'usuario@example.com'
+RETURNING id, email, nombre;
+```
+
+### Cambiar rol de usuario
+
+```sql
+UPDATE usuarios_personalizados
+SET rol = 'admin', updated_at = NOW()
+WHERE email = 'usuario@example.com'
+RETURNING id, email, nombre, rol;
+```
+
+### Desactivar usuario
+
+```sql
+UPDATE usuarios_personalizados
+SET activo = false, updated_at = NOW()
+WHERE email = 'usuario@example.com'
+RETURNING id, email, activo;
+```
+
+### Reactivar usuario
+
+```sql
+UPDATE usuarios_personalizados
+SET activo = true, updated_at = NOW()
+WHERE email = 'usuario@example.com'
+RETURNING id, email, activo;
+```
+
+### Eliminar usuario
+
+```sql
+-- ⚠️ CUIDADO: Esta operación es permanente
+DELETE FROM usuarios_personalizados
+WHERE email = 'usuario@example.com'
+RETURNING id, email, nombre;
+```
+
+### Verificar credenciales (para testing)
+
+```sql
+-- Verificar si el password coincide
+SELECT 
+  id,
+  email,
+  nombre,
+  rol,
+  password_hash = crypt('ContraseñaAProbar', password_hash) AS password_correcto
+FROM usuarios_personalizados
+WHERE email = 'usuario@example.com';
+```
+
+### Estadísticas de usuarios
+
+```sql
+-- Resumen de usuarios por rol
+SELECT 
+  rol,
+  COUNT(*) as total,
+  COUNT(CASE WHEN activo THEN 1 END) as activos,
+  COUNT(CASE WHEN NOT activo THEN 1 END) as inactivos
+FROM usuarios_personalizados
+GROUP BY rol
+ORDER BY rol;
+```
+
+---
+
 ## Próximos Pasos
 
-1. ✅ Usuario creado
-2. 📧 Email de bienvenida enviado
-3. 🔐 Usuario ingresa con credenciales
-4. 🔄 Primer acceso, cambiar contraseña
+1. ✅ Usuario creado en `usuarios_personalizados`
+2. 📧 Comunicar credenciales al usuario de forma segura
+3. 🔐 Usuario ingresa con email y contraseña
+4. 🔄 Recomendar cambio de contraseña en primer acceso
 5. 📊 Comenzar a usar Tasador Web
+
+---
+
+## Resumen de Comandos Rápidos
+
+### Crear usuario individual
+
+```sql
+INSERT INTO usuarios_personalizados (email, password_hash, nombre, rol, activo)
+VALUES ('nuevo@empresa.es', crypt('Pass123.', gen_salt('bf')), 'Nuevo Usuario', 'user', true)
+RETURNING *;
+```
+
+### Crear múltiples usuarios
+
+```sql
+INSERT INTO usuarios_personalizados (email, password_hash, nombre, rol, activo)
+VALUES 
+  ('user1@empresa.es', crypt('Pass1.', gen_salt('bf')), 'Usuario 1', 'user', true),
+  ('user2@empresa.es', crypt('Pass2.', gen_salt('bf')), 'Usuario 2', 'user', true),
+  ('admin@empresa.es', crypt('Admin.', gen_salt('bf')), 'Administrador', 'admin', true)
+RETURNING id, email, nombre, rol;
+```
+
+### Verificar usuario existe
+
+```sql
+SELECT EXISTS(
+  SELECT 1 FROM usuarios_personalizados WHERE email = 'usuario@empresa.es'
+) AS usuario_existe;
+```

@@ -783,6 +783,258 @@ Interés = 10.000 × (5,25 / 100) × (210 / 365) = 302,74€
   },
 
   {
+    id: 'liquidaciones',
+    title: 'Historial de Liquidaciones',
+    icon: <Download className="h-5 w-5" />,
+    description: 'Gestiona, consulta y descarga los informes de liquidaciones de intereses generados',
+    content: `
+      <h3>Gestión profesional de liquidaciones de intereses</h3>
+      <p>El módulo de <strong>Historial de Liquidaciones</strong> permite visualizar, filtrar, exportar y descargar todos los informes PDF de liquidaciones de intereses calculados por el Departamento de Ejecuciones y Tasaciones de RUA Abogados.</p>
+
+      <h3>Funcionalidades principales</h3>
+      <ul>
+        <li><strong>Historial completo:</strong> Acceso a todas las liquidaciones de intereses (legales, judiciales y TAE) generadas</li>
+        <li><strong>Estadísticas en tiempo real:</strong> Visualiza totales consolidados de expedientes liquidados e intereses recuperados por tipo</li>
+        <li><strong>Búsqueda y filtrado avanzado:</strong> Localiza liquidaciones por referencia Aranzadi, usuario, modalidad, rango de fechas e importes</li>
+        <li><strong>Descarga de informes PDF:</strong> Acceso instantáneo a todos los informes generados desde el bucket de almacenamiento</li>
+        <li><strong>Exportación a Excel:</strong> Descarga datos consolidados filtrados para análisis interno</li>
+        <li><strong>Detalles completos:</strong> Visualiza toda la información de cada liquidación en un modal especializado</li>
+        <li><strong>Gestión de registros:</strong> Edita o elimina liquidaciones según necesidades del departamento</li>
+      </ul>
+
+      <div class="callout">
+        📊 <strong>Para el equipo:</strong> El historial de liquidaciones es tu repositorio central de cálculos de intereses. Úsalo para consultar expedientes previos, analizar tendencias y reutilizar liquidaciones similares.
+      </div>
+    `,
+    subsections: [
+      {
+        id: 'acceder-liquidaciones',
+        title: 'Cómo acceder al Historial de Liquidaciones',
+        content: `
+          <h4>Paso 1 · Navega a la sección Historial</h4>
+          <ul>
+            <li>Haz clic en la pestaña <strong>HISTORIAL</strong> del menú principal</li>
+            <li>Se abrirá el módulo de historial de tasaciones</li>
+          </ul>
+
+          <h4>Paso 2 · Selecciona "Historial Liquidaciones"</h4>
+          <ul>
+            <li>Dentro de la sección Historial, encontrarás un selector/tab con opciones</li>
+            <li>Haz clic en <strong>"Historial Liquidaciones"</strong></li>
+            <li>Se mostrará la tabla completa con todas las liquidaciones registradas</li>
+          </ul>
+
+          <h4>Paso 3 · Explora las estadísticas</h4>
+          <p>En la parte superior verás <strong>4 tarjetas de estadísticas</strong> con información consolidada:</p>
+          <ul>
+            <li>📦 <strong>Expedientes Liquidados:</strong> Total de liquidaciones registradas</li>
+            <li>💰 <strong>Total Int. Legales Recuperados:</strong> Suma de todos los intereses legales</li>
+            <li>⚖️ <strong>Total Int. Judiciales Recuperados:</strong> Suma de todos los intereses judiciales</li>
+            <li>📈 <strong>Total Intereses Recuperados:</strong> Suma consolidada de todos los tipos de intereses (legales + judiciales + TAE)</li>
+          </ul>
+        `
+      },
+      {
+        id: 'filtros-liquidaciones',
+        title: 'Filtros y búsqueda avanzada',
+        content: `
+          <h4>Filtros disponibles</h4>
+          <table>
+            <thead><tr><th>Filtro</th><th>Descripción</th><th>Ejemplo</th></tr></thead>
+            <tbody>
+              <tr>
+                <td><strong>📌 Ref. Aranzadi</strong></td>
+                <td>Búsqueda por referencia de procedimiento (búsqueda en vivo)</td>
+                <td>PO 234/2024, ABC-2025, etc.</td>
+              </tr>
+              <tr>
+                <td><strong>👤 Usuario</strong></td>
+                <td>Filtro por nombre del usuario que creó la liquidación</td>
+                <td>Juan García, María López</td>
+              </tr>
+              <tr>
+                <td><strong>🏷️ Modalidad</strong></td>
+                <td>Tipo de intereses calculados</td>
+                <td>Todas, Con Int. Legales, Con Int. Judicial, Con TAE</td>
+              </tr>
+              <tr>
+                <td><strong>📅 Rango de fechas</strong></td>
+                <td>Filtro por período de creación (fecha desde / fecha hasta)</td>
+                <td>01/01/2025 - 31/01/2025</td>
+              </tr>
+              <tr>
+                <td><strong>💵 Rango de intereses</strong></td>
+                <td>Filtro por importes mínimo y máximo</td>
+                <td>De €0 a €50.000</td>
+              </tr>
+            </tbody>
+          </table>
+
+          <h4>Cómo usar los filtros</h4>
+          <ol>
+            <li>Completa los campos de filtro según lo que busques</li>
+            <li>Los resultados se actualizan automáticamente</li>
+            <li>Las estadísticas se recalculan en tiempo real según los filtros aplicados</li>
+            <li>Haz clic en <strong>"Limpiar filtros"</strong> para volver a ver todos los registros</li>
+          </ol>
+        `
+      },
+      {
+        id: 'acciones-liquidaciones',
+        title: 'Acciones disponibles',
+        content: `
+          <h4>Operaciones en la tabla principal</h4>
+          <table>
+            <thead><tr><th>Acción</th><th>Botón</th><th>Descripción</th></tr></thead>
+            <tbody>
+              <tr>
+                <td><strong>Ver detalles</strong></td>
+                <td>👁️ <strong>Ojo</strong></td>
+                <td>Abre un modal con toda la información completa de la liquidación incluyendo informes descargables</td>
+              </tr>
+              <tr>
+                <td><strong>Eliminar</strong></td>
+                <td>🗑️ <strong>Papelera</strong></td>
+                <td>Elimina la liquidación (requiere confirmación)</td>
+              </tr>
+              <tr>
+                <td><strong>Descargar Excel</strong></td>
+                <td>📥 <strong>Download</strong></td>
+                <td>Exporta el conjunto completo de liquidaciones filtradas a archivo Excel</td>
+              </tr>
+              <tr>
+                <td><strong>Actualizar</strong></td>
+                <td>🔄 <strong>Refresh</strong></td>
+                <td>Recarga los datos desde el servidor</td>
+              </tr>
+            </tbody>
+          </table>
+
+          <h4>Modal de detalles (4 secciones)</h4>
+          <p>Al hacer clic en <strong>👁️ Ver detalles</strong>, se abre un modal completo dividido en 4 secciones:</p>
+
+          <h5>1️⃣ Información Principal (Azul)</h5>
+          <ul>
+            <li>📌 Referencia Aranzadi</li>
+            <li>👤 Usuario responsable</li>
+            <li>📊 Porcentaje TAE aplicado</li>
+          </ul>
+
+          <h5>2️⃣ Intereses Calculados (Verde)</h5>
+          <p>Muestra cada tipo de interés en tarjetas de color:</p>
+          <ul>
+            <li><strong style="color: #10b981;">💚 Intereses Legales:</strong> €X.XX</li>
+            <li><strong style="color: #2563eb;">💙 Interés Judicial:</strong> €X.XX</li>
+            <li><strong style="color: #8b5cf6;">💜 TAE CTO:</strong> €X.XX</li>
+            <li><strong style="color: #ec4899;">💗 TAE+5:</strong> €X.XX</li>
+          </ul>
+          <p><strong>Barra de Total:</strong> Suma consolidada de todos los intereses</p>
+
+          <h5>3️⃣ Fechas del Cálculo (Ámbar)</h5>
+          <ul>
+            <li>📅 Fecha fin del cálculo</li>
+            <li>⚖️ Fecha de sentencia</li>
+            <li>🕒 Fecha y hora de creación</li>
+            <li>✏️ Última modificación</li>
+          </ul>
+
+          <h5>4️⃣ Informes Generados (Púrpura) ⭐ [NUEVOS]</h5>
+          <p>Sección especializada para descargar PDFs:</p>
+          <ul>
+            <li><strong>Lista de informes:</strong> Muestra todos los archivos PDF generados relacionados con esta liquidación</li>
+            <li><strong>Nombre de archivo:</strong> Formato <code>timestamp_refaranzadi.pdf</code></li>
+            <li><strong>Fecha de generación:</strong> Cuándo se creó el informe</li>
+            <li><strong>Botón 📥 Descargar:</strong> Descarga instantánea del PDF desde el Storage</li>
+          </ul>
+
+          <div class="callout">
+            📝 <strong>Los informes se generan automáticamente</strong> cuando exportas a PDF desde la Calculadora Avanzada de Intereses, y se almacenan en el bucket <code>informes_liquidaciones</code> para acceso permanente.
+          </div>
+        `
+      },
+      {
+        id: 'descarga-pdfs',
+        title: 'Descarga de informes PDF desde Storage',
+        content: `
+          <h4>¿Dónde se almacenan los PDFs?</h4>
+          <p>Todos los informes de liquidaciones se guardan automáticamente en el <strong>bucket de almacenamiento Supabase</strong> llamado <code>informes_liquidaciones</code>.</p>
+
+          <h4>Cómo descargar un informe</h4>
+          <ol>
+            <li>Accede al <strong>Historial de Liquidaciones</strong></li>
+            <li>Localiza la liquidación deseada usando filtros o búsqueda</li>
+            <li>Haz clic en el botón <strong>👁️ Ver detalles</strong></li>
+            <li>Desplázate hasta la sección <strong>Informes Generados (púrpura)</strong></li>
+            <li>Haz clic en el botón <strong>📥 Descargar</strong> junto al archivo deseado</li>
+            <li>El archivo PDF se descargará automáticamente a tu carpeta de descargas</li>
+          </ol>
+
+          <h4>Denominación de archivos</h4>
+          <p>Los PDFs se guardan con el siguiente formato de nombre:</p>
+          <p><strong>Formato:</strong> <code>{timestamp}_{ref_aranzadi}.pdf</code></p>
+          <p><strong>Ejemplo:</strong> <code>1770369596840_PO_234_2024.pdf</code></p>
+          <ul>
+            <li><strong>Timestamp:</strong> Fecha y hora exacta de generación (milisegundos desde época)</li>
+            <li><strong>Ref Aranzadi:</strong> Referencia del procedimiento (espacios y caracteres especiales reemplazados por guiones bajos)</li>
+          </ul>
+
+          <h4>Almacenamiento permanente</h4>
+          <ul>
+            <li>✅ <strong>Acceso permanente:</strong> Los informes se guardan indefinidamente en Storage</li>
+            <li>✅ <strong>Sin límite de descargas:</strong> Puedes descargar el mismo archivo múltiples veces</li>
+            <li>✅ <strong>Versionado:</strong> Cada generación de PDF crea un nuevo archivo (no sobrescribe)</li>
+            <li>⚠️ <strong>Eliminación:</strong> Si eliminas la liquidación, también se elimina la relación con sus informes, pero los archivos siguen en Storage</li>
+          </ul>
+
+          <div class="callout">
+            💾 <strong>Recomendación:</strong> Descarga periódicamente copias de seguridad de los informes importantes. El almacenamiento en Cloud es muy seguro, pero es buena práctica mantener backups locales de documentos críticos.
+          </div>
+        `
+      },
+      {
+        id: 'estadisticas',
+        title: 'Lectura de estadísticas',
+        content: `
+          <h4>Las 4 tarjetas de estadísticas en tiempo real</h4>
+
+          <h5>📦 Expedientes Liquidados</h5>
+          <p><strong>Qué muestra:</strong> Cantidad total de liquidaciones registradas</p>
+          <p><strong>Cálculo:</strong> Número de registros en la tabla después de aplicar filtros</p>
+          <p><strong>Uso:</strong> Para saber cuántas liquidaciones has procesado en el período seleccionado</p>
+
+          <h5>💚 Total Int. Legales Recuperados</h5>
+          <p><strong>Qué muestra:</strong> Suma de todos los intereses legales en las liquidaciones filtradas</p>
+          <p><strong>Cálculo:</strong> ∑(intereses_legales) para todos los registros</p>
+          <p><strong>Uso:</strong> Analizar el total recuperado en concepto de intereses legales</p>
+          <p><strong>Ejemplo:</strong> Si tienes 3 liquidaciones con €1.000, €2.500 y €500 en intereses legales respectivamente, el total será €4.000</p>
+
+          <h5>⚖️ Total Int. Judiciales Recuperados</h5>
+          <p><strong>Qué muestra:</strong> Suma de todos los intereses judiciales en las liquidaciones filtradas</p>
+          <p><strong>Cálculo:</strong> ∑(interes_judicial) para todos los registros</p>
+          <p><strong>Uso:</strong> Analizar el total recuperado en concepto de intereses judiciales</p>
+
+          <h5>📈 Total Intereses Recuperados</h5>
+          <p><strong>Qué muestra:</strong> Suma consolidada de <strong>TODOS</strong> los tipos de intereses</p>
+          <p><strong>Cálculo:</strong> ∑(intereses_legales + interes_judicial + tae_cto + tae_mas_5)</p>
+          <p><strong>Uso:</strong> Obtener el total global de intereses recuperados para reportes ejecutivos</p>
+
+          <h4>Actualización dináminca de estadísticas</h4>
+          <ul>
+            <li>✅ Se actualizan automáticamente al aplicar/cambiar filtros</li>
+            <li>✅ Se recalculan al eliminar una liquidación</li>
+            <li>✅ Se refrescan al actualizar los datos</li>
+            <li>✅ Siempre muestran datos consistentes con la tabla visible</li>
+          </ul>
+
+          <div class="callout">
+            🎯 <strong>Consejo:</strong> Usa los filtros para segmentar por período, usuario o modalidad, y observa cómo cambian las estadísticas. Es una forma excelente de generar reportes rápidos para la dirección del despacho.
+          </div>
+        `
+      }
+    ]
+  },
+
+  {
     id: 'faq',
     title: 'Preguntas Frecuentes',
     icon: <HelpCircle className="h-5 w-5" />,
