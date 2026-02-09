@@ -9,5 +9,13 @@ export default defineConfig({
   },
   optimizeDeps: {
     include: ['docx', 'mammoth']
+  },
+  server: {
+    proxy: {
+      '/api': {
+        target: 'http://localhost:5175',
+        changeOrigin: true
+      }
+    }
   }
 })

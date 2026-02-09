@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react'
 import { User, Plus, Trash2, Key, Eye, EyeOff } from 'lucide-react'
 import { supabase } from '../lib/supabase'
-import bcrypt from 'bcryptjs'
+import UserManagementModal from './UserManagementModal'
+import { useAuth } from '../contexts/CustomAuthContext'
 
 interface Usuario {
   id: string
@@ -14,9 +15,11 @@ interface Usuario {
 }
 
 export default function UsersManagement() {
+  const { user: currentUser } = useAuth()
   const [usuarios, setUsuarios] = useState<Usuario[]>([])
   const [loading, setLoading] = useState(true)
   const [showCreateForm, setShowCreateForm] = useState(false)
+  const [showUserModal, setShowUserModal] = useState(false)
   const [newUser, setNewUser] = useState({ 
     email: '', 
     password: '', 
@@ -70,27 +73,23 @@ export default function UsersManagement() {
       return
     }
 
+    if (newUser.password.length < 6) {
+      showNotification('error', 'La contraseña debe tener al menos 6 caracteres')
+      return
+    }
+
     try {
       setCreatingUser(true)
       console.log('Creando usuario:', newUser.email)
       
-      // Crear hash de la contraseña
-      const passwordHash = await bcrypt.hash(newUser.password, 10)
-      console.log('Hash generado exitosamente')
-      
-      // Insertar usuario en la tabla usuarios_personalizados
-      const { data, error } = await supabase
-        .from('usuarios_personalizados')
-        .insert({
-          email: newUser.email,
-          nombre: newUser.nombre,
-          password_hash: passwordHash,
-          rol: newUser.rol,
-          activo: true
-        })
-        .select('id, email, nombre')
-
-      console.log('Resultado de inserción:', { data, error })
+      // Usar RPC para crear usuario con crypt() en PostgreSQL
+      // Esto asegura que el hash sea compatible con verify_password
+      const { error } = await supabase.rpc('create_user_with_password', {
+        p_email: newUser.email.trim(),
+        p_nombre: newUser.nombre.trim(),
+        p_password: newUser.password,
+        p_rol: newUser.rol
+      }) as { error: any }
 
       if (error) {
         console.error('Error creando usuario:', error)
@@ -116,29 +115,34 @@ export default function UsersManagement() {
       return
     }
 
-    try {
-      // Llamar al endpoint server-side que usa la service role key
-      const session = await supabase.auth.getSession()
-      const token = session?.data?.session?.access_token
+    if (!currentUser?.id) {
+      showNotification('error', 'No se pudo obtener el usuario actual')
+      return
+    }
 
-      const res = await fetch('/api/admin/delete-user', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        },
-        body: JSON.stringify({ id }),
+    try {
+      // Llamar RPC con el ID del usuario actual (primero) y el ID a eliminar (segundo)
+      const { data, error } = await supabase.rpc('delete_user', {
+        p_requesting_user_id: currentUser.id,
+        p_user_id: id
       })
 
-      if (!res.ok) {
-        const body = await res.json().catch(() => ({}))
-        console.error('Error eliminando usuario (server):', body)
-        showNotification('error', `Error al eliminar usuario: ${body?.error || res.statusText}`)
+      if (error) {
+        console.error('Error eliminando usuario:', error)
+        showNotification('error', `Error: ${error.message}`)
         return
       }
 
-      showNotification('success', 'Usuario eliminado exitosamente')
-      cargarUsuarios()
+      // Verificar la respuesta
+      if (data && data.length > 0) {
+        const result = data[0]
+        if (result.success) {
+          showNotification('success', 'Usuario eliminado exitosamente')
+          cargarUsuarios()
+        } else {
+          showNotification('error', result.message || 'Error al eliminar usuario')
+        }
+      }
       
     } catch (error) {
       console.error('Error eliminando usuario:', error)
@@ -161,21 +165,12 @@ export default function UsersManagement() {
     try {
       console.log('Restableciendo contraseña para usuario:', id, email)
       
-      // Crear hash de la nueva contraseña
-      const passwordHash = await bcrypt.hash(nuevaPassword, 10)
-      console.log('Hash generado exitosamente')
-      
-      // Actualizar contraseña en usuarios_personalizados
-      const { data, error } = await supabase
-        .from('usuarios_personalizados')
-        .update({ 
-          password_hash: passwordHash,
-          updated_at: new Date().toISOString() 
-        })
-        .eq('id', id)
-        .select('id, email, updated_at')
-
-      console.log('Resultado de actualización:', { data, error })
+      // Usar RPC para actualizar contraseña con crypt() en PostgreSQL
+      // Esto asegura que el hash sea compatible con verify_password
+      const { error } = await supabase.rpc('update_user_password', {
+        p_user_id: id,
+        p_new_password: nuevaPassword
+      })
 
       if (error) {
         console.error('Error restableciendo contraseña:', error)
@@ -183,14 +178,8 @@ export default function UsersManagement() {
         return
       }
 
-      if (!data || data.length === 0) {
-        console.error('No se encontró el usuario para actualizar')
-        showNotification('error', 'Error: No se encontró el usuario para actualizar la contraseña')
-        return
-      }
-
       showNotification('success', 'Contraseña restablecida exitosamente')
-      console.log('Contraseña actualizada exitosamente para:', email, 'en:', data[0].updated_at)
+      console.log('Contraseña actualizada exitosamente para:', email)
       
     } catch (error) {
       console.error('Error general restableciendo contraseña:', error)
@@ -295,13 +284,23 @@ export default function UsersManagement() {
           <p className="text-gray-600 mt-1">Administrar usuarios del sistema</p>
         </div>
         <button
-          onClick={() => setShowCreateForm(!showCreateForm)}
+          onClick={() => setShowUserModal(true)}
           className="btn-primary flex items-center space-x-2"
         >
           <Plus className="h-4 w-4" />
           <span>Nuevo Usuario</span>
         </button>
       </div>
+
+      {/* Modal de Gestión de Usuarios */}
+      <UserManagementModal
+        isOpen={showUserModal}
+        onClose={() => setShowUserModal(false)}
+        onUserCreated={() => {
+          cargarUsuarios()
+          setShowUserModal(false)
+        }}
+      />
 
       {/* Formulario de creación */}
       {showCreateForm && (
@@ -464,25 +463,27 @@ export default function UsersManagement() {
                   <td className="px-6 py-4 whitespace-nowrap text-sm font-medium space-x-2">
                     <button
                       onClick={() => restablecerPassword(usuario.id, usuario.email)}
-                      className="text-blue-600 hover:text-blue-900 inline-flex items-center"
-                      title="Restablecer contraseña"
+                      className="inline-flex items-center px-3 py-1 rounded-md text-sm font-medium bg-blue-100 text-blue-700 hover:bg-blue-200 transition-colors"
+                      title="Cambiar contraseña"
                     >
-                      <Key className="h-4 w-4" />
+                      <Key className="h-4 w-4 mr-1" />
+                      Contraseña
                     </button>
                     <button
                       onClick={() => quitarPassword(usuario.id, usuario.email)}
-                      className="text-yellow-600 hover:text-yellow-900 inline-flex items-center ml-2"
+                      className="inline-flex items-center px-3 py-1 rounded-md text-sm font-medium bg-yellow-100 text-yellow-700 hover:bg-yellow-200 transition-colors"
                       title="Quitar contraseña (poner NULL)"
                     >
-                      {/* Re-uso ícono Key; cambiar si quieres otro */}
-                      <Key className="h-4 w-4" />
+                      <Key className="h-4 w-4 mr-1" />
+                      Limpiar
                     </button>
                     <button
                       onClick={() => eliminarUsuario(usuario.id, usuario.email)}
-                      className="text-red-600 hover:text-red-900 inline-flex items-center ml-2"
+                      className="inline-flex items-center px-3 py-1 rounded-md text-sm font-medium bg-red-100 text-red-700 hover:bg-red-200 transition-colors"
                       title="Eliminar usuario"
                     >
-                      <Trash2 className="h-4 w-4" />
+                      <Trash2 className="h-4 w-4 mr-1" />
+                      Eliminar
                     </button>
                   </td>
                 </tr>

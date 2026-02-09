@@ -133,7 +133,7 @@ export async function generateMinutaDocx(tasacionData: TasacionData): Promise<vo
     // Fecha
     pdf.setFont('times', 'normal')
     pdf.setFontSize(12)
-    pdf.text(`En Orense, a ${tasacionData.fecha}`, margin, y)
+    pdf.text(`En Ourense, a ${tasacionData.fecha}`, margin, y)
     y += 14
     
     // Título principal
