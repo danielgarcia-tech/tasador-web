@@ -3,13 +3,11 @@ import { useAuth } from '../contexts/CustomAuthContext'
 import logoRua from '../assets/logo-rua.png'
 
 export default function Login() {
-  const { login, register } = useAuth()
+  const { login } = useAuth()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
-  const [nombre, setNombre] = useState('')
   const [loading, setLoading] = useState(false)
   const [message, setMessage] = useState('')
-  const [isSignUp, setIsSignUp] = useState(false)
 
   const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -17,12 +15,7 @@ export default function Login() {
     setMessage('')
 
     try {
-      let result
-      if (isSignUp) {
-        result = await register(email, password, nombre)
-      } else {
-        result = await login(email, password)
-      }
+      const result = await login(email, password)
 
       if (!result.success) {
         setMessage(result.error || 'Error desconocido')
@@ -56,24 +49,6 @@ export default function Login() {
 
         <div className="card p-8">
           <form onSubmit={handleAuth} className="space-y-6">
-            {isSignUp && (
-              <div>
-                <label htmlFor="nombre" className="label">
-                  Nombre completo
-                </label>
-                <input
-                  id="nombre"
-                  name="nombre"
-                  type="text"
-                  required
-                  className="input"
-                  placeholder="Tu nombre completo"
-                  value={nombre}
-                  onChange={(e) => setNombre(e.target.value)}
-                />
-              </div>
-            )}
-
             <div>
               <label htmlFor="email" className="label">
                 Correo electrónico
@@ -122,20 +97,7 @@ export default function Login() {
                 disabled={loading}
                 className="btn btn-primary w-full"
               >
-                {loading ? 'Cargando...' : (isSignUp ? 'Registrarse' : 'Iniciar sesión')}
-              </button>
-            </div>
-
-            <div className="text-center">
-              <button
-                type="button"
-                onClick={() => setIsSignUp(!isSignUp)}
-                className="text-sm text-primary-600 hover:text-primary-500"
-              >
-                {isSignUp
-                  ? '¿Ya tienes cuenta? Inicia sesión'
-                  : '¿No tienes cuenta? Regístrate'
-                }
+                {loading ? 'Cargando...' : 'Iniciar sesión'}
               </button>
             </div>
           </form>
