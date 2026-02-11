@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
@@ -9,7 +9,9 @@ import { buscarEntidades, buscarEntidadPorCodigo } from '../lib/entidades'
 import { useTasaciones } from '../hooks/useTasaciones'
 import { useAuth } from '../contexts/CustomAuthContext'
 import { generateMinutaDocx } from '../lib/docx-generator'
+import { supabase } from '../lib/supabase'
 import CountUp from './CountUp'
+import { DuplicateTasacionModal } from './DuplicateTasacionModal'
 
 // Componente para animar valores monetarios
 interface AnimatedCurrencyProps {
@@ -57,10 +59,49 @@ export default function TasacionForm() {
   const [savingTasacion, setSavingTasacion] = useState(false)
   const [notification, setNotification] = useState<{type: 'success' | 'error', message: string} | null>(null)
 
+  // Estado para modal de duplicados
+  const [showDuplicateModal, setShowDuplicateModal] = useState(false)
+  const [duplicateData, setDuplicateData] = useState<any>(null)
+  const [newRefAranzadi, setNewRefAranzadi] = useState('')
+  const [duplicateResolve, setDuplicateResolve] = useState<((value: 'update' | 'create' | 'cancel') => void) | null>(null)
+
   // Función para mostrar notificaciones
   const showNotification = (type: 'success' | 'error', message: string) => {
     setNotification({ type, message })
     setTimeout(() => setNotification(null), 5000)
+  }
+
+  // Función para mostrar modal de duplicados y esperar respuesta
+  const showDuplicateModalAndWait = useCallback((existingTasacion: any, newTasacionData: any, refAranzadi: string) => {
+    return new Promise<'update' | 'create' | 'cancel'>((resolve) => {
+      setDuplicateData({ 
+        existing: {
+          nombre_cliente: existingTasacion.nombre_cliente,
+          numero_procedimiento: existingTasacion.numero_procedimiento,
+          municipio: existingTasacion.municipio,
+          costas_sin_iva: existingTasacion.costas_sin_iva,
+          iva_21: existingTasacion.iva_21,
+          total: existingTasacion.total,
+          created_at: existingTasacion.created_at
+        },
+        new: newTasacionData,
+        refAranzadi 
+      })
+      setNewRefAranzadi(refAranzadi + '-BIS')
+      setDuplicateResolve(() => resolve)
+      setShowDuplicateModal(true)
+    })
+  }, [])
+
+  // Función para cerrar modal de duplicados
+  const closeDuplicateModal = (action: 'update' | 'create' | 'cancel') => {
+    setShowDuplicateModal(false)
+    if (duplicateResolve) {
+      duplicateResolve(action)
+      setDuplicateResolve(null)
+    }
+    setDuplicateData(null)
+    setNewRefAranzadi('')
   }
   
   const { create: createTasacion } = useTasaciones()
@@ -164,13 +205,132 @@ export default function TasacionForm() {
 
   const guardarTasacion = async () => {
     try {
+      setSavingTasacion(true)
       const formData = watch()
+      
       if (!resultado || !municipioSeleccionado) {
         alert('No hay resultado para guardar')
+        setSavingTasacion(false)
         return
       }
 
-      // Guardar en base de datos
+      if (!formData.ref_aranzadi || formData.ref_aranzadi.trim() === '') {
+        alert('Por favor, introduce una Referencia Aranzadi válida')
+        setSavingTasacion(false)
+        return
+      }
+
+      // Verificar si ya existe una tasación con esa referencia Aranzadi (búsqueda global)
+      const { data: existingTasacion, error: checkError } = await supabase
+        .from('tasaciones')
+        .select('*')
+        .eq('ref_aranzadi', formData.ref_aranzadi.trim())
+        .maybeSingle()
+
+      if (checkError) {
+        console.error('Error verificando duplicados en guardarTasacion:', checkError)
+        throw checkError
+      }
+
+      console.log('Búsqueda de duplicados guardarTasacion - REF:', formData.ref_aranzadi.trim(), 'Resultado:', existingTasacion)
+
+      // Preparar datos de la nueva tasación
+      const newTasacionData = {
+        nombre_cliente: formData.nombre_cliente,
+        numero_procedimiento: formData.numero_procedimiento,
+        municipio: formData.municipio,
+        costas_sin_iva: resultado.costas,
+        iva_21: resultado.iva,
+        total: resultado.total
+      }
+
+      // Si existe duplicado, mostrar modal y esperar decisión
+      if (existingTasacion) {
+        const action = await showDuplicateModalAndWait(existingTasacion, newTasacionData, formData.ref_aranzadi)
+
+        if (action === 'cancel') {
+          showNotification('error', 'Operación cancelada. No se guardó ninguna tasación.')
+          setSavingTasacion(false)
+          return
+        }
+
+        if (action === 'update') {
+          // ACTUALIZAR el registro existente
+          const recordToUpdate = {
+            nombre_cliente: formData.nombre_cliente,
+            numero_procedimiento: formData.numero_procedimiento,
+            nombre_juzgado: formData.nombre_juzgado || '',
+            entidad_demandada: formData.entidad_demandada || '',
+            municipio: formData.municipio,
+            criterio_ica: municipioSeleccionado.criterio_ica,
+            tipo_proceso: formData.tipo_proceso,
+            fase_terminacion: formData.fase_terminacion,
+            instancia: formData.instancia,
+            fecha_demanda: formData.fecha_demanda || null,
+            costas_sin_iva: resultado.costas,
+            iva_21: resultado.iva,
+            total: resultado.total,
+            updated_at: new Date().toISOString()
+          }
+
+          const { error: updateError } = await supabase
+            .from('tasaciones')
+            .update(recordToUpdate)
+            .eq('id', existingTasacion.id)
+
+          if (updateError) {
+            console.error('Error actualizando tasación:', updateError)
+            throw updateError
+          }
+
+          showNotification('success', `✅ Tasación actualizada correctamente.\n\nTotal: €${resultado.total.toFixed(2)}`)
+          reset()
+          setMunicipioSeleccionado(null)
+          setResultado(null)
+          setSavingTasacion(false)
+          return
+        }
+
+        if (action === 'create') {
+          // CREAR nuevo registro con referencia modificada
+          const refAranzadiModificada = newRefAranzadi.trim()
+
+          const { error: insertError } = await supabase
+            .from('tasaciones')
+            .insert([{
+              nombre_cliente: formData.nombre_cliente,
+              numero_procedimiento: formData.numero_procedimiento,
+              nombre_juzgado: formData.nombre_juzgado || '',
+              entidad_demandada: formData.entidad_demandada || '',
+              municipio: formData.municipio,
+              criterio_ica: municipioSeleccionado.criterio_ica,
+              tipo_proceso: formData.tipo_proceso,
+              fase_terminacion: formData.fase_terminacion,
+              instancia: formData.instancia,
+              ref_aranzadi: refAranzadiModificada,
+              fecha_demanda: formData.fecha_demanda || null,
+              costas_sin_iva: resultado.costas,
+              iva_21: resultado.iva,
+              total: resultado.total,
+              user_id: user?.id || '',
+              nombre_usuario: user?.nombre || user?.email || 'Usuario Sistema'
+            }])
+
+          if (insertError) {
+            console.error('Error creando nueva tasación:', insertError)
+            throw insertError
+          }
+
+          showNotification('success', `✅ Nueva tasación guardada correctamente.\n\nReferencia: ${refAranzadiModificada}\nTotal: €${resultado.total.toFixed(2)}`)
+          reset()
+          setMunicipioSeleccionado(null)
+          setResultado(null)
+          setSavingTasacion(false)
+          return
+        }
+      }
+
+      // No hay duplicado, guardar normalmente
       await createTasacion({
         nombre_cliente: formData.nombre_cliente,
         numero_procedimiento: formData.numero_procedimiento,
@@ -186,16 +346,19 @@ export default function TasacionForm() {
         costas_sin_iva: resultado.costas,
         iva_21: resultado.iva,
         total: resultado.total,
-        nombre_usuario: 'Usuario Sistema' // TODO: Obtener del contexto de usuario
+        nombre_usuario: user?.nombre || user?.email || 'Usuario Sistema'
       })
 
-      alert('Tasación guardada correctamente')
+      showNotification('success', `✅ Tasación guardada correctamente.\n\nReferencia: ${formData.ref_aranzadi}\nTotal: €${resultado.total.toFixed(2)}`)
       reset()
       setMunicipioSeleccionado(null)
       setResultado(null)
     } catch (error) {
       console.error('Error al guardar tasación:', error)
-      alert('Error al guardar la tasación')
+      const errorMessage = error instanceof Error ? error.message : 'Error desconocido'
+      showNotification('error', `Error inesperado: ${errorMessage}`)
+    } finally {
+      setSavingTasacion(false)
     }
   }
 
@@ -210,6 +373,138 @@ export default function TasacionForm() {
 
       // Obtener datos del formulario
       const formData = watch()
+
+      // Validar ref_aranzadi
+      if (!formData.ref_aranzadi || formData.ref_aranzadi.trim() === '') {
+        showNotification('error', 'Por favor, introduce una Referencia Aranzadi válida')
+        setGeneratingMinuta(false)
+        return
+      }
+
+      // Verificar si ya existe una tasación con esa referencia Aranzadi (búsqueda global)
+      const { data: existingTasacion, error: checkError } = await supabase
+        .from('tasaciones')
+        .select('*')
+        .eq('ref_aranzadi', formData.ref_aranzadi.trim())
+        .maybeSingle()
+
+      if (checkError) {
+        console.error('Error verificando duplicados en generarMinuta:', checkError)
+        throw checkError
+      }
+
+      console.log('Búsqueda de duplicados en generarMinuta - REF:', formData.ref_aranzadi.trim(), 'Resultado:', existingTasacion)
+
+      // Si existe duplicado, mostrar modal y esperar decisión
+      if (existingTasacion) {
+        const newTasacionData = {
+          nombre_cliente: formData.nombre_cliente,
+          numero_procedimiento: formData.numero_procedimiento,
+          municipio: formData.municipio,
+          costas_sin_iva: resultado.costas,
+          iva_21: resultado.iva,
+          total: resultado.total
+        }
+
+        const action = await showDuplicateModalAndWait(existingTasacion, newTasacionData, formData.ref_aranzadi)
+
+        if (action === 'cancel') {
+          showNotification('error', 'Operación cancelada. No se generó la minuta.')
+          setGeneratingMinuta(false)
+          return
+        }
+
+        if (action === 'update') {
+          // ACTUALIZAR el registro existente y generar minuta
+          const recordToUpdate = {
+            nombre_cliente: formData.nombre_cliente,
+            numero_procedimiento: formData.numero_procedimiento,
+            nombre_juzgado: formData.nombre_juzgado || '',
+            entidad_demandada: formData.entidad_demandada || '',
+            municipio: formData.municipio,
+            criterio_ica: municipioSeleccionado.criterio_ica,
+            tipo_proceso: formData.tipo_proceso,
+            fase_terminacion: formData.fase_terminacion,
+            instancia: formData.instancia,
+            fecha_demanda: formData.fecha_demanda || null,
+            costas_sin_iva: resultado.costas,
+            iva_21: resultado.iva,
+            total: resultado.total,
+            updated_at: new Date().toISOString()
+          }
+
+          const { error: updateError } = await supabase
+            .from('tasaciones')
+            .update(recordToUpdate)
+            .eq('id', existingTasacion.id)
+
+          if (updateError) {
+            console.error('Error actualizando tasación:', updateError)
+            throw updateError
+          }
+        }
+
+        if (action === 'create') {
+          // CREAR nuevo registro con referencia modificada
+          const refAranzadiModificada = newRefAranzadi.trim()
+
+          const { error: insertError } = await supabase
+            .from('tasaciones')
+            .insert([{
+              nombre_cliente: formData.nombre_cliente,
+              numero_procedimiento: formData.numero_procedimiento,
+              nombre_juzgado: formData.nombre_juzgado || '',
+              entidad_demandada: formData.entidad_demandada || '',
+              municipio: formData.municipio,
+              criterio_ica: municipioSeleccionado.criterio_ica,
+              tipo_proceso: formData.tipo_proceso,
+              fase_terminacion: formData.fase_terminacion,
+              instancia: formData.instancia,
+              ref_aranzadi: refAranzadiModificada,
+              fecha_demanda: formData.fecha_demanda || null,
+              costas_sin_iva: resultado.costas,
+              iva_21: resultado.iva,
+              total: resultado.total,
+              user_id: user?.id || '',
+              nombre_usuario: user?.nombre || user?.email || 'Usuario Sistema'
+            }])
+
+          if (insertError) {
+            console.error('Error creando nueva tasación:', insertError)
+            throw insertError
+          }
+
+          // Actualizar formData con la referencia modificada para la minuta
+          setValue('ref_aranzadi', refAranzadiModificada)
+        }
+      } else {
+        // No hay duplicado, guardar normalmente
+        try {
+          setSavingTasacion(true)
+          await createTasacion({
+            nombre_cliente: formData.nombre_cliente,
+            numero_procedimiento: formData.numero_procedimiento,
+            nombre_juzgado: formData.nombre_juzgado || '',
+            entidad_demandada: formData.entidad_demandada || '',
+            municipio: formData.municipio,
+            criterio_ica: municipioSeleccionado.criterio_ica,
+            tipo_proceso: formData.tipo_proceso,
+            fase_terminacion: formData.fase_terminacion,
+            instancia: formData.instancia,
+            ref_aranzadi: formData.ref_aranzadi || '',
+            fecha_demanda: formData.fecha_demanda || '',
+            costas_sin_iva: resultado.costas,
+            iva_21: resultado.iva,
+            total: resultado.total,
+            nombre_usuario: user?.nombre || user?.email || 'Usuario Sistema'
+          })
+          console.log('Tasación guardada automáticamente en el historial')
+        } catch (saveError) {
+          console.warn('No se pudo guardar la tasación en el historial, pero continuando con la generación de minuta:', saveError)
+        } finally {
+          setSavingTasacion(false)
+        }
+      }
 
       // Buscar el nombre completo de la entidad demandada
       let nombreCompletoEntidad = formData.entidad_demandada || ''
@@ -237,34 +532,6 @@ export default function TasacionForm() {
       }
 
       console.log('Generando documento DOCX con datos:', tasacionData)
-
-      // Guardar automáticamente la tasación en el historial antes de generar la minuta
-      try {
-        setSavingTasacion(true)
-        await createTasacion({
-          nombre_cliente: formData.nombre_cliente,
-          numero_procedimiento: formData.numero_procedimiento,
-          nombre_juzgado: formData.nombre_juzgado || '',
-          entidad_demandada: formData.entidad_demandada || '',
-          municipio: formData.municipio,
-          criterio_ica: municipioSeleccionado.criterio_ica,
-          tipo_proceso: formData.tipo_proceso,
-          fase_terminacion: formData.fase_terminacion,
-          instancia: formData.instancia,
-          ref_aranzadi: formData.ref_aranzadi || '',
-          fecha_demanda: formData.fecha_demanda || '',
-          costas_sin_iva: resultado.costas,
-          iva_21: resultado.iva,
-          total: resultado.total,
-          nombre_usuario: 'Usuario Sistema' // TODO: Obtener del contexto de usuario
-        })
-        console.log('Tasación guardada automáticamente en el historial')
-      } catch (saveError) {
-        console.warn('No se pudo guardar la tasación en el historial, pero continuando con la generación de minuta:', saveError)
-        // No lanzamos error aquí para no interrumpir la generación de minuta
-      } finally {
-        setSavingTasacion(false)
-      }
 
       // Generar el documento usando la biblioteca docx
       await generateMinutaDocx(tasacionData)
@@ -722,6 +989,15 @@ export default function TasacionForm() {
           </div>
         </div>
       )}
+
+      {/* Modal de Duplicados */}
+      <DuplicateTasacionModal
+        isOpen={showDuplicateModal}
+        duplicateData={duplicateData}
+        onClose={closeDuplicateModal}
+        newRefAranzadi={newRefAranzadi}
+        onNewRefAranzadiChange={setNewRefAranzadi}
+      />
     </div>
   )
 }

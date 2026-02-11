@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
@@ -29,7 +29,8 @@ import * as XLSX from 'xlsx'
 import { buscarMunicipios, obtenerTodosMunicipios } from '../lib/municipios'
 import { buscarEntidades, obtenerTodasEntidades, buscarEntidadPorCodigo } from '../lib/entidades'
 import { generateMinutaDocx } from '../lib/docx-generator'
-import { type Tasacion } from '../lib/supabase'
+import { type Tasacion, supabase } from '../lib/supabase'
+import { DuplicateTasacionModal } from './DuplicateTasacionModal'
 import HistorialLiquidaciones from './HistorialLiquidaciones'
 
 const tasacionSchema = z.object({
@@ -84,6 +85,12 @@ export default function HistorialTasaciones() {
   const [updateError, setUpdateError] = useState<string | null>(null)
   const [deleteError, setDeleteError] = useState<string | null>(null)
 
+  // Estado para modal de duplicados
+  const [showDuplicateModal, setShowDuplicateModal] = useState(false)
+  const [duplicateData, setDuplicateData] = useState<any>(null)
+  const [newRefAranzadi, setNewRefAranzadi] = useState('')
+  const [duplicateResolve, setDuplicateResolve] = useState<((value: 'update' | 'create' | 'cancel') => void) | null>(null)
+
   // Funciones para manejar edición
   const handleEdit = (tasacion: Tasacion) => {
     setEditingTasacion(tasacion)
@@ -94,6 +101,39 @@ export default function HistorialTasaciones() {
   const handleViewDetails = (tasacion: Tasacion) => {
     setTasacionDetails(tasacion)
     setShowDetailsModal(true)
+  }
+
+  // Función para mostrar modal de duplicados y esperar respuesta
+  const showDuplicateModalAndWait = useCallback((existingTasacion: any, newTasacionData: any, refAranzadi: string) => {
+    return new Promise<'update' | 'create' | 'cancel'>((resolve) => {
+      setDuplicateData({ 
+        existing: {
+          nombre_cliente: existingTasacion.nombre_cliente,
+          numero_procedimiento: existingTasacion.numero_procedimiento,
+          municipio: existingTasacion.municipio,
+          costas_sin_iva: existingTasacion.costas_sin_iva,
+          iva_21: existingTasacion.iva_21,
+          total: existingTasacion.total,
+          created_at: existingTasacion.created_at
+        },
+        new: newTasacionData,
+        refAranzadi 
+      })
+      setNewRefAranzadi(refAranzadi + '-BIS')
+      setDuplicateResolve(() => resolve)
+      setShowDuplicateModal(true)
+    })
+  }, [])
+
+  // Función para cerrar modal de duplicados
+  const closeDuplicateModal = (action: 'update' | 'create' | 'cancel') => {
+    setShowDuplicateModal(false)
+    if (duplicateResolve) {
+      duplicateResolve(action)
+      setDuplicateResolve(null)
+    }
+    setDuplicateData(null)
+    setNewRefAranzadi('')
   }
 
   const handleEditSubmit = async (data: TasacionForm) => {
@@ -119,10 +159,119 @@ export default function HistorialTasaciones() {
         instancia: data.instancia
       })
 
+      // Si hay cambio en la REF ARANZADI, verificar duplicados
+      if (data.ref_aranzadi && data.ref_aranzadi !== editingTasacion.ref_aranzadi) {
+        const { data: existingTasacion, error: checkError } = await supabase
+          .from('tasaciones')
+          .select('*')
+          .eq('ref_aranzadi', data.ref_aranzadi.trim())
+          .neq('id', editingTasacion.id)
+          .maybeSingle()
+
+        if (checkError && checkError.code !== 'PGRST116') { // PGRST116 es "no rows" error
+          console.error('Error verificando duplicados:', checkError)
+          throw checkError
+        }
+
+        // Si existe duplicado, mostrar modal
+        if (existingTasacion) {
+          const newTasacionData = {
+            nombre_cliente: data.nombre_cliente,
+            numero_procedimiento: data.numero_procedimiento,
+            municipio: data.municipio,
+            costas_sin_iva: resultado.costas,
+            iva_21: resultado.iva,
+            total: resultado.total
+          }
+
+          const action = await showDuplicateModalAndWait(existingTasacion, newTasacionData, data.ref_aranzadi)
+
+          if (action === 'cancel') {
+            setUpdateError('Operación cancelada. La tasación no fue actualizada.')
+            setIsUpdating(false)
+            return
+          }
+
+          if (action === 'update') {
+            // Actualizar el registro existente (merge)
+            const { error: updateError } = await supabase
+              .from('tasaciones')
+              .update({
+                nombre_cliente: data.nombre_cliente,
+                numero_procedimiento: data.numero_procedimiento,
+                nombre_juzgado: data.nombre_juzgado || '',
+                entidad_demandada: data.entidad_demandada || '',
+                municipio: data.municipio,
+                criterio_ica: municipioSeleccionado.criterio_ica,
+                tipo_proceso: data.tipo_proceso,
+                fase_terminacion: data.fase_terminacion,
+                instancia: data.instancia,
+                fecha_demanda: data.fecha_demanda || null,
+                costas_sin_iva: resultado.costas,
+                iva_21: resultado.iva,
+                total: resultado.total,
+                updated_at: new Date().toISOString()
+              })
+              .eq('id', existingTasacion.id)
+
+            if (updateError) {
+              console.error('Error actualizando tasación duplicada:', updateError)
+              throw updateError
+            }
+
+            setShowEditModal(false)
+            setEditingTasacion(null)
+            await refresh()
+            setIsUpdating(false)
+            return
+          }
+
+          if (action === 'create') {
+            // Crear nuevo registro con referencia modificada
+            const refAranzadiModificada = newRefAranzadi.trim()
+
+            const { error: insertError } = await supabase
+              .from('tasaciones')
+              .insert([{
+                nombre_cliente: editingTasacion.nombre_cliente,
+                numero_procedimiento: editingTasacion.numero_procedimiento,
+                nombre_juzgado: editingTasacion.nombre_juzgado || '',
+                entidad_demandada: editingTasacion.entidad_demandada || '',
+                municipio: editingTasacion.municipio,
+                criterio_ica: editingTasacion.criterio_ica,
+                tipo_proceso: editingTasacion.tipo_proceso,
+                fase_terminacion: editingTasacion.fase_terminacion,
+                instancia: editingTasacion.instancia,
+                ref_aranzadi: refAranzadiModificada,
+                fecha_demanda: editingTasacion.fecha_demanda || null,
+                costas_sin_iva: editingTasacion.costas_sin_iva,
+                iva_21: editingTasacion.iva_21,
+                total: editingTasacion.total,
+                user_id: editingTasacion.user_id,
+                nombre_usuario: editingTasacion.nombre_usuario || 'Usuario Sistema'
+              }])
+
+            if (insertError) {
+              console.error('Error creando nueva tasación:', insertError)
+              throw insertError
+            }
+
+            setShowEditModal(false)
+            setEditingTasacion(null)
+            await refresh()
+            setIsUpdating(false)
+            return
+          }
+        }
+      }
+
+      // No hay duplicado o no se cambió el ref_aranzadi, actualizar normalmente
       await updateTasacion(editingTasacion.id, {
         ...data,
         criterio_ica: municipioSeleccionado.criterio_ica,
-        ...resultado
+        costas_sin_iva: resultado.costas,
+        iva_21: resultado.iva,
+        total: resultado.total
       })
 
       setShowEditModal(false)
@@ -134,6 +283,7 @@ export default function HistorialTasaciones() {
       setIsUpdating(false)
     }
   }
+  
 
   const handleCancelEdit = () => {
     setShowEditModal(false)
@@ -1568,6 +1718,15 @@ export default function HistorialTasaciones() {
           </div>
         </div>
       )}
+
+      {/* Modal de Duplicados */}
+      <DuplicateTasacionModal
+        isOpen={showDuplicateModal}
+        duplicateData={duplicateData}
+        onClose={closeDuplicateModal}
+        newRefAranzadi={newRefAranzadi}
+        onNewRefAranzadiChange={setNewRefAranzadi}
+      />
         </>
       )}
     </div>
