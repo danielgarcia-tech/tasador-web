@@ -65,6 +65,8 @@ export default function InterestCalculatorAdvanced() {
   const [globalFechaFin, setGlobalFechaFin] = useState<string>('')
   const [globalTaeContrato, setGlobalTaeContrato] = useState<string>('')
   const [globalFechaSentencia, setGlobalFechaSentencia] = useState<string>('')
+  const [useFechaReclamacion, setUseFechaReclamacion] = useState<boolean>(false)
+  const [globalFechaReclamacion, setGlobalFechaReclamacion] = useState<string>('')
   const [results, setResults] = useState<CalculationResult[]>([])
   const [calculating, setCalculating] = useState(false)
   const [expandedModalities, setExpandedModalities] = useState<Set<string>>(new Set())
@@ -117,6 +119,8 @@ export default function InterestCalculatorAdvanced() {
     setGlobalFechaFin('')
     setGlobalTaeContrato('')
     setGlobalFechaSentencia('')
+    setUseFechaReclamacion(false)
+    setGlobalFechaReclamacion('')
     setExpandedModalities(new Set())
     setCalculating(false)
     
@@ -566,6 +570,12 @@ export default function InterestCalculatorAdvanced() {
       return
     }
 
+    // Validate fecha reclamación if checkbox is active
+    if (useFechaReclamacion && !globalFechaReclamacion) {
+      setError('Debe especificar la fecha de reclamación')
+      return
+    }
+
     try {
       setCalculating(true)
       setError(null)
@@ -665,9 +675,14 @@ export default function InterestCalculatorAdvanced() {
                 throw new Error(`Fecha fin inválida: ${globalFechaFin}`)
               }
 
+              // Determinar fecha de inicio: fecha reclamación manual o la del Excel
+              const fechaInicioCalculada = useFechaReclamacion && globalFechaReclamacion
+                ? parseDateFromYYYYMMDD(globalFechaReclamacion)!
+                : parsedFechaInicio
+
               const input: InterestCalculationInput = {
                 capital: valor,
-                fechaInicio: parsedFechaInicio,
+                fechaInicio: fechaInicioCalculada,
                 fechaFin: parsedFechaFin,
                 modalidad
               }
@@ -688,7 +703,7 @@ export default function InterestCalculatorAdvanced() {
                 ...row,
                 cuantía: valor,
                 columna_cuantía: cuantiaCol, // Guardar la columna de cuantía específica
-                fecha_inicio: formatDateToYYYYMMDD(parsedFechaInicio),
+                fecha_inicio: formatDateToYYYYMMDD(fechaInicioCalculada),
                 fecha_fin: formatDateToYYYYMMDD(parsedFechaFin),
                 modalidad,
                 tae_contrato: globalTaeContrato ? parseFloat(globalTaeContrato) : undefined,
@@ -734,7 +749,7 @@ export default function InterestCalculatorAdvanced() {
     } finally {
       setCalculating(false)
     }
-  }, [initialized, excelData, columnMapping, globalFechaFin, globalModalidades, globalTaeContrato, globalFechaSentencia, user])
+  }, [initialized, excelData, columnMapping, globalFechaFin, globalModalidades, globalTaeContrato, globalFechaSentencia, useFechaReclamacion, globalFechaReclamacion, user])
 
   // Función auxiliar para parsear fechas
   const parseDate = (dateValue: any): Date | null => {
@@ -2383,6 +2398,34 @@ export default function InterestCalculatorAdvanced() {
                   />
                 </div>
               )}
+              <div className="col-span-full">
+                <label className="flex items-center gap-2 cursor-pointer select-none">
+                  <input
+                    type="checkbox"
+                    checked={useFechaReclamacion}
+                    onChange={(e) => {
+                      setUseFechaReclamacion(e.target.checked)
+                      if (!e.target.checked) setGlobalFechaReclamacion('')
+                    }}
+                    className="w-4 h-4 text-blue-600 border-blue-300 rounded focus:ring-blue-500"
+                  />
+                  <span className="text-sm font-medium text-blue-900">¿Desde fecha reclamación?</span>
+                </label>
+                {useFechaReclamacion && (
+                  <div className="mt-2">
+                    <label className="block text-sm font-medium text-blue-900 mb-1">
+                      Fecha de Reclamación *
+                    </label>
+                    <input
+                      type="date"
+                      value={globalFechaReclamacion}
+                      onChange={(e) => setGlobalFechaReclamacion(e.target.value)}
+                      className="w-full max-w-xs px-3 py-2 border border-blue-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                    <p className="mt-1 text-xs text-blue-700">El cómputo de intereses comenzará desde esta fecha en lugar de la fecha del Excel.</p>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         )}
@@ -2425,7 +2468,8 @@ export default function InterestCalculatorAdvanced() {
                     !columnMapping.fecha_inicio || 
                     !globalFechaFin ||
                     ((globalModalidades.includes('tae') || globalModalidades.includes('tae_plus5')) && !globalTaeContrato) ||
-                    (globalModalidades.includes('judicial') && !globalFechaSentencia)
+                    (globalModalidades.includes('judicial') && !globalFechaSentencia) ||
+                    (useFechaReclamacion && !globalFechaReclamacion)
                   }
                   className="inline-flex items-center px-4 py-2 bg-primary-600 text-white rounded-md hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
