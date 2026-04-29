@@ -4,6 +4,7 @@ import { useAuth } from '../contexts/CustomAuthContext'
 
 export function useTasaciones() {
   const [tasaciones, setTasaciones] = useState<Tasacion[]>([])
+  const [statsGlobales, setStatsGlobales] = useState<{ totalCount: number; totalCostas: number } | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [isOffline, setIsOffline] = useState(false)
@@ -48,6 +49,20 @@ export function useTasaciones() {
     return error?.message || 'Ha ocurrido un error inesperado. Inténtalo de nuevo.'
   }
 
+  const fetchStatsGlobales = async () => {
+    try {
+      const p_user_id = (user && user.rol !== 'admin') ? user.id : null
+      const { data, error } = await supabase.rpc('get_tasaciones_stats', { p_user_id })
+      if (error) throw error
+      setStatsGlobales({
+        totalCount: Number(data?.[0]?.total_count) || 0,
+        totalCostas: Number(data?.[0]?.total_costas) || 0,
+      })
+    } catch {
+      // stats no críticas, fallo silencioso
+    }
+  }
+
   const fetchTasaciones = async (isRetry = false) => {
     // Esta función asume que ya se verificó que hay usuario
     // Para la carga inicial, evitar múltiples llamadas simultáneas
@@ -63,6 +78,7 @@ export function useTasaciones() {
         .from('tasaciones')
         .select('*, usuarios_personalizados!user_id(nombre)')
         .order('created_at', { ascending: false })
+        .limit(10000)
 
       // Si el usuario NO es admin, filtrar solo sus tasaciones
       if (user && user.rol !== 'admin') {
@@ -184,6 +200,7 @@ export function useTasaciones() {
     // Carga inicial: ejecutar solo cuando hay usuario disponible y no se ha cargado aún
     if (user && !initialLoadDone) {
       fetchTasaciones()
+      fetchStatsGlobales()
       setInitialLoadDone(true)
     }
     // Si no hay usuario, no hacer nada (mantener estado vacío)
@@ -191,10 +208,11 @@ export function useTasaciones() {
 
   return {
     tasaciones,
+    statsGlobales,
     loading,
     error,
     isOffline,
-    refresh: fetchTasaciones,
+    refresh: (isRetry?: boolean) => { fetchTasaciones(isRetry); fetchStatsGlobales() },
     create: createTasacion,
     update: updateTasacion,
     delete: deleteTasacion,

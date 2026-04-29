@@ -49,7 +49,7 @@ const tasacionSchema = z.object({
 type TasacionForm = z.infer<typeof tasacionSchema>
 
 export default function HistorialTasaciones() {
-  const { tasaciones, loading, error, isOffline, refresh, update: updateTasacion, delete: deleteTasacion } = useTasaciones()
+  const { tasaciones, statsGlobales, loading, error, isOffline, refresh, update: updateTasacion, delete: deleteTasacion } = useTasaciones()
 
   // Estado para el selector de tipo de historial
   const [tipoHistorial, setTipoHistorial] = useState<'tasaciones' | 'liquidaciones'>('tasaciones')
@@ -785,9 +785,9 @@ export default function HistorialTasaciones() {
   const startIndex = (currentPage - 1) * itemsPerPage
   const paginatedTasaciones = filteredTasaciones.slice(startIndex, startIndex + itemsPerPage)
 
-  // Estadísticas basadas en el conjunto filtrado para actualizar en directo
-  const totalTasaciones = filteredTasaciones.length
-  const totalCostas = filteredTasaciones.reduce((sum, t) => sum + (t.total || 0), 0)
+  // Stats globales desde el servidor (sin límite de filas)
+  const totalTasaciones = statsGlobales?.totalCount ?? filteredTasaciones.length
+  const totalCostas = statsGlobales?.totalCostas ?? filteredTasaciones.reduce((sum, t) => sum + (t.total || 0), 0)
   const promedioTasacion = totalTasaciones > 0 ? totalCostas / totalTasaciones : 0
 
   if (loading) {
@@ -1045,7 +1045,7 @@ export default function HistorialTasaciones() {
         <div className="mt-6 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
           <div className="flex items-center gap-2">
             <span className="text-sm text-gray-600 bg-gray-100 px-3 py-1 rounded-full">
-              📊 Mostrando <span className="font-semibold text-gray-800">{paginatedTasaciones.length}</span> de <span className="font-semibold text-gray-800">{filteredTasaciones.length}</span> tasaciones
+              📊 Mostrando <span className="font-semibold text-gray-800">{paginatedTasaciones.length}</span> de <span className="font-semibold text-gray-800">{totalTasaciones}</span> tasaciones
             </span>
           </div>
           {(searchTerm || filterTipoProceso || filterInstancia || filterUsuario) && (
