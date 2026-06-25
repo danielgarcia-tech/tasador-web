@@ -60,7 +60,7 @@ const BAREMOS_DATA: { [ccaa: string]: { [provincia: string]: string[] } } = {
   },
   'EXTREMADURA': {
     'BADAJOZ': ['Criterio Honorarios ICA Badajoz 1.pdf', 'Criterio Honorarios ICA Badajoz.pdf'],
-    'CACERES': ['Criterio Honorarios ICA Cceres.pdf', 'Modificaci｢n criterios 51 y 55Criterio Honorarios ICA Cceres.pdf']
+    'CACERES': ['Criterio Honorarios ICA Caceres.pdf', 'Modificacion criterios 51 y 55 Criterio Honorarios ICA Caceres.pdf']
   },
   'GALICIA': {
     'A CORUÑA': ['Criterio Honorarios ICA Galicia.pdf'],
