@@ -13,7 +13,7 @@ const BAREMOS_DATA: { [ccaa: string]: { [provincia: string]: string[] } } = {
     'HUELVA': ['Criterio Honorarios ICA Huelva.pdf'],
     'JAEN': ['Criterio Honorarios ICA Jaén.pdf'],
     'JEREZ': ['Criterio Honorarios ICA Jerez.pdf'],
-    'MALAGA': ['Criterio Honorarios ICA Mlaga.pdf'],
+    'MALAGA': ['Criterio Honorarios ICA Malaga.pdf'],
     'SEVILLA': ['Criterio Honorarios ICA Sevilla.pdf', 'Criterios Tasación SEVILLA.pdf']
   },
   'ARAGÓN': {
