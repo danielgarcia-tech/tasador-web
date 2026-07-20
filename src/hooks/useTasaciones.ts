@@ -73,23 +73,40 @@ export function useTasaciones() {
     try {
       setLoading(true)
       setError(null)
-      
-      let query = supabase
-        .from('tasaciones')
-        .select('*, usuarios_personalizados!user_id(nombre)')
-        .order('created_at', { ascending: false })
-        .limit(10000)
 
-      // Si el usuario NO es admin, filtrar solo sus tasaciones
-      if (user && user.rol !== 'admin') {
-        query = query.eq('user_id', user.id)
+      // Supabase/PostgREST aplica un límite máximo de filas por request a
+      // nivel de proyecto (normalmente 1000) que ignora .limit() cuando lo
+      // supera, así que hay que paginar con .range() para traer el total.
+      const pageSize = 1000
+      let from = 0
+      let todasLasTasaciones: Tasacion[] = []
+
+      while (true) {
+        let query = supabase
+          .from('tasaciones')
+          .select('*, usuarios_personalizados!user_id(nombre)')
+          .order('created_at', { ascending: false })
+          .range(from, from + pageSize - 1)
+
+        // Si el usuario NO es admin, filtrar solo sus tasaciones
+        if (user && user.rol !== 'admin') {
+          query = query.eq('user_id', user.id)
+        }
+
+        const { data, error } = await query
+
+        if (error) throw error
+
+        todasLasTasaciones = todasLasTasaciones.concat(data || [])
+
+        if (!data || data.length < pageSize) {
+          break
+        }
+
+        from += pageSize
       }
 
-      const { data, error } = await query
-
-      if (error) throw error
-      
-      setTasaciones(data || [])
+      setTasaciones(todasLasTasaciones)
       setIsOffline(false)
       
     } catch (error) {
