@@ -1,7 +1,8 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { supabase } from '../lib/supabase'
-import { RefreshCw, Download, Eye, Trash2, WifiOff, TrendingUp } from 'lucide-react'
+import { RefreshCw, Download, Eye, Trash2, WifiOff, TrendingUp, Clock, FileText } from 'lucide-react'
 import * as XLSX from 'xlsx'
+import { buildInformeCompletoPdf, buildInformeResumenPdf, type InformeLiquidacionSnapshot } from '../lib/informeLiquidacion'
 
 interface Liquidacion {
   id: string
@@ -16,6 +17,7 @@ interface Liquidacion {
   tae_porcentaje: number | null
   created_at: string
   updated_at: string
+  detalle_calculo: InformeLiquidacionSnapshot | null
   usuarios_personalizados?: {
     nombre: string
   }
@@ -25,6 +27,16 @@ interface InformeLiquidacion {
   id: string
   nombre_archivo: string
   fecha_generacion: string
+}
+
+// Cuánto tiempo se conserva en memoria un informe auto-generado (temporal,
+// nunca escrito en BD/Storage) antes de destruirse por inactividad.
+const TEMP_INFORME_TIMEOUT_MS = 5 * 60 * 1000
+
+interface TempInforme {
+  url: string
+  fileName: string
+  tipo: 'completo' | 'resumen'
 }
 
 export default function HistorialLiquidaciones() {
@@ -52,20 +64,62 @@ export default function HistorialLiquidaciones() {
   const [isDeleting, setIsDeleting] = useState(false)
   const [informesAsociados, setInformesAsociados] = useState<InformeLiquidacion[]>([])
   const [loadingInformes, setLoadingInformes] = useState(false)
+  const [tempInforme, setTempInforme] = useState<TempInforme | null>(null)
+  const [generandoTempInforme, setGenerandoTempInforme] = useState(false)
+  const tempInformeTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   useEffect(() => {
     fetchLiquidaciones()
-    
+
     // Verificar conexión
     const checkOnlineStatus = () => setIsOffline(!navigator.onLine)
     window.addEventListener('online', checkOnlineStatus)
     window.addEventListener('offline', checkOnlineStatus)
-    
+
     return () => {
       window.removeEventListener('online', checkOnlineStatus)
       window.removeEventListener('offline', checkOnlineStatus)
     }
   }, [])
+
+  // Asegura que ningún informe temporal ni su temporizador sobreviva al
+  // desmontar el componente (p. ej. al cambiar de pestaña de la app).
+  useEffect(() => {
+    return () => {
+      if (tempInformeTimeoutRef.current) clearTimeout(tempInformeTimeoutRef.current)
+      setTempInforme(prev => {
+        if (prev) URL.revokeObjectURL(prev.url)
+        return prev
+      })
+    }
+  }, [])
+
+  // Descarta el informe temporal (auto-generado, nunca guardado en BD/Storage)
+  // y cancela su temporizador de auto-destrucción.
+  const destruirInformeTemporal = () => {
+    if (tempInformeTimeoutRef.current) {
+      clearTimeout(tempInformeTimeoutRef.current)
+      tempInformeTimeoutRef.current = null
+    }
+    setTempInforme(prev => {
+      if (prev) URL.revokeObjectURL(prev.url)
+      return null
+    })
+  }
+
+  // Reinicia la cuenta atrás de 5 minutos de inactividad; se llama al
+  // generar el informe temporal y cada vez que el usuario interactúa con él
+  // (ver/descargar).
+  const reiniciarTimerInformeTemporal = () => {
+    if (tempInformeTimeoutRef.current) clearTimeout(tempInformeTimeoutRef.current)
+    tempInformeTimeoutRef.current = setTimeout(() => {
+      setTempInforme(prev => {
+        if (prev) URL.revokeObjectURL(prev.url)
+        return null
+      })
+      tempInformeTimeoutRef.current = null
+    }, TEMP_INFORME_TIMEOUT_MS)
+  }
 
   const fetchLiquidaciones = async () => {
     try {
@@ -117,10 +171,16 @@ export default function HistorialLiquidaciones() {
   }
 
   const handleViewDetails = async (liquidacion: Liquidacion) => {
+    // Si venía un informe temporal de una liquidación vista anteriormente,
+    // se descarta: nunca se guardó en ningún sitio, así que no hay nada que
+    // conservar entre una liquidación y otra.
+    destruirInformeTemporal()
     setSelectedLiquidacion(liquidacion)
     setShowDetailsModal(true)
-    
-    // Cargar informes asociados
+    setInformesAsociados([])
+
+    // Cargar informes asociados (los generados de verdad vía "Generar Informe PDF")
+    let informesReales: InformeLiquidacion[] = []
     if (liquidacion.ref_aranzadi) {
       setLoadingInformes(true)
       try {
@@ -129,14 +189,50 @@ export default function HistorialLiquidaciones() {
           .select('id, nombre_archivo, fecha_generacion')
           .eq('ref_aranzadi', liquidacion.ref_aranzadi)
           .order('fecha_generacion', { ascending: false })
-        
+
         if (error) throw error
-        setInformesAsociados(data || [])
+        informesReales = data || []
+        setInformesAsociados(informesReales)
       } catch (err) {
         console.error('Error cargando informes:', err)
         setInformesAsociados([])
       } finally {
         setLoadingInformes(false)
+      }
+    }
+
+    // Si no hay ningún informe real guardado, se genera uno temporal en el
+    // navegador (nunca se sube a Storage ni se guarda en BD) para que el
+    // usuario pueda verlo/descargarlo igualmente. Se autodestruye a los 5
+    // minutos de inactividad o al cerrar el modal.
+    if (informesReales.length === 0) {
+      setGenerandoTempInforme(true)
+      try {
+        const pdf = liquidacion.detalle_calculo
+          ? await buildInformeCompletoPdf(liquidacion.detalle_calculo)
+          : await buildInformeResumenPdf({
+              refAranzadi: liquidacion.ref_aranzadi || 'N/A',
+              usuario: liquidacion.usuarios_personalizados?.nombre || 'N/A',
+              interesesLegales: liquidacion.intereses_legales,
+              interesJudicial: liquidacion.interes_judicial,
+              taeCto: liquidacion.tae_cto,
+              taeMas5: liquidacion.tae_mas_5,
+              taePorcentaje: liquidacion.tae_porcentaje,
+              fechaFin: liquidacion.fecha_fin,
+              fechaSentencia: liquidacion.fecha_sentencia,
+              fechaCreacion: liquidacion.created_at
+            })
+
+        const blob = pdf.output('blob')
+        const url = URL.createObjectURL(blob)
+        const fileName = `INFORME_${(liquidacion.ref_aranzadi || 'liquidacion').replace(/[^a-zA-Z0-9]/g, '_')}.pdf`
+
+        setTempInforme({ url, fileName, tipo: liquidacion.detalle_calculo ? 'completo' : 'resumen' })
+        reiniciarTimerInformeTemporal()
+      } catch (err) {
+        console.error('Error generando informe temporal:', err)
+      } finally {
+        setGenerandoTempInforme(false)
       }
     }
   }
@@ -159,16 +255,16 @@ export default function HistorialLiquidaciones() {
 
   // Filtrar liquidaciones
   const filteredLiquidaciones = liquidaciones.filter(l => {
-    const matchSearch = !searchTerm || 
+    const matchSearch = !searchTerm ||
       (l.ref_aranzadi?.toLowerCase().includes(searchTerm.toLowerCase()))
 
     const matchUsuario = !searchUsuario ||
       (l.usuarios_personalizados?.nombre.toLowerCase().includes(searchUsuario.toLowerCase()))
 
-    const matchDateFrom = !filterDateFrom || 
+    const matchDateFrom = !filterDateFrom ||
       new Date(l.created_at) >= new Date(filterDateFrom)
 
-    const matchDateTo = !filterDateTo || 
+    const matchDateTo = !filterDateTo ||
       new Date(l.created_at) <= new Date(filterDateTo)
 
     // Filtro por rango de intereses (suma de todos los intereses)
@@ -199,7 +295,7 @@ export default function HistorialLiquidaciones() {
   // Estadísticas
   const totalInteresesLegales = filteredLiquidaciones.reduce((sum, l) => sum + (l.intereses_legales || 0), 0)
   const totalInteresesJudiciales = filteredLiquidaciones.reduce((sum, l) => sum + (l.interes_judicial || 0), 0)
-  const totalInteresesRecuperados = totalInteresesLegales + totalInteresesJudiciales + 
+  const totalInteresesRecuperados = totalInteresesLegales + totalInteresesJudiciales +
     filteredLiquidaciones.reduce((sum, l) => sum + (l.tae_cto || 0) + (l.tae_mas_5 || 0), 0)
 
   if (loading) {
@@ -408,7 +504,7 @@ export default function HistorialLiquidaciones() {
           >
             ✕ Limpiar todos los filtros
           </button>
-          
+
           <div className="flex gap-2">
             <button
               onClick={() => descargarExcel(filteredLiquidaciones)}
@@ -612,7 +708,7 @@ export default function HistorialLiquidaciones() {
                   <p className="text-blue-100 mt-1">Información completa del cálculo</p>
                 </div>
                 <button
-                  onClick={() => setShowDetailsModal(false)}
+                  onClick={() => { destruirInformeTemporal(); setShowDetailsModal(false) }}
                   className="text-white hover:text-gray-200 text-3xl font-bold transition-colors"
                 >
                   ×
@@ -655,32 +751,32 @@ export default function HistorialLiquidaciones() {
                   <div className="bg-white rounded-lg p-4 border-l-4 border-emerald-500 shadow-sm">
                     <label className="block text-xs font-medium text-gray-500 uppercase mb-1">Intereses Legales</label>
                     <p className="text-2xl font-bold text-emerald-600">
-                      {selectedLiquidacion.intereses_legales 
-                        ? `€${selectedLiquidacion.intereses_legales.toFixed(2)}` 
+                      {selectedLiquidacion.intereses_legales
+                        ? `€${selectedLiquidacion.intereses_legales.toFixed(2)}`
                         : '€0.00'}
                     </p>
                   </div>
                   <div className="bg-white rounded-lg p-4 border-l-4 border-blue-500 shadow-sm">
                     <label className="block text-xs font-medium text-gray-500 uppercase mb-1">Interés Judicial</label>
                     <p className="text-2xl font-bold text-blue-600">
-                      {selectedLiquidacion.interes_judicial 
-                        ? `€${selectedLiquidacion.interes_judicial.toFixed(2)}` 
+                      {selectedLiquidacion.interes_judicial
+                        ? `€${selectedLiquidacion.interes_judicial.toFixed(2)}`
                         : '€0.00'}
                     </p>
                   </div>
                   <div className="bg-white rounded-lg p-4 border-l-4 border-purple-500 shadow-sm">
                     <label className="block text-xs font-medium text-gray-500 uppercase mb-1">TAE CTO</label>
                     <p className="text-2xl font-bold text-purple-600">
-                      {selectedLiquidacion.tae_cto 
-                        ? `€${selectedLiquidacion.tae_cto.toFixed(2)}` 
+                      {selectedLiquidacion.tae_cto
+                        ? `€${selectedLiquidacion.tae_cto.toFixed(2)}`
                         : '€0.00'}
                     </p>
                   </div>
                   <div className="bg-white rounded-lg p-4 border-l-4 border-pink-500 shadow-sm">
                     <label className="block text-xs font-medium text-gray-500 uppercase mb-1">TAE+5</label>
                     <p className="text-2xl font-bold text-pink-600">
-                      {selectedLiquidacion.tae_mas_5 
-                        ? `€${selectedLiquidacion.tae_mas_5.toFixed(2)}` 
+                      {selectedLiquidacion.tae_mas_5
+                        ? `€${selectedLiquidacion.tae_mas_5.toFixed(2)}`
                         : '€0.00'}
                     </p>
                   </div>
@@ -691,9 +787,9 @@ export default function HistorialLiquidaciones() {
                   <div className="flex justify-between items-center">
                     <span className="text-lg font-semibold">TOTAL INTERESES:</span>
                     <span className="text-3xl font-bold">
-                      €{((selectedLiquidacion.intereses_legales || 0) + 
-                         (selectedLiquidacion.interes_judicial || 0) + 
-                         (selectedLiquidacion.tae_cto || 0) + 
+                      €{((selectedLiquidacion.intereses_legales || 0) +
+                         (selectedLiquidacion.interes_judicial || 0) +
+                         (selectedLiquidacion.tae_cto || 0) +
                          (selectedLiquidacion.tae_mas_5 || 0)).toFixed(2)}
                     </span>
                   </div>
@@ -710,33 +806,33 @@ export default function HistorialLiquidaciones() {
                   <div className="bg-white rounded-lg p-3 border border-amber-100">
                     <label className="block text-xs font-medium text-gray-500 uppercase">Fecha Fin Cálculo</label>
                     <p className="mt-1 text-base font-semibold text-gray-900">
-                      {selectedLiquidacion.fecha_fin 
-                        ? new Date(selectedLiquidacion.fecha_fin).toLocaleDateString('es-ES', { 
-                            day: '2-digit', 
-                            month: 'long', 
-                            year: 'numeric' 
-                          }) 
+                      {selectedLiquidacion.fecha_fin
+                        ? new Date(selectedLiquidacion.fecha_fin).toLocaleDateString('es-ES', {
+                            day: '2-digit',
+                            month: 'long',
+                            year: 'numeric'
+                          })
                         : 'N/A'}
                     </p>
                   </div>
                   <div className="bg-white rounded-lg p-3 border border-amber-100">
                     <label className="block text-xs font-medium text-gray-500 uppercase">Fecha Sentencia</label>
                     <p className="mt-1 text-base font-semibold text-gray-900">
-                      {selectedLiquidacion.fecha_sentencia 
-                        ? new Date(selectedLiquidacion.fecha_sentencia).toLocaleDateString('es-ES', { 
-                            day: '2-digit', 
-                            month: 'long', 
-                            year: 'numeric' 
-                          }) 
+                      {selectedLiquidacion.fecha_sentencia
+                        ? new Date(selectedLiquidacion.fecha_sentencia).toLocaleDateString('es-ES', {
+                            day: '2-digit',
+                            month: 'long',
+                            year: 'numeric'
+                          })
                         : 'N/A'}
                     </p>
                   </div>
                   <div className="bg-white rounded-lg p-3 border border-amber-100">
                     <label className="block text-xs font-medium text-gray-500 uppercase">Creado</label>
                     <p className="mt-1 text-base font-semibold text-gray-900">
-                      {new Date(selectedLiquidacion.created_at).toLocaleDateString('es-ES', { 
-                        day: '2-digit', 
-                        month: 'long', 
+                      {new Date(selectedLiquidacion.created_at).toLocaleDateString('es-ES', {
+                        day: '2-digit',
+                        month: 'long',
                         year: 'numeric',
                         hour: '2-digit',
                         minute: '2-digit'
@@ -746,9 +842,9 @@ export default function HistorialLiquidaciones() {
                   <div className="bg-white rounded-lg p-3 border border-amber-100">
                     <label className="block text-xs font-medium text-gray-500 uppercase">Última Modificación</label>
                     <p className="mt-1 text-base font-semibold text-gray-900">
-                      {new Date(selectedLiquidacion.updated_at).toLocaleDateString('es-ES', { 
-                        day: '2-digit', 
-                        month: 'long', 
+                      {new Date(selectedLiquidacion.updated_at).toLocaleDateString('es-ES', {
+                        day: '2-digit',
+                        month: 'long',
                         year: 'numeric',
                         hour: '2-digit',
                         minute: '2-digit'
@@ -791,9 +887,9 @@ export default function HistorialLiquidaciones() {
                               const { data, error } = await supabase.storage
                                 .from('informes_liquidaciones')
                                 .download(informe.nombre_archivo)
-                              
+
                               if (error) throw error
-                              
+
                               // Crear URL y descargar
                               const url = URL.createObjectURL(data)
                               const a = document.createElement('a')
@@ -816,6 +912,50 @@ export default function HistorialLiquidaciones() {
                       </div>
                     ))}
                   </div>
+                ) : generandoTempInforme ? (
+                  <div className="flex items-center justify-center py-4">
+                    <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-purple-600"></div>
+                    <span className="ml-2 text-gray-600">Generando informe...</span>
+                  </div>
+                ) : tempInforme ? (
+                  <div className="space-y-2">
+                    <div className="bg-white rounded-lg p-3 border border-purple-100 flex items-center justify-between hover:shadow-md transition-shadow">
+                      <div className="flex-1">
+                        <p className="text-sm font-medium text-gray-900 flex items-center gap-2">
+                          <FileText className="h-4 w-4 text-purple-600" />
+                          {tempInforme.fileName}
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={() => { window.open(tempInforme.url, '_blank', 'noopener'); reiniciarTimerInformeTemporal() }}
+                          className="flex items-center gap-2 bg-white border border-purple-300 hover:bg-purple-50 text-purple-700 px-3 py-2 rounded-lg transition-colors font-medium text-sm"
+                        >
+                          <Eye className="h-4 w-4" />
+                          Ver
+                        </button>
+                        <button
+                          onClick={() => {
+                            const a = document.createElement('a')
+                            a.href = tempInforme.url
+                            a.download = tempInforme.fileName
+                            document.body.appendChild(a)
+                            a.click()
+                            document.body.removeChild(a)
+                            reiniciarTimerInformeTemporal()
+                          }}
+                          className="flex items-center gap-2 bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg transition-colors font-medium text-sm"
+                        >
+                          <Download className="h-4 w-4" />
+                          Descargar
+                        </button>
+                      </div>
+                    </div>
+                    <p className="text-xs text-gray-500 flex items-center gap-1 px-1">
+                      <Clock className="h-3 w-3" />
+                      Informe temporal: no se ha guardado en ningún sitio. Se eliminará automáticamente tras 5 minutos sin interactuar con él, o al cerrar esta ventana.
+                    </p>
+                  </div>
                 ) : (
                   <div className="bg-white rounded-lg p-4 border border-purple-100 text-center">
                     <p className="text-gray-500 text-sm">No hay informes generados para esta liquidación</p>
@@ -832,7 +972,7 @@ export default function HistorialLiquidaciones() {
 
             <div className="bg-gray-50 p-6 flex justify-end gap-3 border-t">
               <button
-                onClick={() => setShowDetailsModal(false)}
+                onClick={() => { destruirInformeTemporal(); setShowDetailsModal(false) }}
                 className="bg-gray-600 hover:bg-gray-700 text-white px-6 py-2 rounded-lg transition-colors font-medium"
               >
                 Cerrar
