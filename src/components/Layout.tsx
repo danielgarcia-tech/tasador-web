@@ -114,7 +114,10 @@ export default function Layout({ children, currentTab, onTabChange }: LayoutProp
       </nav>
 
       {/* Main Content */}
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      {/* El historial (tasaciones/liquidaciones) usa tablas anchas con muchas
+          columnas; se les da más ancho que al resto de pantallas para que
+          quepan sin scroll horizontal en pantallas normales. */}
+      <main className={`mx-auto px-4 sm:px-6 lg:px-8 py-8 ${currentTab === 'history' ? 'max-w-[1800px]' : 'max-w-7xl'}`}>
         {children}
       </main>
 

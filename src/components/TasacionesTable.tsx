@@ -46,43 +46,43 @@ export function TasacionesTable({
         <table className="min-w-full divide-y divide-gray-200">
           <thead className="bg-gradient-to-r from-gray-50 to-gray-100">
             <tr>
-              <th className="px-6 py-4 text-left text-xs font-bold text-gray-600 uppercase tracking-wider">
+              <th className="px-3 py-2 text-left text-xs font-bold text-gray-600 uppercase tracking-wider">
                 📄 Procedimiento
               </th>
-              <th className="px-6 py-4 text-left text-xs font-bold text-gray-600 uppercase tracking-wider">
+              <th className="px-3 py-2 text-left text-xs font-bold text-gray-600 uppercase tracking-wider">
                 👤 Cliente
               </th>
-              <th className="px-6 py-4 text-left text-xs font-bold text-gray-600 uppercase tracking-wider">
+              <th className="px-3 py-2 text-left text-xs font-bold text-gray-600 uppercase tracking-wider">
                 👥 Usuario
               </th>
-              <th className="px-6 py-4 text-left text-xs font-bold text-gray-600 uppercase tracking-wider">
+              <th className="px-3 py-2 text-left text-xs font-bold text-gray-600 uppercase tracking-wider">
                 📍 Ubicación
               </th>
-              <th className="px-6 py-4 text-left text-xs font-bold text-gray-600 uppercase tracking-wider">
+              <th className="px-3 py-2 text-left text-xs font-bold text-gray-600 uppercase tracking-wider">
                 📋 Tipo Procedimiento
               </th>
-              <th className="px-6 py-4 text-left text-xs font-bold text-gray-600 uppercase tracking-wider">
+              <th className="px-3 py-2 text-left text-xs font-bold text-gray-600 uppercase tracking-wider">
                 📍 Fase Terminación
               </th>
-              <th className="px-6 py-4 text-left text-xs font-bold text-gray-600 uppercase tracking-wider">
+              <th className="px-3 py-2 text-left text-xs font-bold text-gray-600 uppercase tracking-wider">
                 🏛️ Instancia
               </th>
-              <th className="px-6 py-4 text-right text-xs font-bold text-gray-600 uppercase tracking-wider">
+              <th className="px-3 py-2 text-right text-xs font-bold text-gray-600 uppercase tracking-wider">
                 💶 Costas s/IVA
               </th>
-              <th className="px-6 py-4 text-right text-xs font-bold text-gray-600 uppercase tracking-wider">
+              <th className="px-3 py-2 text-right text-xs font-bold text-gray-600 uppercase tracking-wider">
                 📊 IVA 21%
               </th>
-              <th className="px-6 py-4 text-right text-xs font-bold text-gray-600 uppercase tracking-wider">
+              <th className="px-3 py-2 text-right text-xs font-bold text-gray-600 uppercase tracking-wider">
                 💰 Total
               </th>
-              <th className="px-6 py-4 text-left text-xs font-bold text-gray-600 uppercase tracking-wider">
+              <th className="px-3 py-2 text-left text-xs font-bold text-gray-600 uppercase tracking-wider">
                 📅 Fecha
               </th>
-              <th className="px-6 py-4 text-left text-xs font-bold text-gray-600 uppercase tracking-wider">
+              <th className="px-3 py-2 text-left text-xs font-bold text-gray-600 uppercase tracking-wider">
                 🔖 REF ARANZADI
               </th>
-              <th className="px-6 py-4 text-left text-xs font-bold text-gray-600 uppercase tracking-wider">
+              <th className="px-3 py-2 text-left text-xs font-bold text-gray-600 uppercase tracking-wider">
                 ⚡ Acciones
               </th>
             </tr>
@@ -90,9 +90,9 @@ export function TasacionesTable({
           <tbody className="bg-white divide-y divide-gray-100">
             {paginatedTasaciones.map((tasacion, index) => (
               <tr key={tasacion.id} className={`hover:bg-gradient-to-r hover:from-blue-50 hover:to-indigo-50 transition-all duration-200 ${index % 2 === 0 ? 'bg-white' : 'bg-gray-50/30'}`}>
-                <td className="px-6 py-4">
+                <td className="px-3 py-2">
                   <div className="flex items-center">
-                    <div className="bg-blue-100 rounded-full p-2 mr-4">
+                    <div className="bg-blue-100 rounded-full p-1.5 mr-2">
                       <FileText className="h-4 w-4 text-blue-600" />
                     </div>
                     <div>
@@ -105,9 +105,9 @@ export function TasacionesTable({
                     </div>
                   </div>
                 </td>
-                <td className="px-6 py-4">
+                <td className="px-3 py-2">
                   <div className="flex items-center">
-                    <div className="bg-green-100 rounded-full p-2 mr-4">
+                    <div className="bg-green-100 rounded-full p-1.5 mr-2">
                       <User className="h-4 w-4 text-green-600" />
                     </div>
                     <div>
@@ -120,9 +120,9 @@ export function TasacionesTable({
                     </div>
                   </div>
                 </td>
-                <td className="px-6 py-4">
+                <td className="px-3 py-2">
                   <div className="flex items-center">
-                    <div className="bg-blue-100 rounded-full p-2 mr-4">
+                    <div className="bg-blue-100 rounded-full p-1.5 mr-2">
                       <User className="h-4 w-4 text-blue-600" />
                     </div>
                     <div>
@@ -135,9 +135,9 @@ export function TasacionesTable({
                     </div>
                   </div>
                 </td>
-                <td className="px-6 py-4">
+                <td className="px-3 py-2">
                   <div className="flex items-center">
-                    <div className="bg-purple-100 rounded-full p-2 mr-4">
+                    <div className="bg-purple-100 rounded-full p-1.5 mr-2">
                       <MapPin className="h-4 w-4 text-purple-600" />
                     </div>
                     <div>
@@ -150,9 +150,9 @@ export function TasacionesTable({
                     </div>
                   </div>
                 </td>
-                <td className="px-6 py-4">
+                <td className="px-3 py-2">
                   <div className="flex items-center">
-                    <div className="bg-orange-100 rounded-full p-2 mr-4">
+                    <div className="bg-orange-100 rounded-full p-1.5 mr-2">
                       <Scale className="h-4 w-4 text-orange-600" />
                     </div>
                     <div>
@@ -165,9 +165,9 @@ export function TasacionesTable({
                     </div>
                   </div>
                 </td>
-                <td className="px-6 py-4">
+                <td className="px-3 py-2">
                   <div className="flex items-center">
-                    <div className="bg-cyan-100 rounded-full p-2 mr-4">
+                    <div className="bg-cyan-100 rounded-full p-1.5 mr-2">
                       <MapPin className="h-4 w-4 text-cyan-600" />
                     </div>
                     <div>
@@ -180,9 +180,9 @@ export function TasacionesTable({
                     </div>
                   </div>
                 </td>
-                <td className="px-6 py-4">
+                <td className="px-3 py-2">
                   <div className="flex items-center">
-                    <div className="bg-rose-100 rounded-full p-2 mr-4">
+                    <div className="bg-rose-100 rounded-full p-1.5 mr-2">
                       <FileText className="h-4 w-4 text-rose-600" />
                     </div>
                     <div>
@@ -195,9 +195,9 @@ export function TasacionesTable({
                     </div>
                   </div>
                 </td>
-                <td className="px-6 py-4 text-right">
+                <td className="px-3 py-2 text-right">
                   <div className="flex items-center justify-end">
-                    <div className="bg-blue-100 rounded-full p-2 mr-3">
+                    <div className="bg-blue-100 rounded-full p-1.5 mr-2">
                       <Euro className="h-4 w-4 text-blue-600" />
                     </div>
                     <div>
@@ -207,9 +207,9 @@ export function TasacionesTable({
                     </div>
                   </div>
                 </td>
-                <td className="px-6 py-4 text-right">
+                <td className="px-3 py-2 text-right">
                   <div className="flex items-center justify-end">
-                    <div className="bg-amber-100 rounded-full p-2 mr-3">
+                    <div className="bg-amber-100 rounded-full p-1.5 mr-2">
                       <Euro className="h-4 w-4 text-amber-600" />
                     </div>
                     <div>
@@ -219,9 +219,9 @@ export function TasacionesTable({
                     </div>
                   </div>
                 </td>
-                <td className="px-6 py-4 text-right">
+                <td className="px-3 py-2 text-right">
                   <div className="flex items-center justify-end">
-                    <div className="bg-emerald-100 rounded-full p-2 mr-3">
+                    <div className="bg-emerald-100 rounded-full p-1.5 mr-2">
                       <Euro className="h-4 w-4 text-emerald-600" />
                     </div>
                     <div>
@@ -231,9 +231,9 @@ export function TasacionesTable({
                     </div>
                   </div>
                 </td>
-                <td className="px-6 py-4">
+                <td className="px-3 py-2">
                   <div className="flex items-center">
-                    <div className="bg-indigo-100 rounded-full p-2 mr-4">
+                    <div className="bg-indigo-100 rounded-full p-1.5 mr-2">
                       <Calendar className="h-4 w-4 text-indigo-600" />
                     </div>
                     <div>
@@ -253,9 +253,9 @@ export function TasacionesTable({
                     </div>
                   </div>
                 </td>
-                <td className="px-6 py-4">
+                <td className="px-3 py-2">
                   <div className="flex items-center">
-                    <div className="bg-teal-100 rounded-full p-2 mr-4">
+                    <div className="bg-teal-100 rounded-full p-1.5 mr-2">
                       <FileText className="h-4 w-4 text-teal-600" />
                     </div>
                     <div>
@@ -268,7 +268,7 @@ export function TasacionesTable({
                     </div>
                   </div>
                 </td>
-                <td className="px-6 py-4">
+                <td className="px-3 py-2">
                   <div className="flex items-center gap-1">
                     <button
                       onClick={() => onViewDetails(tasacion)}
@@ -308,7 +308,7 @@ export function TasacionesTable({
 
       {/* Paginación */}
       {totalPages > 1 && (
-        <div className="bg-gradient-to-r from-gray-50 to-gray-100 px-6 py-4 border-t border-gray-200">
+        <div className="bg-gradient-to-r from-gray-50 to-gray-100 px-3 py-2 border-t border-gray-200">
           <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
             <div className="flex items-center gap-2 text-sm text-gray-700">
               <span className="bg-white px-3 py-1 rounded-full shadow-sm border">
