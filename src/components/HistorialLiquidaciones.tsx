@@ -489,21 +489,24 @@ export default function HistorialLiquidaciones() {
         </div>
 
         <div className="flex justify-between items-center mt-4">
-          <button
-            onClick={() => {
-              setSearchTerm('')
-              setSearchUsuario('')
-              setFilterDateFrom('')
-              setFilterDateTo('')
-              setFilterInteresesMin('')
-              setFilterInteresesMax('')
-              setFilterModalidad('todas')
-              setCurrentPage(1)
-            }}
-            className="text-sm text-gray-600 hover:text-gray-900 font-medium"
-          >
-            ✕ Limpiar todos los filtros
-          </button>
+          {(searchTerm || searchUsuario || filterDateFrom || filterDateTo || filterInteresesMin || filterInteresesMax || filterModalidad !== 'todas') && (
+            <button
+              onClick={() => {
+                setSearchTerm('')
+                setSearchUsuario('')
+                setFilterDateFrom('')
+                setFilterDateTo('')
+                setFilterInteresesMin('')
+                setFilterInteresesMax('')
+                setFilterModalidad('todas')
+                setCurrentPage(1)
+              }}
+              className="flex items-center gap-2 bg-red-50 text-red-600 hover:bg-red-100 px-4 py-2 rounded-lg transition-colors duration-200 font-medium"
+            >
+              <RefreshCw className="h-4 w-4" />
+              Limpiar filtros
+            </button>
+          )}
 
           <div className="flex gap-2">
             <button
