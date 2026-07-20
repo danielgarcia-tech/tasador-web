@@ -38,8 +38,14 @@ export async function calcularCostas(params: CalculoCostasParams): Promise<Resul
 
   let costas = 0;
 
-  // Lógica de cálculo basada en el tipo de juicio y fase
-  if (tipoJuicio === 'Juicio Ordinario') {
+  if (instancia === 'SEGUNDA INSTANCIA') {
+    // En segunda instancia el porcentaje de apelación se aplica siempre sobre
+    // la columna "juicio" del criterio ICA, con independencia de la fase de
+    // terminación seleccionada (esa fase describe cómo concluyó la primera
+    // instancia, no la base de cálculo de la apelación).
+    costas = valoresCriterio.juicio * valoresCriterio.factor_apelacion;
+  } else if (tipoJuicio === 'Juicio Ordinario') {
+    // Lógica de cálculo basada en el tipo de juicio y fase
     switch (faseTerminacion) {
       case 'Allanamiento':
         costas = valoresCriterio.allanamiento;
@@ -79,11 +85,6 @@ export async function calcularCostas(params: CalculoCostasParams): Promise<Resul
           costas = valoresCriterio.juicio * (valoresCriterio.verbal_alegaciones + valoresCriterio.verbal_vista);
         }
     }
-  }
-
-  // Aplicar factor de apelación si es segunda instancia
-  if (instancia === 'SEGUNDA INSTANCIA') {
-    costas *= valoresCriterio.factor_apelacion;
   }
 
   // Calcular IVA y total
