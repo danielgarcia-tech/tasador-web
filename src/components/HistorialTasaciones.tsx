@@ -156,7 +156,8 @@ export default function HistorialTasaciones() {
         criterioICA: municipioSeleccionado.criterio_ica,
         tipoJuicio: data.tipo_proceso,
         faseTerminacion: data.fase_terminacion,
-        instancia: data.instancia
+        instancia: data.instancia,
+        fechaDemanda: data.fecha_demanda
       })
 
       // Si hay cambio en la REF ARANZADI, verificar duplicados
